@@ -1,0 +1,20 @@
+name: debug_control_plane
+description: "Multi-product reusable debug control plane infrastructure for Flutter apps. Transport / ControlPlane / Capability three-layer skeleton."
+license: MIT
+version: 0.1.1
+homepage: https://github.com/xiaolutang/debug_control_plane
+repository: https://github.com/xiaolutang/debug_control_plane
+issue_tracker: https://github.com/xiaolutang/debug_control_plane/issues
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=1.17.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "debug-control-plane"
+version = "0.1.1"
+description = "Multi-product reusable debug control plane (device discovery + MCP adapter)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "tangxiaolu" }]
+dependencies = [
+    "mcp>=1.28,<2",
+    "httpx>=0.28",
+    "anyio>=4,<5",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7", "pytest-cov>=4", "ruff>=0.4"]
+
+[project.scripts]
+# R021-CLEANUP-P1(方案 X): console-script 冲突解决。
+# 业务接入点(业务 capability 装配)占用另一命令名(AI client config 接入点不破,
+# R020 兼容)。本平面 server 是裸 server(providers=None, tool_handlers=None),
+# 无业务装配,改名为 debug-control-plane-server —— 仅调试/平面自测用。
+# 命令名分流的硬约束:AI client config 必须指向业务入口(装业务 capability),
+# 否则 AI 看到 meta tool 但无业务 capability 语义糖。
+debug-control-plane-server = "debug_control_plane.mcp_plane.server:main"
+
+[tool.setuptools.packages.find]
+# AD-2 单包双子包(device_discovery + mcp_plane 强耦合,避免版本漂移)
+# find 模式:未来 device_discovery.discovery(BF006)/mcp_plane 子模块(BF007)自动纳入
+where = ["."]
+include = ["debug_control_plane*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+ignore = ["E501"]
