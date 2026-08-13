@@ -3,11 +3,11 @@
 > Multi-product reusable **debug control plane** infrastructure for Flutter apps.
 > 多产品复用的 **调试控制平面** 基础设施（Flutter 应用用）。
 >
-> Extracted from an internal Flutter app (R019 / R020) into an independent repo so it can be reused across multiple products (launcher, future Flutter apps) without coupling to any single business package.
-> 从某内部 Flutter 应用（R019 / R020）抽离为独立仓库，可在多产品（launcher、未来的 Flutter 应用）间复用，不耦合任何单一业务包。
+> Extracted from an internal Flutter app into an independent repo so it can be reused across multiple products without coupling to any single business package.
+> 从某内部 Flutter 应用抽离为独立仓库，可在多产品间复用，不耦合任何单一业务包。
 
-**Status / 状态**: version `0.1.0` — **API is UNSTABLE**. Breaking changes are expected before `1.0.0`; pin the exact version in consumers.
-版本 `0.1.0` — **API 不稳定**。`1.0.0` 之前可能有破坏性变更，消费方请锁定精确版本号。
+**Status / 状态**: version `0.1.2` — **API is UNSTABLE**. Breaking changes are expected before `1.0.0`; pin the exact version in consumers.
+版本 `0.1.2` — **API 不稳定**。`1.0.0` 之前可能有破坏性变更，消费方请锁定精确版本号。
 
 ## Three-layer skeleton / 三层骨架
 
@@ -16,7 +16,7 @@ The package is organized as three cooperating layers. Business code depends on t
 
 | Layer / 层 | Responsibility / 职责 | Direction / 方向 |
 |-------------|------------------------|--------------------|
-| **Transport** | Wire transport for the debug HTTP protocol (8 endpoints, byte-level stable since R019). Pluggable: REST+SSE (shipped) / future WS / MCP. 调试 HTTP 协议的线上传输（8 端点，自 R019 起字节级稳定）。可插拔：REST+SSE（已交付）/ 未来 WS / MCP。 | bottom — knows nothing above / 底层，对上层一无所知 |
+| **Transport** | Wire transport for the debug HTTP protocol (8 endpoints, byte-level stable). Pluggable: REST+SSE (shipped) / future WS / MCP. 调试 HTTP 协议的线上传输（8 端点，字节级稳定）。可插拔：REST+SSE（已交付）/ 未来 WS / MCP。 | bottom — knows nothing above / 底层，对上层一无所知 |
 | **ControlPlane** | Facade that wires capabilities to a transport, owns request dispatch and lifecycle (`start` / `stop`). 把能力接到传输上、负责请求分发与生命周期（`start` / `stop`）的门面。 | middle — the only thing business code talks to / 中层，业务代码唯一对接处 |
 | **Capability** | Self-contained debug feature (e.g. `MyDebugCapability`). Declares resources / commands against the plane. 自包含的调试特性（如 `MyDebugCapability`）。向平面声明资源 / 命令。 | top — authored by business / product teams / 顶层，由业务 / 产品团队编写 |
 
@@ -61,6 +61,9 @@ A complete runnable example lives in
 run it with `dart example/debug_control_plane_example.dart`.
 完整可运行示例见 [`example/debug_control_plane_example.dart`](example/debug_control_plane_example.dart)——用 `dart example/debug_control_plane_example.dart` 运行。
 
+**新项目接入?** 见分步指南 [GETTING_STARTED.md](GETTING_STARTED.md)(5 步接入 + capability 编写 + 平台支持 + 常见坑)。
+**New project?** See the step-by-step [GETTING_STARTED.md](GETTING_STARTED.md) (5-step integration + capability authoring + platform matrix + pitfalls).
+
 ### Public API surface / 公共 API 面
 
 - `ControlPlane({required Transport transport, Map<String,Object?> Function()? appMeta})` — registry + dispatch + event bus + `/hello` handshake. 注册表 + 分发 + 事件总线 + `/hello` 握手。
@@ -76,14 +79,14 @@ This package depends on the **Flutter / Dart SDK only** (`dart:io`, `dart:async`
 
 ## Versioning / 版本策略
 
-- `0.1.0` — initial release extracted from an internal Flutter app (R019/R020). 从某内部 Flutter 应用（R019/R020）抽离的首发版本。
+- `0.1.0` — initial release. 首发版本。
 - Pre-`1.0.0` versions have **unstable public API**. Do not rely on type / method signatures being stable across minor bumps. `1.0.0` 前版本 **公共 API 不稳定**。次版本号变更也可能改动类型 / 方法签名。
 - See [CHANGELOG.md](CHANGELOG.md) for release history. 发布历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## Origin / 来源
 
-Extracted from an internal app's debug control plane (R019 three-layer scaffold + R020 MCP bridge; the in-tree package was extracted and renamed by R021).
-抽自某内部应用的调试控制平面（R019 三层骨架 + R020 MCP 桥；树内包由 R021 抽离并改名）。
+Extracted from an internal app's debug control plane into this standalone repo.
+抽自某内部应用的调试控制平面，抽离为本独立仓库。
 
 ## License / 许可证
 

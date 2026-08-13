@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 - 2026-08-13
+
+- Dart: add `GETTING_STARTED.md` integration guide (5-step integration + capability authoring + platform matrix + pitfalls).
+
 ## 0.1.1 - 2026-08-13
 
 - Clean public release. The previously published 0.1.0 artifact carried internal
