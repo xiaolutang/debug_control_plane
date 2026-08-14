@@ -1,0 +1,12 @@
+.dart_tool/
+.packages
+pubspec.lock
+
+# io.flutter embedding artifacts fetched by tool/fetch_flutter_artifacts.sh
+# (kept out of git — ~200MB, reproducible from the Flutter SDK cache).
+android/libs/
+
+# Gradle
+.gradle/
+build/
+local.properties

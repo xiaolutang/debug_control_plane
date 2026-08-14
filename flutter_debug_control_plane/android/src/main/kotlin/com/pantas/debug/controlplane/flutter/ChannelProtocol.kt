@@ -1,0 +1,101 @@
+package com.pantas.debug.controlplane.flutter
+
+/**
+ * FF001-1: channel protocol constants (Kotlin side).
+ *
+ * MUST stay string-identical with the Dart side
+ * `lib/src/channel_protocol.dart` (verified by ChannelProtocolAlignmentTest).
+ * Wire truth source: repo-root PROTOCOL.md (HTTP/SSE layer) + this pair
+ * (channel layer).
+ *
+ * ⚠️ Zero business dependencies: this module may import `io.flutter.*`
+ * (the plugin itself needs it) and `com.pantas.debug.controlplane.*`
+ * (the Kotlin core) — nothing else.
+ */
+object ChannelProtocol {
+    /** MethodChannel name. */
+    const val METHOD_CHANNEL = "debug_control_plane/method"
+
+    /** EventChannel name (default OFF — YAGNI, contract reserved). */
+    const val EVENT_CHANNEL = "debug_control_plane/event"
+
+    // -----------------------------------------------------------------------
+    // Dart -> native forward methods (7)
+    // -----------------------------------------------------------------------
+
+    /** Start the native plane. args `{address, port, appMeta?}` -> `{uri}`. */
+    const val PLANE_START = "plane.start"
+
+    /** Stop the native plane. args `{}` -> null. */
+    const val PLANE_STOP = "plane.stop"
+
+    /**
+     * Register a capability. args `{capId, resources: [Decl], commands:
+     * [Decl]}`. Decl `path` is a JSON **array** (PROTOCOL.md §2.3 pitfall).
+     * Duplicate id -> PlatformException code [ERROR_DUPLICATE].
+     */
+    const val CAPABILITY_REGISTER = "capability.register"
+
+    /** Unregister a capability. args `{capId}` -> null. */
+    const val CAPABILITY_UNREGISTER = "capability.unregister"
+
+    /**
+     * Events upstream (per-frame Dart -> native). args `{capId, event:
+     * {type, payload}}`. The sequence is assigned natively (§3.1); Dart-side
+     * sequence values are discarded.
+     */
+    const val EVENTS_EMIT = "events.emit"
+
+    /**
+     * State snapshot push (design §3.2.4: cached snapshot + Dart push, no
+     * runBlocking). args `{capId, state: Map}` -> null.
+     */
+    const val CAPABILITY_STATE_UPDATE = "capability.state.update"
+
+    /**
+     * Dart fills in the reverse-invoke result. args `{reqId, result | error:
+     * {statusCode, code, message}}` -> null.
+     */
+    const val CAPABILITY_INVOKE_RESULT = "capability.invoke.result"
+
+    // -----------------------------------------------------------------------
+    // native -> Dart reverse invokes
+    // -----------------------------------------------------------------------
+
+    /**
+     * Reverse invoke (handlers live on the Dart side — closures don't cross
+     * the channel). args `{reqId, capId, routeKind, routeIndex, pathParams,
+     * body}`. [routeIndex] locates the handler by registration-list index
+     * (no second path-string match). Timeout 30s -> 500 internal_error (B4).
+     */
+    const val CAPABILITY_INVOKE = "capability.invoke"
+
+    /** Rare native-side state pull. args `{reqId, capId}`. */
+    const val CAPABILITY_STATE_PULL = "capability.state.pull"
+
+    /** Fill-in method name for [CAPABILITY_STATE_PULL]. */
+    const val CAPABILITY_STATE_RESULT = "capability.state.result"
+
+    // -----------------------------------------------------------------------
+    // routeKind literals
+    // -----------------------------------------------------------------------
+
+    const val ROUTE_KIND_RESOURCE = "resource"
+    const val ROUTE_KIND_COMMAND = "command"
+
+    // -----------------------------------------------------------------------
+    // PlatformException codes
+    // -----------------------------------------------------------------------
+
+    /** Duplicate registration (mirrors Dart StateError / Kotlin require). */
+    const val ERROR_DUPLICATE = "duplicate"
+
+    /** Unknown capability id. */
+    const val ERROR_NOT_REGISTERED = "not_registered"
+
+    /** Bind failure (FF002-3 maps this to Dart SocketException code 98). */
+    const val ERROR_BIND_FAILED = "bind_failed"
+
+    /** Reverse-invoke timeout (B4): 30s withTimeout -> 500 internal_error. */
+    const val INVOKE_TIMEOUT_MS = 30_000L
+}
