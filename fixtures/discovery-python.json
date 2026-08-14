@@ -1,0 +1,63 @@
+{
+  "_fixture_meta": {
+    "endpoint": "Python device_discovery 客户端发现 + cross-identify 期望",
+    "contract_ref": "PROTOCOL.md §5",
+    "source_of_truth": "python/debug_control_plane/device_discovery/{endpoint.py,lan_scan.py,cross_identify.py,device_pool.py}",
+    "type": "semantic",
+    "hard_constraints": [
+      "服务端必须监听 18080（lan_scan.py:49 DEFAULT_PORT，硬编码非协商）",
+      "/hello.protocolVersion == 1（握手首要校验）",
+      "/hello.eventsEndpoint == '/events'",
+      "DeviceRecord.device_id 来自 USB 身份（adb serial / usbmuxd id / manual-sha1），绝不来自 /hello.deviceId（D9，多设备撞值）"
+    ],
+    "notes": "本 fixture 描述 Python 客户端发现 native Kotlin ControlPlane 后的期望状态。host/ip/serial 是环境注入用 $$unstable。BF003-2 Python 交叉验证 + BF004-3 protocol-version-guard 用此 fixture"
+  },
+  "lan_scan": {
+    "port": 18080,
+    "timeout_seconds": 2.5,
+    "concurrency": 64,
+    "cidr_source": "VpnImmune.lan_cidr()（路由表法绕 VPN TUN 污染）"
+  },
+  "hello_handshake": {
+    "protocolVersion": 1,
+    "eventsEndpoint": "/events",
+    "deviceId": "$$unstable:app-injected",
+    "hardwareName": "$$unstable:app-injected",
+    "machineId": "$$unstable:app-injected"
+  },
+  "cross_identify": {
+    "device_id_source": "USB 身份（非 /hello.deviceId）",
+    "android_device_id": "$$unstable:adb-serial",
+    "ios_device_id": "$$unstable:usbmuxd-id",
+    "manual_device_id_pattern": "manual-<sha1(host)[:16]>",
+    "match_layers": [
+      {
+        "layer": 2,
+        "key": "UsbCandidate.android_lan_ip == LanCandidate.host",
+        "reason": "android_ip"
+      },
+      {
+        "layer": 1,
+        "key": "单 USB + 单 LAN 退化兜底",
+        "reason": "single_device"
+      },
+      {
+        "layer": 3,
+        "key": "(hardwareName, machineId) 桥梁字段联合键",
+        "reason": "bridge_field",
+        "requires": "/hello 必须输出 hardwareName + machineId"
+      },
+      {
+        "layer": "4/5",
+        "key": "无法消歧 → [ambiguous] 标记",
+        "reason": "ambiguous"
+      }
+    ]
+  },
+  "device_pool_persistence": {
+    "schema_version": 1,
+    "ttl_seconds": 60,
+    "persisted_fields": ["device_id", "label", "source", "note"],
+    "never_persisted": ["last_known_host", "last_seen", "ttl", "hardware_name", "machine_id", "platform", "network_target"]
+  }
+}

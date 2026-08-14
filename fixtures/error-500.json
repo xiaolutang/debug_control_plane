@@ -1,0 +1,14 @@
+{
+  "_fixture_meta": {
+    "endpoint": "capability handler 抛非 RouteFailure 异常",
+    "contract_ref": "PROTOCOL.md §4.2",
+    "source_of_truth": "dart/lib/src/control_plane.dart:179-185 + http_sse_transport.dart:107-114",
+    "type": "semantic",
+    "http_status": 500,
+    "notes": "handler 抛非 RouteFailure 异常时，dispatch 和传输层双重兜底都映射成 500。code 是框架内置枚举 internal_error。message=error.toString()（环境/异常各异，BF003 比对时归一化为 $$unstable）。BF003 归一化时跳过 _ 前缀键",
+    "double_catch": "dispatch (control_plane.dart:179-185) + transport _handleRoute (http_sse_transport.dart:107-114) 都 catch 非 RouteFailure，正常路径 dispatch 已转 RouteResult.error"
+  },
+  "ok": false,
+  "code": "internal_error",
+  "message": "$$unstable:exception-toString"
+}

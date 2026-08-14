@@ -1,0 +1,14 @@
+{
+  "_fixture_meta": {
+    "endpoint": "GET /state",
+    "contract_ref": "PROTOCOL.md §1.3",
+    "source_of_truth": "dart/lib/src/control_plane.dart:245-256 _aggregateState",
+    "type": "semantic",
+    "hard_constraint": "响应体无顶层 ok 字段",
+    "notes": "扁平聚合：各 capability state() 的 entries 被 spread 进顶层（不嵌套）。后注册 capability 的同键覆盖先注册者。state 键示例用中性 aKey1/aKey2/aKey3/aKey4（业务定义语义，框架透传）。BF003 归一化时跳过 _ 前缀键"
+  },
+  "aKey1": "value1",
+  "aKey2": 1,
+  "aKey3": true,
+  "aKey4": null
+}

@@ -1,0 +1,3 @@
+event: sample_state_changed
+data: {"type":"sample_state_changed","sequence":0,"aKey1":"value1"}
+

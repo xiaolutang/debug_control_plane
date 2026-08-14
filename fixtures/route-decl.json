@@ -1,0 +1,38 @@
+{
+  "_fixture_meta": {
+    "endpoint": "capability 声明的 resources/commands（/hello.registeredCapabilities 的单元素投影）",
+    "contract_ref": "PROTOCOL.md §2.2 + §2.3",
+    "source_of_truth": "dart/lib/src/control_plane.dart:266-288 _aggregateCapabilities + capability.dart:32-88",
+    "type": "semantic",
+    "hard_constraint": "path 是 JSON 数组（跨语言坑，§2.3）：[\"items\",\"{id}\"] 而非 \"/items/{id}\"",
+    "notes": "本 fixture 单独抽取一个 capability 声明，用于断言 path 数组形式 + {name} 占位符 + description 可选（null 时省略 key）。BF003 归一化时跳过 _ 前缀键。本 fixture 不含业务字段，id/resources 命令是中性占位"
+  },
+  "id": "sample-capability",
+  "resources": [
+    {
+      "method": "GET",
+      "path": ["items"],
+      "description": "无占位符的静态路径（单段）"
+    },
+    {
+      "method": "GET",
+      "path": ["items", "{id}"],
+      "description": "含 {id} 单段占位符（matchPath 捕获 pathParams.id）"
+    },
+    {
+      "method": "GET",
+      "path": ["nested", "deep", "{leaf}"]
+    }
+  ],
+  "commands": [
+    {
+      "method": "POST",
+      "path": ["invoke"]
+    },
+    {
+      "method": "POST",
+      "path": ["items", "{id}", "submit"],
+      "description": "POST 也可带占位符（与 resources 同语义）"
+    }
+  ]
+}

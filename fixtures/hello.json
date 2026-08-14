@@ -1,0 +1,64 @@
+{
+  "_fixture_meta": {
+    "endpoint": "GET /hello",
+    "contract_ref": "PROTOCOL.md §1.2",
+    "source_of_truth": "dart/lib/src/control_plane.dart:206-219 _handleHello",
+    "type": "semantic",
+    "field_merge_order": "protocolVersion → appMeta → serverInfo → eventsEndpoint/profileRevision → aggregateState → registeredCapabilities",
+    "notes": "BF003 归一化时跳过 _ 前缀键（_fixture_meta 不参与线上比对）；appMeta/serverInfo 是环境注入用 $$unstable 标记。capability id/resources path 均为中性占位（零业务依赖），state 键示例用 aKey1/aKey2/aKey3/aKey4"
+  },
+  "protocolVersion": 1,
+  "app": "$$unstable:app-injected",
+  "deviceId": "$$unstable:app-injected",
+  "deviceName": "$$unstable:app-injected",
+  "platform": "$$unstable:app-injected",
+  "capabilities": "$$unstable:app-injected",
+  "hardwareName": "$$unstable:app-injected",
+  "machineId": "$$unstable:app-injected",
+  "serverHost": "$$unstable:request-host",
+  "serverPort": "$$unstable:bound-port",
+  "localIps": "$$unstable:network-ips",
+  "eventsEndpoint": "/events",
+  "profileRevision": 1,
+  "aKey1": "value1",
+  "aKey2": true,
+  "registeredCapabilities": [
+    {
+      "id": "cap-alpha",
+      "resources": [
+        {
+          "method": "GET",
+          "path": ["items"],
+          "description": "示例资源（中性占位，非业务语义约束）"
+        },
+        {
+          "method": "GET",
+          "path": ["items", "{id}"],
+          "description": "含 {id} 单段占位符的资源"
+        }
+      ],
+      "commands": [
+        {
+          "method": "POST",
+          "path": ["invoke"],
+          "description": "示例命令（占位）"
+        }
+      ]
+    },
+    {
+      "id": "cap-beta-no-description",
+      "resources": [
+        {
+          "method": "GET",
+          "path": ["nested", "{leaf}"]
+        }
+      ],
+      "commands": [
+        {
+          "method": "POST",
+          "path": ["nested", "submit"]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "_fixture_meta": {
+    "endpoint": "GET /state",
+    "contract_ref": "PROTOCOL.md §1.3",
+    "source_of_truth": "dart/lib/src/control_plane.dart:222-229 _handleState + 245-256 _aggregateState",
+    "type": "semantic",
+    "hard_constraint": "响应体无顶层 ok 字段（control_plane.dart:225-227，字节级硬约束）",
+    "notes": "空载（无 capability 注册）时返回空 object（非数组、非 null）。BF003 归一化时跳过 _ 前缀键"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "_fixture_meta": {
+    "endpoint": "任意未命中的 GET/POST 路由",
+    "contract_ref": "PROTOCOL.md §4.2",
+    "source_of_truth": "dart/lib/src/control_plane.dart:168-172 + http_codec.dart:85-96 writeError",
+    "type": "semantic",
+    "http_status": 404,
+    "notes": "系统路由 + capability 都不匹配时由 dispatch 返回。code 是框架内置枚举 not_found（跨语言硬字符串）。BF003 归一化时跳过 _ 前缀键"
+  },
+  "ok": false,
+  "code": "not_found",
+  "message": "Endpoint was not found."
+}
