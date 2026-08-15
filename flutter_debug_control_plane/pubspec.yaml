@@ -1,7 +1,11 @@
 name: flutter_debug_control_plane
 description: "Flutter bridge for the debug_control_plane Kotlin core (Android only). MethodChannel bridge: Dart Capability -> native ControlPlane."
 version: 0.0.1
-# 本地先行（不发版）：依赖同 repo 的 Dart 核心与 Kotlin 核心（path / includeBuild）。
+# R025-BF004-2: publish_to 'none' is deliberate — design decision C (no
+# pre-release in this RC). Consumers use path/includeBuild (pantas_launcher
+# pubspec.yaml declares both packages via `path:`). The future release task
+# flips this to pub.dev 0.1.0 AFTER the Kotlin core tag lands on JitPack
+# (spike-b §5 checklist).
 publish_to: 'none'
 
 environment:

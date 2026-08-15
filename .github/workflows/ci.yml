@@ -1,0 +1,58 @@
+# R025-BF004-3: repo CI gate. Local entry point is ci/ci-check-all.sh —
+# this workflow mirrors it on GitHub-hosted runners. Environment deltas
+# (documented in ci/README.md「CI 接入」): no fvm on the runner, so an fvm
+# shim below forwards to PATH's flutter (installed via subosito/flutter-
+# action); python3.13 via setup-python has no /usr/local/bin path, so
+# PYTHON_BIN=python3.13 is exported for the gate step; JDK 17 via setup-java.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install python test deps (pytest + ruff)
+        run: pip install -e "./python[test]"
+
+      # fvm is not available on the hosted runner: the local scripts call
+      # `fvm flutter ...` — export an fvm shim that forwards to PATH's
+      # flutter so ci/zero-business-dep-check.sh and ci/ci-check-all.sh run
+      # unchanged (local macOS dev still uses the real fvm stable).
+      - name: Shim fvm -> flutter (runner only)
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          cat > "$HOME/.local/bin/fvm" <<'EOF'
+          #!/usr/bin/env bash
+          # CI shim: forward `fvm flutter ...` to the runner's flutter.
+          if [[ "${1:-}" == "flutter" ]]; then shift; exec flutter "$@"; fi
+          echo "fvm shim: unsupported subcommand: $*" >&2
+          exit 1
+          EOF
+          chmod +x "$HOME/.local/bin/fvm"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run R025 CI gate (7 suites)
+        run: bash ci/ci-check-all.sh
+        env:
+          # Local default /usr/local/bin/python3.13 does not exist on the
+          # hosted runner — setup-python put 3.13 on PATH instead.
+          PYTHON_BIN: python3.13

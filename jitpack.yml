@@ -1,0 +1,17 @@
+# R025-BF004-1: JitPack build config (spike-b §4.1 template).
+#
+# Multi-module repo: JitPack reads settings.gradle.kts and publishes every
+# included module that has maven-publish + a publication declared.
+#
+# After a future tag `vX.Y.Z` the coordinates are (spike-b §2.4):
+#   - whole-repo aggregate : com.github.xiaolutang:debug_control_plane:X.Y.Z
+#   - kotlin sub-module    : com.github.xiaolutang.debug_control_plane:kotlin:X.Y.Z
+#
+# R025 decision C: NO tag is pushed in this RC — this file only prepares
+# the release channel. See PROTOCOL.md §6 / design §9-C.
+jdk:
+  - openjdk17
+before_install:
+  - echo "JitPack building debug_control_plane"
+# No install section: with maven-publish detected, JitPack runs
+# `./gradlew build publishToMavenLocal` by default (docs.jitpack.io/building).

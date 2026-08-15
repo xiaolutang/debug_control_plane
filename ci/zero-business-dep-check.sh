@@ -1,19 +1,25 @@
 #!/usr/bin/env bash
 # =============================================================================
-# repo 级零业务依赖门(CI 三件套)
+# repo 级零业务依赖门(CI 五件套,R025 扩展)
 # =============================================================================
 #
 # 用途
-#   守护 control_plane repo 硬约束(dart + python 双语言零业务依赖)。
-#   debug_control_plane 只允许依赖: 标准库 + 声明依赖(pyproject/pubspec) + 自身。
+#   守护 control_plane repo 硬约束(dart + python + kotlin 三语言零业务依赖)。
+#   debug_control_plane 只允许依赖: 标准库 + 声明依赖(pyproject/pubspec/gradle) + 自身。
 #   任何 PR/commit 引入未声明的业务包 import,本门立即 FAIL。
 #
-# 三件套
-#   [1/3] dart analyze       — dart package 静态分析(用 fvm flutter; pubspec 仅依赖
+# 五件套
+#   [1/5] dart analyze       — dart package 静态分析(用 fvm flutter; pubspec 仅依赖
 #                              flutter sdk,故 dart 包天然零外部业务依赖)
-#   [2/3] python 依赖白名单   — AST 解析真实 import,只允许标准库 + pyproject 声明依赖
+#   [2/5] python 依赖白名单   — AST 解析真实 import,只允许标准库 + pyproject 声明依赖
 #                              + debug_control_plane 自身(精确,排除 docstring/注释误报)
-#   [3/3] python ruff(致命级) — --select E9,F401,F811(语法错/未用 import/重复定义)
+#   [3/5] python ruff(致命级) — --select E9,F401,F811(语法错/未用 import/重复定义)
+#   [4/5] kotlin 源码白名单   — grep kotlin/ + flutter_debug_control_plane/android/src/
+#                              真实 import 行,禁 io.flutter(插件桥接层豁免)/androidx/
+#                              com.host4/pantas 业务包;插件主源码的 io.flutter 是
+#                              其存在理由(channel 桥),单独豁免文件清单管理
+#   [5/5] kotlin gradle 白名单 — kotlin/build.gradle.kts 静态扫描 implementation/api
+#                              坐标,非白名单依赖即 FAIL(对齐 [2/5] AST 模式)
 #
 # 退出码
 #   0 = PASS(repo 当前零未声明业务依赖)
@@ -43,9 +49,9 @@ echo "PY_BIN=$PY_BIN"
 echo
 
 # ============================================================================
-# [1/3] dart analyze
+# [1/5] dart analyze
 # ============================================================================
-echo "=== [1/3] dart analyze(dart package)==="
+echo "=== [1/5] dart analyze(dart package)==="
 if [[ ! -d "$REPO_ROOT/dart" ]]; then
   echo "FAIL: $REPO_ROOT/dart 不存在" >&2
   exit 1
@@ -53,13 +59,13 @@ fi
 pushd "$REPO_ROOT/dart" >/dev/null
 fvm flutter analyze --no-fatal-infos
 popd >/dev/null
-echo "[1/3] dart analyze OK"
+echo "[1/5] dart analyze OK"
 echo
 
 # ============================================================================
-# [2/3] python 依赖白名单(AST)
+# [2/5] python 依赖白名单(AST)
 # ============================================================================
-echo "=== [2/3] python 依赖白名单(AST 只允许标准库 + 声明依赖 + 自身)==="
+echo "=== [2/5] python 依赖白名单(AST 只允许标准库 + 声明依赖 + 自身)==="
 
 # 用 AST 只解析真实 import / import-from 语句,注释、docstring、字符串字面量、
 # logger 名等一律不命中——避免反向证明注释触发误报。允许清单 = 标准库 +
@@ -94,7 +100,7 @@ if hits:
     for f, why in hits:
         print("  %s  <- %s" % (f, why), file=sys.stderr)
     sys.exit(1)
-print("[2/3] python 依赖白名单 OK(%d py 文件仅依赖标准库+声明依赖 %s)" % (
+print("[2/5] python 依赖白名单 OK(%d py 文件仅依赖标准库+声明依赖 %s)" % (
     sum(1 for _ in root.rglob("*.py")), sorted(declared)))
 '
 
@@ -108,19 +114,108 @@ popd >/dev/null
 echo
 
 # ============================================================================
-# [3/3] python ruff(致命级)
+# [3/5] python ruff(致命级)
 # ============================================================================
-echo "=== [3/3] python ruff(致命级 E9/F401/F811)==="
+echo "=== [3/5] python ruff(致命级 E9/F401/F811)==="
 pushd "$REPO_ROOT/python" >/dev/null
 $PY_BIN -m ruff check \
   --select E9,F401,F811 \
   --no-cache \
   debug_control_plane/
 popd >/dev/null
-echo "[3/3] python ruff(致命级)OK"
+echo "[3/5] python ruff(致命级)OK"
+echo
+
+# ============================================================================
+# [4/5] kotlin 源码 import 白名单(R025-BF004-3)
+# ============================================================================
+# 真实 import 行 grep(kotlin 无 AST 级工具链,但 import 语句本身语法固定,
+# 行首 `import ` 前缀 + 词边界已排除注释/字符串;docstring 在 kotlin 是
+# /** */ 块,内部 import 字样不会顶行首)。
+#
+# 允许的顶层组(四档 = 所在树 × 源码集,定义见下方变量):
+#   kotlin/        : fi.iki.elonen(NanoHTTPD) java.* javax.* kotlinx.* org.json
+#                    com.pantas.debug.controlplane(自身,词边界防 controlplaneX 绕过)
+#   插件 android/  : 上述 + io.flutter.*(channel 桥是插件存在理由,豁免)
+#   */src/test/*   : 上述 + org.junit.*(junit 是 testImplementation,
+#                    main 源码 import 测试依赖属越界,不放行)
+# 禁止:androidx.* / com.host4.* / pantas(除 com.pantas.debug.controlplane)/
+#       其他一切未声明第三方
+echo "=== [4/5] kotlin 源码 import 白名单(kotlin/ + 插件 android/src)==="
+
+# 允许前缀以 `(\.|$)` 收尾:匹配「该包自身或子包」,不允许前缀拼接造新包名
+# 四档 = 所在树(kotlin 核心/插件) × 源码集(main/test):
+#   插件树追加 io.flutter(channel 桥是插件存在理由,豁免);
+#   test 源码追加 org.junit(junit 是 testImplementation,main 源码 import
+#   测试依赖属越界不放行;插件测试 double 仿造 MethodChannel 走插件档)。
+COMMON_GROUPS='fi\.iki\.elonen|java|javax|kotlin|kotlinx|org\.json|com\.pantas\.debug\.controlplane'
+KOTLIN_ALLOWED="^(${COMMON_GROUPS})(\.|$)"
+KOTLIN_TEST_ALLOWED="^(${COMMON_GROUPS}|org\.junit)(\.|$)"
+PLUGIN_ALLOWED="^(${COMMON_GROUPS}|io\.flutter)(\.|$)"
+PLUGIN_TEST_ALLOWED="^(${COMMON_GROUPS}|io\.flutter|org\.junit)(\.|$)"
+
+hits=()
+while IFS= read -r f; do
+  if [[ "$f" == flutter_debug_control_plane/* ]]; then
+    if [[ "$f" == */src/test/* ]]; then allowed="$PLUGIN_TEST_ALLOWED"; else allowed="$PLUGIN_ALLOWED"; fi
+  else
+    if [[ "$f" == */src/test/* ]]; then allowed="$KOTLIN_TEST_ALLOWED"; else allowed="$KOTLIN_ALLOWED"; fi
+  fi
+  while IFS= read -r line; do
+    # 提取 import 后的限定名(截到空白/通配/别名为止,保留点号)
+    dep="$(printf '%s' "$line" | sed -E 's/^import +(static +)?//; s/[[:space:]].*$//; s/\*+$//')"
+    [[ -z "$dep" ]] && continue
+    [[ "$dep" =~ $allowed ]] || hits+=("$f  <- import $dep (允许清单外)")
+  done < <(grep -hE '^import ' "$f")
+done < <(cd "$REPO_ROOT" && find kotlin/src flutter_debug_control_plane/android/src -name '*.kt' | sort)
+
+if (( ${#hits[@]} > 0 )); then
+  echo "FAIL: kotlin 侧含未声明依赖 import:" >&2
+  printf '  %s\n' "${hits[@]}" >&2
+  exit 1
+fi
+echo "[4/5] kotlin 源码 import 白名单 OK"
+echo
+
+# ============================================================================
+# [5/5] kotlin gradle 依赖白名单(R025-BF004-3,对齐 [2/5] AST 模式)
+# ============================================================================
+echo "=== [5/5] kotlin gradle 依赖白名单(build.gradle.kts 静态扫描)==="
+
+KOTLIN_GRADLE="$REPO_ROOT/kotlin/build.gradle.kts"
+if [[ ! -f "$KOTLIN_GRADLE" ]]; then
+  echo "FAIL: $KOTLIN_GRADLE 不存在" >&2
+  exit 1
+fi
+
+# 允许的依赖坐标(精确到 group:artifact 并以 `(:|$)` 收尾 — 白名单按
+# slice-2 §6.1 是 artifact 级,前缀放行会让 nanohttpd-evolution /
+# junit5-engine 这类同前缀新包静默混入):
+#   org.nanohttpd:nanohttpd / org.json:json / kotlinx-coroutines-{core,test,android}
+#   / junit:junit / kotlin-stdlib
+ALLOWED_GRADLE='^(org\.nanohttpd:nanohttpd|org\.json:json|org\.jetbrains\.kotlinx:kotlinx-coroutines-[a-z]+|junit:junit|org\.jetbrains\.kotlin:kotlin-stdlib)(:.+)?$'
+FORBIDDEN_GROUPS='^(io\.flutter|androidx|com\.host4|pantas|com\.android)'
+
+ghits=()
+while IFS= read -r decl; do
+  [[ -z "$decl" ]] && continue
+  group="${decl%%:*}"
+  if printf '%s' "$group" | grep -qE "$FORBIDDEN_GROUPS"; then
+    ghits+=("$decl (禁止的业务/flutter/androidx 依赖)")
+  elif ! printf '%s' "$decl" | grep -qE "$ALLOWED_GRADLE"; then
+    ghits+=("$decl (非白名单声明依赖)")
+  fi
+done < <(grep -E '(implementation|api|testImplementation|compileOnly)\s*\(' "$KOTLIN_GRADLE" | grep -oE '"[^"]+"' | tr -d '"')
+
+if (( ${#ghits[@]} > 0 )); then
+  echo "FAIL: kotlin 核心含违规 gradle 依赖声明:" >&2
+  printf '  %s\n' "${ghits[@]}" >&2
+  exit 1
+fi
+echo "[5/5] kotlin gradle 依赖白名单 OK"
 echo
 
 # ============================================================================
 echo "================================================================"
-echo "PASS: control_plane repo 级零业务依赖门(三件套全过)"
+echo "PASS: control_plane repo 级零业务依赖门(五件套全过)"
 echo "================================================================"

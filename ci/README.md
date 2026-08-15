@@ -53,37 +53,66 @@ bash ci/zero-business-dep-check.sh
 - `fvm`(Flutter Version Manager)— dart analyze 用
 - `/usr/local/bin/python3.13` — AST + ruff 用(可用 `PYTHON_BIN=...` 覆盖)
 
+---
+
+# R025 扩展:CI 全量守卫(BF004-3)
+
+R025 起 repo 含 Kotlin 核心 + Flutter 插件 + 跨语言 fixtures,CI 从「零业务依赖三件套」扩展为
+**7 步全量门**,统一入口 `ci/ci-check-all.sh`(本地与 GitHub Actions 共用):
+
+| 步 | 套件 | 守什么 | 实现 |
+|----|------|--------|------|
+| 1 | kotlin build+test | root aggregator `./gradlew build`(76+ JVM 测试:路由/SSE 字节契约/事件总线/golden fixture) | gradle wrapper 8.14 + JDK17 |
+| 2 | dart test | `dart/` 黄金 fixture 断言(72+ 测试,`$$unstable` 归一化) | fvm stable |
+| 3 | flutter plugin test | `flutter_debug_control_plane/` Dart 桥接(26+ 测试;插件 android 23 测试归消费侧 gradle) | fvm stable |
+| 4 | python pytest | `python/tests/`(317+ 测试,含 BF003-2 真实起 JVM 的跨语言交叉验证) | python3.13 + pytest |
+| 5 | zero-business-dep-check | 上述三件套(dart analyze / python AST / ruff) | 同 R021 |
+| 6 | protocol-version-guard | `protocolVersion=1` 四点同值(kotlin const / dart const / hello.json / discovery-python.json) | grep + python json |
+| 7 | gradle-publish-check | JitPack 发版前置 4 条:maven-publish 显式启用 + publication 声明 + nanohttpd 坐标 + 根聚合器/wrapper | grep 静态扫描 |
+
+## 本地跑(全量门)
+
+```bash
+bash ci/ci-check-all.sh
+```
+
+## protocolVersion 守卫(步骤 6)
+
+`protocolVersion=1` 是跨语言硬常量(PROTOCOL.md §6),**独立于各包版本线**(dart 0.1.x /
+python 0.1.x / kotlin 0.2.0)。协议未变就不 bump;任何一端单方面改值 → drift FAIL。
+python 端无独立常量(按字段解析,值由服务端决定),运行时断言在 BF003-2
+`test_cross_lang_kotlin_plane.py::test_hello_protocol_version_and_endpoint`。
+
+## gradle 发布守卫(步骤 7,spike-b §1.4 硬约束)
+
+JitPack 线上构建跑 `./gradlew build publishToMavenLocal`;子模块 `kotlin/build.gradle.kts`
+若未**显式启用 maven-publish plugin + 声明 publication**,publishToMavenLocal task 不存在 →
+线上发布失败。本门静态断言该前置条件(秒级,零 JDK)。**R025-C 决策:本次不打 tag 不发版,
+仅备好通道**;发版动作(future task)见 `.dev-flow/R025/design/spike-b-jitpack.md` §5 清单。
+
 ## CI 接入
 
 ### GitHub Actions
 
+R025 起仓库带正式 workflow:`.github/workflows/ci.yml`(7 步全量门,入口 `ci/ci-check-all.sh`)。
+runner 环境差异已处理:无 fvm → workflow 注入 fvm→flutter 转发 shim;无
+`/usr/local/bin/python3.13` → workflow 给门禁步注入 `PYTHON_BIN=python3.13`
+(setup-python 把 3.13 放 PATH)。脚本本体不改。
+
 ```yaml
-# .github/workflows/zero-business-dep.yml
-name: zero-business-dep
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-
-jobs:
-  gate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - name: Install ruff
-        run: pip install ruff
-      - name: Run zero-business-dep gate
-        run: bash ci/zero-business-dep-check.sh
+# .github/workflows/ci.yml 概要(以仓库文件为准)
+- uses: actions/setup-java@v4     # JDK 17(kotlin jvmToolchain)
+- uses: subosito/flutter-action@v2 # stable(替代本地 fvm)
+- uses: actions/setup-python@v5   # 3.13
+- run: pip install -e "./python[test]"
+- run: bash ci/ci-check-all.sh    # 7 步全量门(env: PYTHON_BIN=python3.13)
 ```
 
-> 注:GitHub-hosted runner 没有 fvm,上面用 `subosito/flutter-action` 装 Flutter,然后脚本里 `fvm flutter` 需改成 `flutter`(或脚本检测 fvm 缺失时回退到 PATH 里的 flutter)。本地 macOS 开发仍须用 fvm。
+> 注:GitHub-hosted runner 没有 fvm,workflow 在 `$HOME/.local/bin/fvm` 注入 shim 转发到
+> PATH 的 flutter;runner 也没有 `/usr/local/bin/python3.13`(本地默认路径),门禁步注入
+> `PYTHON_BIN=python3.13`。`ci/zero-business-dep-check.sh` / `ci/ci-check-all.sh` /
+> `ci/protocol-version-guard.sh` 共用同一 `PYTHON_BIN` 覆盖约定,本体不改。
+> 本地 macOS 开发仍须用真 fvm stable(系统 Flutter 是 OHOS 分支,不可用)。
 
 ### Git pre-commit hook
 

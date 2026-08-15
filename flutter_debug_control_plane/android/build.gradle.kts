@@ -56,7 +56,14 @@ dependencies {
         compileOnly(files(flutterDebugJar))
     }
 
-    // Kotlin core (composite build: settings includeBuild ../../kotlin).
+    // Kotlin core. Coordinate note (R025-BF004-1/2): the module's maven group
+    // is com.github.xiaolutang.debug_control_plane (JitPack, future tag) but
+    // the DEV coordinate `com.pantas.debug.controlplane:core` is what
+    // consumer settings.gradle.kts substitute with the composite build —
+    // pantas_launcher android/settings.gradle.kts AND the standalone
+    // android/settings.gradle.kts here both rewrite it via includeBuild.
+    // The release task swaps this line for the JitPack coordinate
+    // com.github.xiaolutang.debug_control_plane:kotlin:<tag> (spike-b §5.3).
     implementation("com.pantas.debug.controlplane:core")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")

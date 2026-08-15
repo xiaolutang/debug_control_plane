@@ -22,3 +22,7 @@ dist/
 
 # OS
 .DS_Store
+
+# Gradle (R025-BF004-1: root aggregator build caches)
+.gradle/
+local.properties
