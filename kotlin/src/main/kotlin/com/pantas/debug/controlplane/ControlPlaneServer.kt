@@ -17,12 +17,20 @@ import kotlinx.coroutines.CoroutineScope
  */
 object ControlPlaneServer {
 
-    /** Create a [ControlPlane] bound to a fresh [HttpSseTransport]. */
+    /**
+     * Create a [ControlPlane] bound to a fresh [HttpSseTransport].
+     *
+     * [port] fixes the transport's constructor port (0 = OS-picked on bind).
+     * Passing a non-zero [port] pins the bind port — used by Main.kt's JVM
+     * smoke (BF003-2 Python cross-verification) so a chosen port like 18099
+     * can be probed, and later by FF002-2's Android Service (18080).
+     */
     fun create(
         scope: CoroutineScope,
         appMeta: (suspend () -> Map<String, Any?>)? = null,
+        port: Int = 0,
     ): Pair<ControlPlane, HttpSseTransport> {
-        val transport = HttpSseTransport(scope)
+        val transport = HttpSseTransport(scope, port)
         val plane = ControlPlane(transport = transport, scope = scope, appMeta = appMeta)
         return plane to transport
     }

@@ -17,6 +17,9 @@ fun main(args: Array<String>) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val (plane, transport) = ControlPlaneServer.create(
         scope = scope,
+        // Pin the requested port (BF003-2: Python cross-verification probes a
+        // fixed port; HttpSseTransport binds its constructor port verbatim).
+        port = port,
         appMeta = {
             mapOf(
                 "app" to "kotlin-smoke",
@@ -37,20 +40,35 @@ fun main(args: Array<String>) {
     Thread.currentThread().join()
 }
 
-/** Neutral demo capability (no business semantics) for the JVM smoke main. */
+/**
+ * Neutral demo capability (no business semantics) for the JVM smoke main.
+ *
+ * `POST /emit` exists so BF003-2's Python cross-verification can observe a
+ * REAL SSE event frame (`event:/data:` per PROTOCOL.md §3.3) without any
+ * business producer: it pushes one event into the capability's hot flow,
+ * the plane assigns the sequence and broadcasts to all `/events` subscribers.
+ */
 private object DemoCapability : Capability {
+    private val events = kotlinx.coroutines.flow.MutableSharedFlow<DebugEvent>(extraBufferCapacity = 64)
+
     override val id: String = "demo"
     override fun resources(): List<Resource> = listOf(
         Resource(method = "GET", path = listOf("items"), description = "demo items"),
     )
     override fun commands(): List<Command> = listOf(
         Command(method = "POST", path = listOf("invoke")),
+        Command(method = "POST", path = listOf("emit"), description = "emit one demo SSE event"),
     )
     override suspend fun handleResource(resource: Resource, context: RouteContext): Map<String, Any?> =
         mapOf("ok" to true, "resource" to resource.path)
-    override suspend fun handleCommand(command: Command, context: RouteContext): Map<String, Any?> =
-        mapOf("ok" to true, "command" to command.path, "body" to context.body)
-    override fun events(): kotlinx.coroutines.flow.Flow<DebugEvent> =
-        kotlinx.coroutines.flow.emptyFlow()
+    override suspend fun handleCommand(command: Command, context: RouteContext): Map<String, Any?> {
+        if (command.path == listOf("emit")) {
+            val type = (context.body["type"] as? String) ?: "demo_event"
+            events.emit(DebugEvent(type = type, payload = mapOf("aKey1" to "value1")))
+            return mapOf("ok" to true, "emitted" to type)
+        }
+        return mapOf("ok" to true, "command" to command.path, "body" to context.body)
+    }
+    override fun events(): kotlinx.coroutines.flow.Flow<DebugEvent> = events
     override suspend fun state(): Map<String, Any?> = mapOf("demoKey" to "demoValue")
 }

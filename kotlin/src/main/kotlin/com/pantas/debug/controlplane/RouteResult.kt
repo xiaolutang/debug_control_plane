@@ -37,10 +37,13 @@ sealed class RouteResult {
         val message: String,
     ) : RouteResult() {
         override fun toNanoResponse(): Response {
-            // Manual key-order-preserving encoding: Dart jsonEncode emits
-            // insertion order (`ok, code, message` — fixtures/error-*.json),
-            // while org.json's JSONObject is backed by an unordered HashMap.
-            val encoded = """{"ok":false,"code":${JSONObject.quote(code)},"message":${JSONObject.quote(message)}}"""
+            // Ordered encoding via the single order-preserving encoder: Dart
+            // jsonEncode emits insertion order (`ok, code, message` —
+            // fixtures/error-*.json), while org.json's JSONObject is backed
+            // by an unordered HashMap.
+            val encoded = AnyToJson.encodeOrdered(
+                linkedMapOf("ok" to false, "code" to code, "message" to message)
+            )
             return NanoHTTPD.newFixedLengthResponse(
                 Response.Status.lookup(statusCode), "application/json", encoded
             )
@@ -74,4 +77,40 @@ internal object AnyToJson {
     /** Encode a top-level object map to a JSON string. */
     fun encodeObject(body: Map<String, Any?>): String =
         (convert(body) as JSONObject).toString()
+
+    /**
+     * Order-preserving JSON encoding (BF003): same escaping semantics as
+     * `JSONObject.toString` but encodes maps in ITERATION order (Dart
+     * `jsonEncode` emits insertion order — byte contract of
+     * fixtures/sse-event-frame.bin and PROTOCOL.md §3.3), whereas org.json's
+     * `JSONObject` is backed by an unordered HashMap on Android. Recursive:
+     * nested maps/collections stay ordered too. Used by the SSE `data:` line
+     * encoder and the `Error` body template (single ordered encoder).
+     */
+    fun encodeOrdered(value: Any?): String = when (value) {
+        null -> "null"
+        is String -> JSONObject.quote(value)
+        is Boolean -> value.toString()
+        is Int, is Long, is Short, is Byte,
+        is Double, is Float, is java.math.BigDecimal,
+        -> value.toString()
+        is Map<*, *> -> {
+            val sb = StringBuilder("{")
+            for ((k, v) in value) {
+                if (sb.length > 1) sb.append(',')
+                sb.append(JSONObject.quote(k.toString())).append(':').append(encodeOrdered(v))
+            }
+            sb.append('}').toString()
+        }
+        is Collection<*> -> {
+            val sb = StringBuilder("[")
+            for (v in value) {
+                if (sb.length > 1) sb.append(',')
+                sb.append(encodeOrdered(v))
+            }
+            sb.append(']').toString()
+        }
+        is Array<*> -> encodeOrdered(value.toList())
+        else -> JSONObject.quote(value.toString())
+    }
 }

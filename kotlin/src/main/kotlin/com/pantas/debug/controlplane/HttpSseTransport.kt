@@ -95,7 +95,7 @@ class HttpSseTransport(
 
     override fun broadcast(event: DebugEvent) {
         if (subscribers.isEmpty()) return
-        val data = JSONObject(event.toJson()).toString()
+        val data = encodeEventJson(event)
         val frame = "event: ${event.type}\ndata: $data\n\n"
         // Iterate a snapshot — the set may mutate during writes (§3.7).
         for (sub in subscribers.toList()) {
@@ -115,6 +115,18 @@ class HttpSseTransport(
     // -------------------------------------------------------------------------
     // NanoHTTPD serving
     // -------------------------------------------------------------------------
+
+    /**
+     * Never gzip — BF003-2 cross-language fix.
+     *
+     * NanoHTTPD's default gzips every text-typed response (including
+     * `text/event-stream`) when the client advertises `Accept-Encoding: gzip`.
+     * GZIP buffers output, so an SSE stream would never deliver frames until
+     * the buffer fills — the python httpx client's `iter_lines()` blocks
+     * indefinitely. Dart's HttpServer never applies content-encoding, so the
+     * contract (PROTOCOL.md §3: frames flush immediately) requires this off.
+     */
+    override fun useGzipWhenAccepted(response: NanoHTTPD.Response): Boolean = false
 
     override fun serve(session: IHTTPSession): NanoHTTPD.Response {
         val method = session.method
@@ -215,6 +227,20 @@ class HttpSseTransport(
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Order-preserving JSON encoding for the SSE `data:` line.
+     *
+     * Dart `jsonEncode` emits insertion order (`type` first, `sequence`
+     * second, payload keys in declaration order — byte contract of
+     * fixtures/sse-event-frame.bin and PROTOCOL.md §3.3), while org.json's
+     * `JSONObject` is backed by an unordered `HashMap` on Android — encoding
+     * [DebugEvent.toJson] through it risks key-order drift per device.
+     * [AnyToJson.encodeOrdered] is the single order-preserving encoder
+     * (also used by [RouteResult.Error]).
+     */
+    internal fun encodeEventJson(event: DebugEvent): String =
+        AnyToJson.encodeOrdered(event.toJson())
 
     /** Parse the POST body as a top-level JSON object; null on any failure. */
     private fun parseJsonObjectBody(session: IHTTPSession): Map<String, Any?>? {
