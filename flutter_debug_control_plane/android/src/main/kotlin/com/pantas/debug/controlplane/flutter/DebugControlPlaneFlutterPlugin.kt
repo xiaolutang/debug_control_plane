@@ -84,7 +84,11 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
                 val appMeta = call.argument<Map<String, Any?>>("appMeta")
                 pluginScope.launch {
                     try {
-                        val plane = ensurePlane(pluginScope, appMeta)
+                        val plane = ensurePlane(pluginScope, port, appMeta)
+                        // Start-once join (R026): the Kotlin core guarantees the
+                        // first call really binds and later calls join the
+                        // cached result/failure — a carrier plane the Service
+                        // already bound is never re-bound here.
                         val uri = plane.start(port)
                         result.success(mapOf("uri" to uri?.toString()))
                     } catch (e: java.net.BindException) {
@@ -100,8 +104,13 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
             ChannelProtocol.PLANE_STOP -> {
                 pluginScope.launch {
                     try {
-                        PlaneCarrier.plane?.stop()
+                        // R026 ownership (design §1.3): only a plane this
+                        // plugin mounted (fallback) is stopped+unmounted here.
+                        // A Service-mounted carrier plane outlives a Dart
+                        // dispose — its lifecycle belongs to the Service's
+                        // onDestroy.
                         if (ownsPlane) {
+                            PlaneCarrier.plane?.stop()
                             PlaneCarrier.unmount()
                             ownsPlane = false
                         }
@@ -224,10 +233,22 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
 
     private suspend fun ensurePlane(
         pluginScope: CoroutineScope,
+        port: Int,
         appMeta: Map<String, Any?>?,
     ): ControlPlane {
-        PlaneCarrier.plane?.let { return it }
-        val transport = HttpSseTransport(pluginScope)
+        // R026 (design §1.2): a Service-mounted carrier plane is JOINED, not
+        // replaced — but the Dart-side identity fields are post-injected via
+        // updateAppMeta so /hello carries them (C2). A null appMeta keeps the
+        // plane's existing one (a late join without identity must not wipe
+        // what the Service set).
+        PlaneCarrier.plane?.let {
+            it.updateAppMeta(appMeta?.let { meta -> { meta } })
+            return it
+        }
+        // Fallback self-mount (JVM / no-carrier). The Dart-requested port is
+        // passed through to the transport (C4): port=0 keeps the OS-pick
+        // semantics, an explicit port pins the bind.
+        val transport = HttpSseTransport(pluginScope, port)
         val plane = PlaneCarrier.mount(transport, pluginScope) { appMeta ?: emptyMap() }
         ownsPlane = true
         return plane

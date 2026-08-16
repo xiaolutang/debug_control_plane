@@ -65,6 +65,16 @@ class HttpSseTransport(
         require(port == requestedPort) {
             "HttpSseTransport binds its constructor port ($requestedPort); requested $port"
         }
+        // R026 F4 guard: re-entry protection. NanoHTTPD's second start()
+        // unconditionally overwrites the server socket field; the failed
+        // bind then leaves the old accept thread hot-spinning on an unbound
+        // socket (the R025 real-device 93% CPU loop). The plane's start-once
+        // already prevents the double bind; this throws instead of corrupting
+        // state when that contract is violated.
+        val alreadyBound = boundPort
+        if (alreadyBound != 0) {
+            throw BindException("transport already bound to port $alreadyBound")
+        }
         try {
             // start(timeout, daemon) blocks until the server thread is bound
             // or throws IOException (EADDRINUSE included).
@@ -107,6 +117,9 @@ class HttpSseTransport(
         for (sub in subscribers.toList()) sub.close()
         subscribers.clear()
         withContext(Dispatchers.IO) { stop() }
+        // R026 F4: reset so the same transport instance can be re-bound
+        // after a stop->start cycle (boundPort is also serverInfo's source).
+        boundPort = 0
     }
 
     /** Live subscriber count (tests + introspection). */

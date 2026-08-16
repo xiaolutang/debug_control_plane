@@ -1,7 +1,10 @@
 package com.pantas.debug.controlplane
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicLong
 
@@ -26,10 +29,19 @@ import java.util.concurrent.atomic.AtomicLong
 class ControlPlane(
     private val transport: Transport,
     private val scope: CoroutineScope,
-    private val appMeta: (suspend () -> Map<String, Any?>)? = null,
+    appMeta: (suspend () -> Map<String, Any?>)? = null,
 ) {
 
     private val lock = Any()
+
+    /**
+     * The current `/hello` appMeta supplier. Replaceable after construction
+     * via [updateAppMeta] (R026 ownership model: the Service mounts the plane
+     * first, Dart injects its identity fields when it calls `plane.start` —
+     * the next `/hello` picks them up).
+     */
+    @Volatile
+    private var appMeta: (suspend () -> Map<String, Any?>)? = appMeta
 
     /** Insertion-ordered registry (PROTOCOL.md §2.2: registeredCapabilities order = registration order). */
     private val _capabilities = LinkedHashMap<String, Capability>()
@@ -42,6 +54,35 @@ class ControlPlane(
 
     /** Transport broadcast bridge: bus -> transport.broadcast. */
     private var pipeJob: Job? = null
+
+    // -------------------------------------------------------------------------
+    // Start-once lifecycle state (R026: the Service owns the server, other
+    // callers join — design §1.1)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Guards ONLY the three plain fields below. Hard rule (design review
+     * high#1): never suspend inside `synchronized(lifecycleLock)` — the lock
+     * covers state reads/writes and job creation only; every await/join
+     * happens outside.
+     */
+    private val lifecycleLock = Any()
+
+    /** Cached successful bind result — later starts join this URI. */
+    private var startResult: java.net.URI? = null
+
+    /** Cached failure — rethrown to every later caller until [stop] clears. */
+    private var startFailure: Throwable? = null
+
+    /** The in-flight bind (concurrent callers await this Deferred). */
+    private var startJob: Deferred<java.net.URI>? = null
+
+    /**
+     * Identity token of the current bind attempt. [stop] rotates it, so an
+     * in-flight bind completing after a stop can detect it is stale and skip
+     * the cache writes (never cache a result for a torn-down server).
+     */
+    private var startAttempt: Any = Any()
 
     /** Process-wide monotonic sequence counter, shared across capabilities, starts at 0 (§3.1). */
     private val nextSequence = AtomicLong(0L)
@@ -95,10 +136,62 @@ class ControlPlane(
     // -------------------------------------------------------------------------
 
     /**
-     * Start the transport. Mirrors Dart `start()`: install the dispatcher
-     * first, then bind. Returns the bound URI.
+     * Start the transport — **start-once with shared result** (R026).
+     *
+     * First call performs the real bind (dispatcher first, then
+     * [Transport.bind], Dart `start()` order) and caches the outcome; later
+     * calls join: the same URI is returned, the same cached failure is
+     * rethrown, and a concurrent caller awaits the in-flight bind instead of
+     * issuing a second one.
+     *
+     * Ownership model (design §1.1): the Service owns the server lifecycle;
+     * `plane.start` from any other caller (e.g. the plugin's PLANE_START) is
+     * a join, not a second bind — a double NanoHTTPD bind leaves a broken
+     * accept loop (EADDRINUSE + hot-spinning dead socket).
+     *
+     * Concurrency: [lifecycleLock] never suspends. Bind results are cached by
+     * the async body itself (try/catch/finally), so a cancelled first caller
+     * cannot lose the cache for the joiners.
      */
     suspend fun start(port: Int): java.net.URI {
+        // Two-phase read: decide under the lock — cache hits return/throw the
+        // cached outcome right there (throwing inside `synchronized` still
+        // releases the monitor; nothing suspended is held) — then await
+        // outside it.
+        val join: Deferred<java.net.URI> = synchronized(lifecycleLock) {
+            startResult?.let { return it }    // joined success
+            startFailure?.let { throw it }    // joined failure — callers see the original instance
+            val attempt = startAttempt
+                startJob ?: scope.async(start = CoroutineStart.UNDISPATCHED) {
+                    // The async body owns the cache writes (design hard rule
+                    // 2): even if the first caller is cancelled, joiners
+                    // still see the outcome.
+                    try {
+                        doStart(port).also { uri ->
+                            synchronized(lifecycleLock) {
+                                // stop() during the bind wins:
+                                // `startAttempt` was rotated, never cache a
+                                // result for a server that has already been
+                                // torn down (design hard rule 3).
+                                if (startAttempt === attempt) startResult = uri
+                            }
+                        }
+                    } catch (t: Throwable) {
+                        synchronized(lifecycleLock) {
+                            if (startAttempt === attempt) startFailure = t
+                        }
+                        throw t
+                    }
+                }.also { startJob = it }
+            }
+        // Await OUTSIDE the lock (design hard rule 1: never suspend holding
+        // lifecycleLock). A CancellationException here is the caller's own
+        // cancellation — the cache above survives it for the joiners.
+        return join.await()
+    }
+
+    /** The actual single bind (dispatcher install + pipe + transport bind). */
+    private suspend fun doStart(port: Int): java.net.URI {
         // Cancel a stale pipe from an earlier start/stop cycle first —
         // otherwise a restart would leak the old bus->transport collector.
         pipeJob?.cancel()
@@ -107,8 +200,30 @@ class ControlPlane(
         return transport.bind(port)
     }
 
+    /**
+     * Replace the `/hello` appMeta supplier (post-injection, R026 C2). Takes
+     * effect on the next `/hello` request. `null` keeps the current one
+     * (a late Dart join with no identity fields must not wipe the Service's).
+     */
+    fun updateAppMeta(meta: (suspend () -> Map<String, Any?>)?) {
+        if (meta != null) appMeta = meta
+    }
+
     /** Stop the transport and tear down event subscriptions. */
     suspend fun stop() {
+        synchronized(lifecycleLock) {
+            // Design hard rule 3: cancel an in-flight bind BEFORE clearing —
+            // otherwise the bind could complete after stop and cache a URI
+            // for a server that was already torn down. The rotated
+            // `startAttempt` is the backstop: even if the cancelled bind
+            // still runs to completion (cancellation is cooperative), its
+            // cache writes are rejected as stale.
+            startJob?.cancel()
+            startJob = null
+            startAttempt = Any()
+            startResult = null
+            startFailure = null
+        }
         transport.close()
         pipeJob?.cancel()
         pipeJob = null

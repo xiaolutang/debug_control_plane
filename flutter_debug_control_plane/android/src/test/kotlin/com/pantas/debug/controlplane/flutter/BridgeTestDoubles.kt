@@ -99,18 +99,31 @@ class RecordingResult : MethodChannel.Result {
         private set
     var notImplementedFlag = false
         private set
-    val done get() = successValue != null || errorCode != null || notImplementedFlag
+
+    /**
+     * Set by EVERY reply path — unlike the value-based checks above this
+     * also observes `success(null)` replies (PLANE_STOP, state.update).
+     */
+    var repliedFlag = false
+        private set
+
+    // R026: `done` must include repliedFlag — a plain `successValue != null`
+    // heuristic can never see the protocol's null-success replies.
+    val done get() = repliedFlag
 
     override fun success(result: Any?) {
+        repliedFlag = true
         successValue = result
     }
 
     override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
+        repliedFlag = true
         this.errorCode = errorCode
         this.errorMessage = errorMessage
     }
 
     override fun notImplemented() {
+        repliedFlag = true
         notImplementedFlag = true
     }
 }
@@ -120,7 +133,18 @@ class FakeTransport : Transport {
     var handler: (suspend (com.pantas.debug.controlplane.RouteRequest) -> com.pantas.debug.controlplane.RouteResult)? = null
     val broadcasts = mutableListOf<com.pantas.debug.controlplane.DebugEvent>()
 
-    override suspend fun bind(port: Int): java.net.URI = java.net.URI("http://0.0.0.0:$port/")
+    /** R026: how many times bind() was attempted (start-once join guard). */
+    var bindCount = 0
+        private set
+
+    /** R026: set by close() (PLANE_STOP ownership guard). */
+    var closed = false
+        private set
+
+    override suspend fun bind(port: Int): java.net.URI {
+        bindCount += 1
+        return java.net.URI("http://0.0.0.0:$port/")
+    }
     override fun listen(handler: suspend (com.pantas.debug.controlplane.RouteRequest) -> com.pantas.debug.controlplane.RouteResult) {
         this.handler = handler
     }
@@ -130,7 +154,9 @@ class FakeTransport : Transport {
         broadcasts += event
     }
 
-    override suspend fun close() {}
+    override suspend fun close() {
+        closed = true
+    }
 }
 
 /** Minimal no-op BinaryMessenger so [FakeMethodChannel] can be constructed. */
