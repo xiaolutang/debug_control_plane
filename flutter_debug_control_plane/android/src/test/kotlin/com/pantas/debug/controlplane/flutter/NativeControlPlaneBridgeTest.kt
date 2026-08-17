@@ -155,6 +155,137 @@ class NativeControlPlaneBridgeTest {
         assertEquals(ChannelProtocol.CAPABILITY_STATE_PULL, channel.invokes.single().method)
     }
 
+    // ---- R026 e2e fix: reverse invoke must hop to the main executor ---------
+    // Real-device /hello hit "@UiThread methods must be executed on the main
+    // thread" — reverseInvoke ran channel.invokeMethod on the NanoHTTPD
+    // worker. The bridge now posts it to an injectable mainExecutor (JVM
+    // tests: direct passthrough; production: main-thread Handler).
+
+    /** Executor that records submissions and the threads that ran them. */
+    private class RecordingExecutor : java.util.concurrent.Executor {
+        val submitted = java.util.concurrent.atomic.AtomicInteger()
+        val executedOn = mutableListOf<Thread>()
+
+        override fun execute(command: Runnable) {
+            submitted.incrementAndGet()
+            synchronized(executedOn) { executedOn += Thread.currentThread() }
+            command.run()
+        }
+    }
+
+    @Test
+    fun `reverse invoke executes invokeMethod on the injected main executor`() = runBlocking {
+        val channel = FakeMethodChannel()
+        val executor = RecordingExecutor()
+        val bridge = NativeControlPlaneBridge(channel, FakeMethodChannel.scope, executor)
+        channel.dartAnswer = { record ->
+            bridge.completeInvoke(record.reqId, mapOf("result" to mapOf("ok" to true)))
+        }
+
+        // Simulate the production caller: a non-main worker thread (the
+        // NanoHTTPD request processor) issues the reverse invoke.
+        val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            bridge.invokeHandler("gamepad", ChannelProtocol.ROUTE_KIND_RESOURCE, 0, RouteContext())
+        }
+        assertEquals(mapOf("ok" to true), result)
+
+        // The invokeMethod hop actually went through the executor (thread
+        // mark proves it did NOT run on the caller's thread).
+        assertEquals(1, executor.submitted.get())
+        val callerThread = Thread.currentThread()
+        val executedThread = synchronized(executor.executedOn) { executor.executedOn.single() }
+        assertTrue(
+            "invokeMethod must run on the injected executor, not the caller thread",
+            executedThread !== callerThread,
+        )
+        // Exactly one reverse invoke reached the "Dart" side, via the hop.
+        assertEquals(1, channel.invokes.size)
+    }
+
+    @Test
+    fun `pending entry is registered before the invokeMethod post`() = runBlocking {
+        val channel = FakeMethodChannel()
+        // The executor observes pending state at run time (i.e. AFTER the
+        // post was made): the deferred must already be registered when
+        // invokeMethod runs, or a fast Dart reply would race the
+        // registration and get "unknown reqId".
+        lateinit var bridgeRef: NativeControlPlaneBridge
+        val pendingSizesAtExecution = mutableListOf<Int>()
+        val executor = java.util.concurrent.Executor { command ->
+            synchronized(pendingSizesAtExecution) {
+                pendingSizesAtExecution += bridgeRef.pending.size
+            }
+            command.run()
+        }
+        val bridge = NativeControlPlaneBridge(channel, FakeMethodChannel.scope, executor)
+        bridgeRef = bridge
+        channel.dartAnswer = { record ->
+            bridge.completeState(record.reqId, mapOf("connected" to true))
+        }
+
+        val state = bridge.pullState("gamepad")
+        assertEquals(mapOf("connected" to true), state)
+        // At executor-run time (post already dispatched) the reqId was
+        // registered — and the fill-in above answered from `pending` (the
+        // pullState returned instead of timing out), proving registration
+        // precedes the post.
+        assertEquals(listOf(1), synchronized(pendingSizesAtExecution) { pendingSizesAtExecution })
+    }
+
+    // ---- R026 e2e defect #2: org.json types must not cross the boundary ----
+    // Real-device POST /input with a nested body crashed the app:
+    // StandardMessageCodec.writeValue threw IllegalArgumentException on
+    // org.json.JSONObject (the Kotlin core parses POST bodies with org.json,
+    // so nested values inside RouteContext.body are JSONObject/JSONArray).
+    // The reverse-invoke args must carry only codec-safe plain types.
+
+    /** Recursive assertion: no JSONObject/JSONArray anywhere in the args. */
+    private fun assertNoOrgJson(value: Any?) {
+        when (value) {
+            is org.json.JSONObject -> throw AssertionError("JSONObject leaked at $value")
+            is org.json.JSONArray -> throw AssertionError("JSONArray leaked at $value")
+            is Map<*, *> -> value.values.forEach { assertNoOrgJson(it) }
+            is List<*> -> value.forEach { assertNoOrgJson(it) }
+        }
+    }
+
+    @Test
+    fun `reverse invoke args carry no org json types for nested body`() = runBlocking {
+        val channel = FakeMethodChannel()
+        val bridge = newBridge(channel)
+        channel.dartAnswer = { record ->
+            bridge.completeInvoke(record.reqId, mapOf("result" to mapOf("ok" to true)))
+        }
+
+        // RouteContext.body the way the Kotlin core hands it over after
+        // org.json parsing: nested JSONObject/JSONArray + JSONObject.NULL.
+        val body = linkedMapOf<String, Any?>(
+            "action" to "dpad_down",
+            "frame" to org.json.JSONObject(
+                """{"keys":["down"],"dur":1.5,"n":JSONObject.NULL}""".replace(
+                    "JSONObject.NULL",
+                    "null",
+                ),
+            ),
+            "tags" to org.json.JSONArray("""["a",{"b":[1,2]}]"""),
+        )
+        bridge.invokeHandler(
+            "gamepad",
+            ChannelProtocol.ROUTE_KIND_COMMAND,
+            0,
+            RouteContext(pathParams = mapOf("id" to "left"), body = body),
+        )
+
+        val args = channel.invokes.single().arguments
+        assertNoOrgJson(args)
+        val wireBody = args["body"] as Map<*, *>
+        assertEquals(listOf("down"), (wireBody["frame"] as Map<*, *>)["keys"])
+        // org.json integers decode as Integer on the JVM stub (and on
+        // Android) — pass-through, no Long coercion.
+        assertEquals(listOf("a", mapOf("b" to listOf(1, 2))), wireBody["tags"])
+        assertEquals(mapOf("id" to "left"), args["pathParams"]) // untouched sibling field
+    }
+
     @Test
     fun `teardown fails only the torn-down capability's pending invokes`() = runBlocking {
         val channel = FakeMethodChannel()

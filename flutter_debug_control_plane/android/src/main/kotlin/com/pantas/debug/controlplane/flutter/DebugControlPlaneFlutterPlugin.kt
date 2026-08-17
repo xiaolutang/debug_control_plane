@@ -48,7 +48,16 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
         val methodChannel = MethodChannel(binding.binaryMessenger, ChannelProtocol.METHOD_CHANNEL)
         methodChannel.setMethodCallHandler(this)
         val pluginScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        val pluginBridge = NativeControlPlaneBridge(methodChannel, pluginScope)
+        // Reverse invokeMethod is @UiThread — route it through the main
+        // looper (R026 e2e: NanoHTTPD workers crashed with
+        // "must be executed on the main thread").
+        val pluginBridge = NativeControlPlaneBridge(
+            methodChannel,
+            pluginScope,
+            java.util.concurrent.Executor { command ->
+                android.os.Handler(android.os.Looper.getMainLooper()).post(command)
+            },
+        )
         channel = methodChannel
         scope = pluginScope
         bridge = pluginBridge

@@ -70,5 +70,9 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    // org.json: bundled on Android; explicit for pure JVM tests (the Kotlin
+    // core parses POST bodies with it, so RouteContext.body can carry
+    // JSONObject/JSONArray — R026 e2e defect #2).
+    testImplementation("org.json:json:20240303")
     testImplementation(files(flutterDebugJar))
 }

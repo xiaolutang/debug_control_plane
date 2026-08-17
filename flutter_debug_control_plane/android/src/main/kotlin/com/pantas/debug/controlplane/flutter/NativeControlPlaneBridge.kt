@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -36,12 +37,32 @@ import java.util.concurrent.atomic.AtomicLong
  * it once and assigns the global sequence; Dart-side sequences are
  * discarded, PROTOCOL.md §3.1).
  *
- * Injectable [channel] + [scope] keep this JVM-unit-testable with a fake
- * channel (no io.flutter engine).
+ * Injectable [channel] + [scope] + [mainExecutor] keep this
+ * JVM-unit-testable with a fake channel (no io.flutter engine).
+ *
+ * Threading (R026 e2e fix): Flutter requires native->Dart `invokeMethod` to
+ * run on the Android main thread — real-device /hello hit
+ * "Methods marked with @UiThread must be executed on the main thread" when
+ * reverseInvoke ran it on the NanoHTTPD request processor. The post is now
+ * dispatched through [mainExecutor] (production: the plugin injects a
+ * main-looper Handler executor; JVM tests default to a direct passthrough,
+ * preserving the fake-channel testability above). The `pending[reqId]`
+ * registration happens BEFORE the post so a fast Dart fill-in never races
+ * the registration.
+ *
+ * Wire types (R026 e2e defect #2): `RouteContext.body` can carry
+ * org.json JSONObject/JSONArray (the Kotlin core parses POST bodies with
+ * org.json). `StandardMessageCodec` rejects those with a FATAL
+ * IllegalArgumentException, so args are converted to codec-safe plain
+ * types at this outgoing boundary (see FlutterWire.kt); the Kotlin core
+ * stays Flutter-agnostic and Dart sees the same plain Map/List shapes as
+ * on iOS/macOS.
  */
 open class NativeControlPlaneBridge(
     private val channel: MethodChannel,
     private val scope: CoroutineScope,
+    /** Executor that must run the reverse `invokeMethod` (main thread in production). */
+    private val mainExecutor: Executor = Executor { it.run() },
 ) : DartReverseInvoker {
 
     /** In-flight reverse invokes, keyed by reqId. */
@@ -110,37 +131,44 @@ open class NativeControlPlaneBridge(
         val reqId = nextReqId.getAndIncrement()
         val capId = args["capId"] as? String ?: ""
         val deferred = OwnedDeferred(capId)
+        // Register BEFORE the post: a fill-in racing back on the main thread
+        // must already find its reqId here (never "unknown reqId").
         pending[reqId] = deferred
-        channel.invokeMethod(
-            method,
-            mapOf("reqId" to reqId) + args,
-            object : MethodChannel.Result {
-                override fun success(result: Any?) {
-                    // Dart replies null to the reverse call itself; the
-                    // payload arrives via capability.*.result fill-ins.
-                    // A non-null reply (error envelope) completes the waiter.
-                    if (result is Map<*, *> && result.containsKey("error") && !deferred.isCompleted) {
-                        deferred.completeExceptionally(result["error"].asRouteFailure())
-                    }
+        val callback = object : MethodChannel.Result {
+            override fun success(result: Any?) {
+                // Dart replies null to the reverse call itself; the
+                // payload arrives via capability.*.result fill-ins.
+                // A non-null reply (error envelope) completes the waiter.
+                if (result is Map<*, *> && result.containsKey("error") && !deferred.isCompleted) {
+                    deferred.completeExceptionally(result["error"].asRouteFailure())
                 }
+            }
 
-                override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
-                    if (!deferred.isCompleted) {
-                        deferred.completeExceptionally(
-                            RouteFailure(500, "internal_error", "channel error: $errorCode $errorMessage"),
-                        )
-                    }
+            override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
+                if (!deferred.isCompleted) {
+                    deferred.completeExceptionally(
+                        RouteFailure(500, "internal_error", "channel error: $errorCode $errorMessage"),
+                    )
                 }
+            }
 
-                override fun notImplemented() {
-                    if (!deferred.isCompleted) {
-                        deferred.completeExceptionally(
-                            RouteFailure(500, "internal_error", "method $method not implemented"),
-                        )
-                    }
+            override fun notImplemented() {
+                if (!deferred.isCompleted) {
+                    deferred.completeExceptionally(
+                        RouteFailure(500, "internal_error", "method $method not implemented"),
+                    )
                 }
-            },
-        )
+            }
+        }
+        // Flutter: reverse invokeMethod is @UiThread — hop to the main
+        // executor instead of running on the caller (NanoHTTPD worker / IO
+        // coroutine). The timeout below still governs the whole exchange.
+        // R026 e2e defect #2: RouteContext.body may carry org.json values
+        // (the Kotlin core parses POST bodies with org.json) — the codec
+        // rejects them with IllegalArgumentException (FATAL). Convert to
+        // codec-safe plain types at this outgoing boundary (FlutterWire.kt).
+        val wireArgs = args.toFlutterWire()
+        mainExecutor.execute { channel.invokeMethod(method, mapOf("reqId" to reqId) + wireArgs, callback) }
         return try {
             withTimeout(invokeTimeoutMs) { deferred.await() }
         } catch (e: TimeoutCancellationException) {
