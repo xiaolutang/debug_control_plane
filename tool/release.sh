@@ -25,7 +25,7 @@ KOTLIN_VERSION="$(grep -m1 '^version = "' "$REPO_ROOT/kotlin/build.gradle.kts" |
 TAG="v$KOTLIN_VERSION"
 BRANCH="$(git -C "$REPO_ROOT" branch --show-current)"
 
-# 轮询辅助: poll <描述> <命令>  — 命令输出含 ok/PASS/success 即成功
+# 轮询辅助: poll <描述> <命令>  — 命令输出含 ok/PASS/success/HTTP 2xx 即成功
 poll() {
   local desc="$1" cmd="$2" i
   for i in $(seq 1 "${POLL_TRIES:-40}"); do
@@ -33,11 +33,12 @@ poll() {
     out="$(eval "$cmd" 2>/dev/null || true)"
     case "$out" in
       *ok*|*PASS*|*success*|*COMPLETED*) echo "  ✓ $desc"; return 0 ;;
+      "HTTP/2 2"*|"HTTP/1.1 2"*) echo "  ✓ $desc"; return 0 ;;  # curl -I 状态行 2xx
       *error*|*FAIL*) echo "  ✗ $desc: $out" >&2; return 1 ;;
     esac
     sleep "${POLL_INTERVAL:-15}"
   done
-  echo "  ✗ $desc: 超时（${POLL_TRIES} 次 × ${POLL_INTERVAL}s）" >&2
+  echo "  ✗ $desc: 超时（${POLL_TRIES:-40} 次 × ${POLL_INTERVAL:-15}s）" >&2
   return 1
 }
 
@@ -114,13 +115,15 @@ stage_jitpack() {
   # 触发构建（首次 GET 即排队）
   curl -fsSL "https://jitpack.io/com/github/xiaolutang/debug_control_plane/$KOTLIN_VERSION/" >/dev/null 2>&1 || true
   poll "JitPack build $TAG" \
-    "curl -fsSL 'https://jitpack.io/api/builds/com.github.xiaolutang/debug_control_plane' | grep -o '\"$KOTLIN_VERSION\":\"ok\"'"
-  # 坐标验证：kotlin 子模块 pom 可解析
-  poll "kotlin 子模块坐标可解析" \
-    "curl -fsSI 'https://jitpack.io/com/github/xiaolutang/debug_control_plane/kotlin/$KOTLIN_VERSION/kotlin-$KOTLIN_VERSION.pom' | head -1 | grep 200"
+    "curl -fsSL 'https://jitpack.io/api/builds/com.github.xiaolutang/debug_control_plane' | grep -o '\"$KOTLIN_VERSION\"[[:space:]]*:[[:space:]]*\"ok\"'"
+  # 坐标验证（实测 v0.2.0 归档形态）:JitPack 单模块 repo 的消费坐标是
+  # com.github.{user}:{repo}:{ver}(不是 gradle publication 名 {user}.{repo}:kotlin),
+  # pom 落在 /com/github/{user}/{repo}/{ver}/{repo}-{ver}.pom
+  poll "maven 坐标可解析" \
+    "curl -fsSI 'https://jitpack.io/com/github/xiaolutang/debug_control_plane/$KOTLIN_VERSION/debug_control_plane-$KOTLIN_VERSION.pom' | head -1 | grep 200"
   cat <<EOF
   ✓ JitPack 就绪，消费端坐标:
-     implementation("com.github.xiaolutang.debug_control_plane:kotlin:$KOTLIN_VERSION")
+     implementation("com.github.xiaolutang:debug_control_plane:$KOTLIN_VERSION")
   下一步: bash tool/release.sh pubdev-flip
 EOF
 }
@@ -133,11 +136,14 @@ stage_pubdev_flip() {
   [[ "$KOTLIN_VERSION" != "0.2.0" || -d "$REPO_ROOT/../pantas_launcher" ]] || true
   # 1. pubspec: publish_to 删除 + version 0.1.0
   sed -i.bak -e "/^publish_to: 'none'$/d" -e 's/^version: 0\.0\.1$/version: 0.1.0/' "$pub" && rm -f "$pub.bak"
-  # 2. gradle: composite build 坐标 → JitPack maven 坐标
-  sed -i.bak "s#implementation(\"com.pantas.debug.controlplane:core\")#implementation(\"com.github.xiaolutang.debug_control_plane:kotlin:$KOTLIN_VERSION\")#" "$gradle" && rm -f "$gradle.bak"
-  # 3. settings: 去 includeBuild substitution + 加 jitpack maven repo
+  # 2. gradle: composite build 坐标 → JitPack maven 坐标（实测归档形态
+  #    com.github.{user}:{repo}:{ver}，见 stage_jitpack 注释）
+  sed -i.bak "s#implementation(\"com.pantas.debug.controlplane:core\")#implementation(\"com.github.xiaolutang:debug_control_plane:$KOTLIN_VERSION\")#" "$gradle" && rm -f "$gradle.bak"
+  # 3. settings: 去 includeBuild substitution;jitpack maven repo 加到 build.gradle.kts
+  #    的 allprojects.repositories(依赖解析层)——加在 settings.pluginManagement 只管
+  #    插件解析,依赖坐标仍解析不到(flip 编译失败的根因)
   sed -i.bak '/dependencySubstitution/,/^}$/d; /substitute(module/d; /includeBuild("\.\.\/\.\.\/kotlin") {/d' "$settings" && rm -f "$settings.bak"
-  grep -q "jitpack.io" "$settings" || sed -i.bak2 's#^\( *\)repositories {#\1repositories {\n            maven { url = uri("https://jitpack.io") }#' "$settings" && rm -f "$settings.bak2"
+  grep -q "jitpack.io" "$gradle" || sed -i.bak2 's#^\( *\)repositories {#\1repositories {\n            maven { url = uri("https://jitpack.io") }#' "$gradle" && rm -f "$gradle.bak2"
   echo "  已改 3 文件（未 commit）。本地验证编译："
   (cd "$REPO_ROOT/flutter_debug_control_plane/android" \
     && "$REPO_ROOT/kotlin/gradlew" -p . assembleDebug >/dev/null 2>&1) \
@@ -170,7 +176,9 @@ stage_status() {
 }
 
 case "${1:-}" in
-  preflight|push|merge|tag|jitpack|pubdev-flip|pubdev-publish) "stage_$1" ;;
+  preflight|push|merge|tag|jitpack) "stage_$1" ;;
+  pubdev-flip) stage_pubdev_flip ;;      # 函数名不能带连字符,单独映射
+  pubdev-publish) stage_pubdev_publish ;;
   status) stage_status ;;
   *) grep '^#' "$0" | head -14; exit 1 ;;
 esac
