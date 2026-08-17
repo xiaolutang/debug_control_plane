@@ -17,7 +17,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=7", "pytest-cov>=4", "ruff>=0.4"]
+# CI 首跑暴露: test_server.py 用 @pytest.mark.asyncio(strict 模式), 本地全局环境
+# 碰巧装了 pytest-asyncio 所以七步门一直绿; runner 按 extras 声明装缺它 → async 测试全挂。
+test = ["pytest>=7", "pytest-cov>=4", "ruff>=0.4", "pytest-asyncio>=0.23"]
 
 [project.scripts]
 # R021-CLEANUP-P1(方案 X): console-script 冲突解决。
@@ -37,6 +39,9 @@ include = ["debug_control_plane*"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP", "B"]
