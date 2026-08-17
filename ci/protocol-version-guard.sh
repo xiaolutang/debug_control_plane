@@ -33,9 +33,12 @@ EXPECTED="${EXPECTED_PROTOCOL_VERSION:-1}"
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
 # 与 zero-business-dep-check.sh 同一覆盖约定(本地 /usr/local/bin/python3.13,
-# GitHub runner 由 workflow 注入 PYTHON_BIN=python3.13)
-PY_BIN="${PYTHON_BIN:-/usr/local/bin/python3.13}"
-[[ -x "$PY_BIN" ]] || fail "未找到 python3.13($PY_BIN;可用 PYTHON_BIN=... 覆盖)"
+# GitHub runner 由 workflow 注入 PYTHON_BIN=python3.13)—— 判活收敛在
+# ci/lib.sh resolve_py_bin(绝对路径走 -x,PATH 命令名走 command -v,
+# CI 第四红的根因:本脚本残留旧 `[[ -x ]]` 写法对命令名恒 false)。
+# shellcheck source=ci/lib.sh
+source "$(dirname "$0")/lib.sh"
+PY_BIN="$(resolve_py_bin)"
 
 KOTLIN_CONST="$REPO_ROOT/kotlin/src/main/kotlin/com/pantas/debug/controlplane/ControlPlane.kt"
 DART_CONST="$REPO_ROOT/dart/lib/src/control_plane.dart"

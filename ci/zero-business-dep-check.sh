@@ -32,7 +32,9 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PY_BIN="${PYTHON_BIN:-/usr/local/bin/python3.13}"
+# shellcheck source=ci/lib.sh
+source "$(dirname "$0")/lib.sh"
+PY_BIN="$(resolve_py_bin)"
 
 # ---------- 工具自检 ----------
 if ! command -v fvm >/dev/null 2>&1; then
@@ -42,13 +44,7 @@ fi
 # 判活规则与 ci-check-all.sh 步骤 4 对齐:PYTHON_BIN 可以是绝对路径(本地默认
 # /usr/local/bin/python3.13)或 PATH 上的命令名(runner 注入 python3.13)。
 # 相对路径名用 command -v 判活 — `[[ -x python3.13 ]]` 只查 cwd,对 PATH 命令
-# 恒 false(CI 第二次红的根因)。
-if [[ "$PY_BIN" == */* ]]; then
-  [[ -x "$PY_BIN" ]] || { echo "FAIL: 未找到 python3.13($PY_BIN)" >&2; exit 1; }
-else
-  command -v "$PY_BIN" >/dev/null 2>&1 \
-    || { echo "FAIL: PATH 上未找到 $PY_BIN" >&2; exit 1; }
-fi
+# 恒 false(CI 第二次红的根因)。统一收敛到 ci/lib.sh resolve_py_bin。
 
 echo "REPO_ROOT=$REPO_ROOT"
 echo "PY_BIN=$PY_BIN"
