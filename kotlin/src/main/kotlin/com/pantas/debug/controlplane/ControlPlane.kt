@@ -167,7 +167,7 @@ class ControlPlane(
                     // 2): even if the first caller is cancelled, joiners
                     // still see the outcome.
                     try {
-                        doStart(port).also { uri ->
+                        doStart(port, attempt).also { uri ->
                             synchronized(lifecycleLock) {
                                 // stop() during the bind wins:
                                 // `startAttempt` was rotated, never cache a
@@ -190,14 +190,35 @@ class ControlPlane(
         return join.await()
     }
 
-    /** The actual single bind (dispatcher install + pipe + transport bind). */
-    private suspend fun doStart(port: Int): java.net.URI {
+    /**
+     * The actual single bind (dispatcher install + pipe + transport bind).
+     *
+     * H2 orphan-server guard: a real NanoHTTPD `start()` blocks and ignores
+     * coroutine cancellation, so a stop-during-bind race can land AFTER the
+     * underlying server truly bound — while `stop()`'s `transport.close()`
+     * already ran against the not-yet-bound transport (boundPort still 0),
+     * leaving an orphan server holding the port until GC. When this attempt
+     * turns out stale after a successful bind, it self-cleans (cancel only
+     * THIS attempt's pipe, close the transport) and surfaces as a cancelled
+     * start — same "no cache for a torn-down cycle" semantics as the stale
+     * cache-write rejection above.
+     */
+    private suspend fun doStart(port: Int, attempt: Any): java.net.URI {
         // Cancel a stale pipe from an earlier start/stop cycle first —
         // otherwise a restart would leak the old bus->transport collector.
         pipeJob?.cancel()
         transport.listen(::dispatch)
-        pipeJob = bus.pipeTo(scope, transport)
-        return transport.bind(port)
+        val pipe = bus.pipeTo(scope, transport)
+        pipeJob = pipe
+        val uri = transport.bind(port)
+        val stale = synchronized(lifecycleLock) { startAttempt !== attempt }
+        if (stale) {
+            pipe.cancel()
+            synchronized(lifecycleLock) { if (pipeJob === pipe) pipeJob = null }
+            transport.close()
+            throw kotlinx.coroutines.CancellationException("start superseded by stop")
+        }
+        return uri
     }
 
     /**

@@ -25,9 +25,13 @@ sealed class RouteResult {
         val status: Int = 200,
     ) : RouteResult() {
         override fun toNanoResponse(): Response =
+            // Ordered encoding (M1): same reason as [Error] — org.json's
+            // JSONObject is backed by an unordered HashMap on Android, so
+            // 200 bodies (`ok` first, PROTOCOL.md §1.1) risk per-device
+            // key-order drift without the single ordered encoder.
             NanoHTTPD.newFixedLengthResponse(
                 Response.Status.lookup(status), "application/json",
-                AnyToJson.encodeObject(body)
+                AnyToJson.encodeOrdered(body)
             )
     }
 

@@ -169,12 +169,33 @@ while IFS= read -r f; do
   done < <(grep -hE '^import ' "$f")
 done < <(cd "$REPO_ROOT" && find kotlin/src flutter_debug_control_plane/android/src -name '*.kt' | sort)
 
-if (( ${#hits[@]} > 0 )); then
+if (( ${#hits[@]:-0} > 0 )); then
   echo "FAIL: kotlin 侧含未声明依赖 import:" >&2
   printf '  %s\n' "${hits[@]}" >&2
   exit 1
 fi
 echo "[4/5] kotlin 源码 import 白名单 OK"
+
+# ---------- [4b/5] kotlin 核心 FQN 绕过扫描 ----------
+# M2:import 白名单只盯 `^import` 行,`java.util.concurrent.Executor` 这类
+# 代码体内 FQN 使用可绕过(尤其 android/androidx/com.host4 的内联引用)。
+# 只扫 kotlin/ 核心(插件层允许 android,不扫)。词边界匹配代码体内
+# `\b(android|androidx|com\.host4)\.[A-Za-z]` —— 排除 import 行自身(上一轮
+# 已覆盖)。保守策略:命中即 FAIL 并提示人工复核(注释/字符串里的合法提及
+# 一并命中,宁可误报不漏报)。
+fqn_hits=()
+while IFS= read -r hit; do
+  [[ -z "$hit" ]] && continue
+  fqn_hits+=("$hit")
+done < <(cd "$REPO_ROOT" && grep -rnE '(^|[^A-Za-z0-9_.])(android|androidx|com\.host4)\.[A-Za-z]' kotlin/src \
+    --include='*.kt' | grep -v ':[0-9]*:import ' || true)
+
+if (( ${#fqn_hits[@]} > 0 )); then
+  echo "FAIL: kotlin 核心代码体内出现 android/androidx/com.host4 FQN 使用(可能为依赖绕过,须人工复核):" >&2
+  printf '  %s\n' "${fqn_hits[@]}" >&2
+  exit 1
+fi
+echo "[4b/5] kotlin 核心 FQN 绕过扫描 OK"
 echo
 
 # ============================================================================

@@ -148,6 +148,31 @@ class DebugControlPlaneFlutterPluginTest {
     }
 
     @Test
+    fun `events emit for unregistered capId replies not_started and creates no flow`() = runBlocking {
+        // M3: an events.emit before capability.register must not getOrPut a
+        // permanent eventFlows entry (unbounded growth), it is rejected.
+        val bridgeField = DebugControlPlaneFlutterPlugin::class.java.getDeclaredField("bridge")
+        bridgeField.isAccessible = true
+        val bridge = bridgeField.get(plugin) as NativeControlPlaneBridge
+
+        val result = RecordingResult()
+        plugin.onMethodCall(
+            methodCall(
+                ChannelProtocol.EVENTS_EMIT,
+                mapOf(
+                    "capId" to "ghost",
+                    "event" to mapOf("type" to "pressed", "payload" to emptyMap<String, Any?>()),
+                ),
+            ),
+            result,
+        )
+        delay(50)
+
+        assertEquals("not_started", result.errorCode)
+        assertNull("no permanent flow entry for an unknown capId", bridge.eventFlows["ghost"])
+    }
+
+    @Test
     fun `invoke result fill-in completes the pending reverse call`() = runBlocking {
         val bridgeField = DebugControlPlaneFlutterPlugin::class.java.getDeclaredField("bridge")
         bridgeField.isAccessible = true

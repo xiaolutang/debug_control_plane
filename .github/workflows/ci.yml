@@ -9,6 +9,9 @@ name: ci
 on:
   push:
     branches: [main]
+    # JitPack releases are tag-driven (v0.2.0 …): a tag push must run the
+    # same seven-suite gate — otherwise a release tag ships CI-unverified.
+    tags: ['v*']
   pull_request:
 
 jobs:

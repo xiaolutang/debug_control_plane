@@ -179,6 +179,36 @@ class ControlPlaneStartOnceTest {
     }
 
     @Test
+    fun `stop during an in-flight bind still stops the late-bound server`() = runBlocking {
+        // H2 orphan-server guard: with a real NanoHTTPD, stop() racing a bind
+        // can land while the blocking start() is still pending — that close()
+        // is a no-op (no server socket yet) — and the bind then completes
+        // bound-but-orphaned, holding the port until GC. The stale attempt
+        // must detect this AFTER its bind succeeds and self-clean (close the
+        // transport), surfacing as a cancelled start with no cached result.
+        transport.bindGate = CompletableDeferred()
+        val startJob = scope.async { plane.start(18080) }
+        withTimeout(2000) { while (transport.bindCount < 1) delay(10) }
+
+        plane.stop() // close() lands before the bind returned — a no-op here
+        assertTrue("pre-bind close is a no-op (NanoHTTPD semantics)", !transport.serverStopped)
+
+        transport.bindGate!!.complete(Unit) // the bind completes anyway, bound
+        try {
+            startJob.await()
+            throw AssertionError("stale bind must surface as a failed start")
+        } catch (_: Throwable) {}
+
+        assertTrue("the late-bound orphan server must be self-cleaned", transport.serverStopped)
+
+        // And the next cycle starts fresh (no stale cache of any kind).
+        transport.bindError = null
+        val second = plane.start(18080)
+        assertEquals(2, transport.bindCount)
+        assertEquals(URI("http://0.0.0.0:18080/"), second)
+    }
+
+    @Test
     fun `restart after stop binds a fresh pipe`() = runBlocking {
         plane.start(18080)
         plane.stop()
@@ -214,6 +244,17 @@ class ControlPlaneStartOnceTest {
         var closed = false
             private set
 
+        /**
+         * True once a close() actually stopped a bound server — models the
+         * NanoHTTPD stop() semantics of the H2 race: close() before the bind
+         * returns is a no-op (no server socket yet), so `closed` alone cannot
+         * distinguish "stopped the orphan" from "pre-bind no-op".
+         */
+        var serverStopped = false
+            private set
+
+        private var bound = false
+
         override suspend fun bind(port: Int): URI {
             bindCount += 1
             // A real NanoHTTPD start() is a blocking call that ignores
@@ -222,6 +263,7 @@ class ControlPlaneStartOnceTest {
             // mid-bind, so a stop-during-bind race genuinely completes.
             withContext(NonCancellable) { bindGate?.await() }
             bindError?.let { throw it }
+            bound = true
             return URI("http://0.0.0.0:$port/")
         }
 
@@ -235,7 +277,12 @@ class ControlPlaneStartOnceTest {
         }
 
         override suspend fun close() {
+            // NanoHTTPD stop(): only meaningful once a server socket exists.
             closed = true
+            if (bound) {
+                serverStopped = true
+                bound = false
+            }
         }
     }
 }

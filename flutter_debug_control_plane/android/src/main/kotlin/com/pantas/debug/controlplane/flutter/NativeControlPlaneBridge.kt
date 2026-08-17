@@ -82,6 +82,15 @@ open class NativeControlPlaneBridge(
             MutableSharedFlow(extraBufferCapacity = 64)
         }
 
+    /**
+     * The already-registered event flow for [capId], or null.
+     *
+     * M3: `events.emit` for an unknown capId must not `getOrPut` — that
+     * would create a permanent, never-collected entry (unbounded growth).
+     */
+    fun registeredEventFlow(capId: String): MutableSharedFlow<DebugEvent>? =
+        eventFlows[capId]
+
     /** Drop a capability's event flow + fail **its own** pending invokes (unregister path). */
     fun teardownCapability(capId: String) {
         eventFlows.remove(capId)

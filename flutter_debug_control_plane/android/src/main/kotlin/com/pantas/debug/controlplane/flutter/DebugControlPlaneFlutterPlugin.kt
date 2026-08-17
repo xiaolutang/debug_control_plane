@@ -179,7 +179,14 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
                 }
                 @Suppress("UNCHECKED_CAST")
                 val payload = (event["payload"] as? Map<String, Any?>) ?: emptyMap<String, Any?>()
-                pluginBridge.eventFlow(capId).tryEmit(
+                // M3: an unregistered capId must not getOrPut a permanent
+                // flow entry (unbounded eventFlows growth) — reject instead.
+                val flow = pluginBridge.registeredEventFlow(capId)
+                if (flow == null) {
+                    result.error("not_started", "capability $capId not registered", null)
+                    return
+                }
+                flow.tryEmit(
                     DebugEvent(
                         type = event["type"] as? String ?: "unknown",
                         // Dart-side sequence is discarded (§3.1); the plane
