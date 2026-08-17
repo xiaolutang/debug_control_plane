@@ -8,7 +8,9 @@ name: ci
 
 on:
   push:
-    branches: [main]
+    # All branches: feature branches get the gate too (release.sh push stage
+    # waits on the branch run before merging to main).
+    branches: ['**']
     # JitPack releases are tag-driven (v0.2.0 …): a tag push must run the
     # same seven-suite gate — otherwise a release tag ships CI-unverified.
     tags: ['v*']
