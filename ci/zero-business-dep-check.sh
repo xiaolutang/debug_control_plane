@@ -39,9 +39,15 @@ if ! command -v fvm >/dev/null 2>&1; then
   echo "FAIL: 未找到 fvm(系统 Flutter 是 OHOS 分支,不可用于 dart analyze)" >&2
   exit 1
 fi
-if [[ ! -x "$PY_BIN" ]]; then
-  echo "FAIL: 未找到 python3.13($PY_BIN)" >&2
-  exit 1
+# 判活规则与 ci-check-all.sh 步骤 4 对齐:PYTHON_BIN 可以是绝对路径(本地默认
+# /usr/local/bin/python3.13)或 PATH 上的命令名(runner 注入 python3.13)。
+# 相对路径名用 command -v 判活 — `[[ -x python3.13 ]]` 只查 cwd,对 PATH 命令
+# 恒 false(CI 第二次红的根因)。
+if [[ "$PY_BIN" == */* ]]; then
+  [[ -x "$PY_BIN" ]] || { echo "FAIL: 未找到 python3.13($PY_BIN)" >&2; exit 1; }
+else
+  command -v "$PY_BIN" >/dev/null 2>&1 \
+    || { echo "FAIL: PATH 上未找到 $PY_BIN" >&2; exit 1; }
 fi
 
 echo "REPO_ROOT=$REPO_ROOT"
