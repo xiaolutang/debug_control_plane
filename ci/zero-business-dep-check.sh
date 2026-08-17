@@ -175,7 +175,18 @@ while IFS= read -r f; do
   done < <(grep -hE '^import ' "$f")
 done < <(cd "$REPO_ROOT" && find kotlin/src flutter_debug_control_plane/android/src -name '*.kt' | sort)
 
-if (( ${#hits[@]:-0} > 0 )); then
+# 数组判空辅助(declare 探测后展开):`${#arr[@]:-0}` 在 bash 5 是 bad
+# substitution、`${#arr[@]}` 在 bash 3.2 + set -u + 未声明数组下是 unbound ——
+# 本地 mac bash 3.2 与 runner bash 5.2 都要活(CI 第三红的根因),declare -p
+# 探测存在性后再展开长度是唯一双版本写法。数组均有 `xxx=()` 初始化,探测是
+# 防御(与原 `:-0` 意图一致),不是绕过。
+array_len() {  # array_len <数组名> → stdout 输出长度(不存在输出 0)
+  local name="$1"
+  declare -p "$name" >/dev/null 2>&1 || { echo 0; return; }
+  eval "echo \${#$name[@]}"
+}
+
+if (( $(array_len hits) > 0 )); then
   echo "FAIL: kotlin 侧含未声明依赖 import:" >&2
   printf '  %s\n' "${hits[@]}" >&2
   exit 1
@@ -196,7 +207,7 @@ while IFS= read -r hit; do
 done < <(cd "$REPO_ROOT" && grep -rnE '(^|[^A-Za-z0-9_.])(android|androidx|com\.host4)\.[A-Za-z]' kotlin/src \
     --include='*.kt' | grep -v ':[0-9]*:import ' || true)
 
-if (( ${#fqn_hits[@]} > 0 )); then
+if (( $(array_len fqn_hits) > 0 )); then
   echo "FAIL: kotlin 核心代码体内出现 android/androidx/com.host4 FQN 使用(可能为依赖绕过,须人工复核):" >&2
   printf '  %s\n' "${fqn_hits[@]}" >&2
   exit 1
@@ -234,7 +245,7 @@ while IFS= read -r decl; do
   fi
 done < <(grep -E '(implementation|api|testImplementation|compileOnly)\s*\(' "$KOTLIN_GRADLE" | grep -oE '"[^"]+"' | tr -d '"')
 
-if (( ${#ghits[@]} > 0 )); then
+if (( $(array_len ghits) > 0 )); then
   echo "FAIL: kotlin 核心含违规 gradle 依赖声明:" >&2
   printf '  %s\n' "${ghits[@]}" >&2
   exit 1
