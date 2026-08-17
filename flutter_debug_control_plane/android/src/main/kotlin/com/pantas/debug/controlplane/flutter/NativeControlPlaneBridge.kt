@@ -168,8 +168,13 @@ open class NativeControlPlaneBridge(
         // rejects them with IllegalArgumentException (FATAL). Convert to
         // codec-safe plain types at this outgoing boundary (FlutterWire.kt).
         val wireArgs = args.toFlutterWire()
-        mainExecutor.execute { channel.invokeMethod(method, mapOf("reqId" to reqId) + wireArgs, callback) }
         return try {
+            // Inside the try/finally so an executor rejection (rejected/closed
+            // executor) still drops the pending entry — otherwise it would sit
+            // there until the 30s timeout sweep that never fires for it.
+            mainExecutor.execute {
+                channel.invokeMethod(method, mapOf("reqId" to reqId) + wireArgs, callback)
+            }
             withTimeout(invokeTimeoutMs) { deferred.await() }
         } catch (e: TimeoutCancellationException) {
             // B4: 30s no fill-in -> 500 internal_error.

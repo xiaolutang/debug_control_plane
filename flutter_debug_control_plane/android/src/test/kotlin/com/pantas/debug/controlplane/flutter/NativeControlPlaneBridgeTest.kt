@@ -232,6 +232,26 @@ class NativeControlPlaneBridgeTest {
         assertEquals(listOf(1), synchronized(pendingSizesAtExecution) { pendingSizesAtExecution })
     }
 
+    @Test
+    fun `executor rejection does not leak the pending entry`() = runBlocking {
+        val channel = FakeMethodChannel()
+        // An executor that rejects (production never does — Handler never
+        // throws — but the contract must hold): the pending reqId must be
+        // cleaned by the finally block, not sit until a timeout that never
+        // fires for it.
+        val rejectingExecutor = java.util.concurrent.Executor {
+            throw java.util.concurrent.RejectedExecutionException("test rejection")
+        }
+        val bridge = NativeControlPlaneBridge(channel, FakeMethodChannel.scope, rejectingExecutor)
+
+        val thrown = runCatching {
+            bridge.pullState("gamepad")
+        }.exceptionOrNull()
+        assertTrue(thrown is java.util.concurrent.RejectedExecutionException)
+        // The whole point: no orphaned pending entry.
+        assertTrue("pending must be empty after executor rejection", bridge.pending.isEmpty())
+    }
+
     // ---- R026 e2e defect #2: org.json types must not cross the boundary ----
     // Real-device POST /input with a nested body crashed the app:
     // StandardMessageCodec.writeValue threw IllegalArgumentException on

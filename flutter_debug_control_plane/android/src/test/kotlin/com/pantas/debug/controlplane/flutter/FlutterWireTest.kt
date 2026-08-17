@@ -87,4 +87,16 @@ class FlutterWireTest {
         assertEquals(scalar, scalar.toFlutterWire())
         assertNoOrgJson(scalar.toFlutterWire())
     }
+
+    /**
+     * StandardMessageCodec has NO Float case — an unconverted Float would
+     * FATAL the main thread exactly like the org.json types did. Unreachable
+     * today (org.json yields Double); this locks the defensive widening.
+     */
+    @Test
+    fun `Float widens to Double because StandardMessageCodec has no Float case`() {
+        val converted = mapOf<String, Any?>("f" to 0.25f).toFlutterWire() as Map<*, *>
+        assertEquals(0.25, converted["f"])
+        assertEquals(java.lang.Double::class.java, converted["f"]!!.javaClass)
+    }
 }

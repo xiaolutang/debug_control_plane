@@ -50,6 +50,10 @@ private fun Any?.toFlutterWireValue(): Any? = when (this) {
         for (v in this) out += v.toFlutterWireValue()
         out
     }
+    // Float is NOT codec-safe (StandardMessageCodec has no Float case) —
+    // widen defensively; unreachable today (org.json yields Double) but a
+    // future Kotlin-side value producer would FATAL the main thread again.
+    is Float -> toDouble()
     // Codec-safe scalars pass through untouched (Double stays Double — no
     // precision loss; Long/Int/Boolean/String are natively supported).
     else -> this
