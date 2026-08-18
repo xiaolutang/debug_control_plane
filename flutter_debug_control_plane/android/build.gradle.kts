@@ -13,6 +13,7 @@ plugins {
 
 allprojects {
     repositories {
+            maven { url = uri("https://jitpack.io") }
         google()
         mavenCentral()
     }
@@ -64,7 +65,7 @@ dependencies {
     // android/settings.gradle.kts here both rewrite it via includeBuild.
     // The release task swaps this line for the JitPack coordinate
     // com.github.xiaolutang.debug_control_plane:kotlin:<tag> (spike-b §5.3).
-    implementation("com.pantas.debug.controlplane:core")
+    implementation("com.github.xiaolutang:debug_control_plane:0.2.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 

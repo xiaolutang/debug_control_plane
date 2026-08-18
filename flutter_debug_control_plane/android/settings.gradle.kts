@@ -24,9 +24,3 @@ rootProject.name = "flutter_debug_control_plane_android"
 // Kotlin core as a composite build — substitutes the
 // com.pantas.debug.controlplane:core coordinate with locally built outputs
 // (path-first, no JitPack release yet).
-includeBuild("../../kotlin") {
-    dependencySubstitution {
-        substitute(module("com.pantas.debug.controlplane:core"))
-            .using(project(":"))
-    }
-}
