@@ -23,6 +23,20 @@ document only specifies the **channel layer** (FF001-1).
 | `capability.state.update` | `{capId, state: Map}` | `null` (cache + push, §3.2.4 — no runBlocking) |
 | `capability.invoke.result` | `{reqId, result \| error: {statusCode, code, message}}` | `null` |
 
+## Lifecycle ownership
+
+The Android carrier owns the native plane lifecycle. If a foreground Service
+mounts the plane, that Service must call `plane.stop()` from its own destroy
+path and then cancel the owning coroutine scope. A Dart `plane.stop` only stops
+a fallback plane created by the plugin itself; it intentionally does not stop a
+Service-mounted carrier plane.
+
+Closing Flutter pages, detaching an engine, or swiping the app from recents does
+not guarantee process death on Android. While the owner process or Service is
+alive, the fixed discovery port `18080` remains bound. If another debug app then
+starts on the same device, it will receive `bind_failed` / `EADDRINUSE` until
+the original owner stops its plane or the apps use distinct ports.
+
 ## native → Dart (2 reverse invokes)
 
 | method | args | Dart fills in via |
@@ -55,7 +69,6 @@ Kotlin file and asserts every literal.
 cd android && /path/to/kotlin/gradlew -p . testDebugUnitTest assembleDebug
 ```
 
-The Kotlin core is consumed via the JitPack coordinate
-`com.github.xiaolutang:debug_control_plane:0.2.0` — the whole ecosystem
-(kotlin core / dart core / this plugin) shares one version line
-(see [../README.md](../README.md)).
+This plugin release consumes Kotlin core
+`com.github.xiaolutang:debug_control_plane:0.2.0`. Kotlin core `0.2.1` is a
+JitPack-only patch compatible with the same `protocolVersion=1`.

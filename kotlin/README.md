@@ -16,7 +16,7 @@ repositories {
 
 // 模块依赖
 dependencies {
-    implementation("com.github.xiaolutang:debug_control_plane:0.2.0")
+    implementation("com.github.xiaolutang:debug_control_plane:0.2.1")
 }
 ```
 
@@ -81,7 +81,32 @@ class MyApp : Application() {
   join（返回同一 URI），不会双绑。
 - **失败会被缓存**：首次绑定失败后，后续所有 `start` 重抛同一失败，直到
   `stop()` 清除。不打算重试就 catch 住记日志即可。
+- **生命周期属于宿主**：谁创建 scope、谁调用 `start()`，谁就必须在自己的
+  生命周期结束时调用 `plane.stop()`，再取消 scope。Activity 关闭、退后台、
+  最近任务划掉都不等于进程退出；只要进程或 Service 还活着，`18080` 监听就
+  会继续占用。
+- 多个业务 app 同时运行 debug plane 时不能共享固定端口。`EADDRINUSE`
+  表示当前设备上已有进程占用该端口；停止那个 owner 的 debug plane，或为不
+  同 app 分配不同端口。
 - 全部聚合 API 是 `suspend`，库内零 `runBlocking`（Android ANR 防护）。
+
+典型 Service owner 的销毁路径：
+
+```kotlin
+override fun onDestroy() {
+    serviceScope.launch {
+        try {
+            plane.stop()
+        } finally {
+            serviceScope.cancel()
+        }
+    }
+    super.onDestroy()
+}
+```
+
+如果把 plane 放在 `Application` 里，端口生命周期就是进程生命周期；真机上
+不要依赖 `Application.onTerminate()` 释放端口。
 
 ## 注册 Capability
 
@@ -126,5 +151,6 @@ MethodChannel 注册到原生平面。
 
 ## 版本 / Version
 
-`0.2.0` —— 与生态同版本线（kotlin JitPack / dart pub.dev / flutter 插件
-pub.dev 三包同号 = 已验证兼容组合）。升级三端一起动。
+`0.2.1` —— Kotlin/JitPack patch release，修复公开 ABI 依赖发布元数据
+（`NanoHTTPD`/`kotlinx-coroutines-core` 编译期可见）并补充 Android 端口
+生命周期说明。协议仍是 `protocolVersion=1`，兼容 Dart/Flutter `0.2.0`。

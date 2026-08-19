@@ -7,6 +7,7 @@ plugins {
     // fails ("Projects using Gradle need to have either the maven or
     // maven-publish plugin enabled").
     `maven-publish`
+    `java-library`
 }
 
 // JitPack multi-module GAV (spike-b §2.4):
@@ -16,7 +17,7 @@ plugins {
 // coordinate declared in their settings.gradle.kts — see
 // publishing.publications below which keeps artifactId = "kotlin".
 group = "com.github.xiaolutang.debug_control_plane"
-version = "0.2.0" // future tag version (R025-C: no tag pushed in this RC)
+version = "0.2.1"
 
 repositories {
     mavenCentral()
@@ -24,11 +25,11 @@ repositories {
 
 dependencies {
     // NanoHTTPD: lightweight embeddable HTTP server, no business deps.
-    implementation("org.nanohttpd:nanohttpd:2.3.1")
+    api("org.nanohttpd:nanohttpd:2.3.1")
     // org.json: JSON encoding (bundled on Android; explicit for pure JVM tests).
     implementation("org.json:json:20240303")
     // Coroutines: for cooperative broadcast / SSE lifecycle.
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 }
