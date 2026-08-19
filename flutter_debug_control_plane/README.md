@@ -55,5 +55,7 @@ Kotlin file and asserts every literal.
 cd android && /path/to/kotlin/gradlew -p . testDebugUnitTest assembleDebug
 ```
 
-The Kotlin core is consumed via composite build (`includeBuild ../../kotlin`)
-— path-first, no JitPack release yet (C-class decision).
+The Kotlin core is consumed via the JitPack coordinate
+`com.github.xiaolutang:debug_control_plane:0.2.0` — the whole ecosystem
+(kotlin core / dart core / this plugin) shares one version line
+(see [../README.md](../README.md)).
