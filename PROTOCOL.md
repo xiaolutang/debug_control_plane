@@ -8,7 +8,7 @@
 
 ## §0 契约边界与真理源声明
 
-- **框架边界**：本契约只覆盖 `ControlPlane` 框架拥有的三类系统路由（`/hello`、`/state`、`/events`）+ capability 声明/分发规则 + SSE 编码 + 错误体格式 + 客户端发现握手。**不**覆盖任何业务 capability 的具体端点语义（如 `/input`、`/profiles/{id}` 的 body 字段）——那些是 capability 自己的 sub-contract，框架只负责路由到 handler。
+- **框架边界**：本契约覆盖 `ControlPlane` 框架拥有的 baseline 系统路由（`GET /hello`、`GET /state`、`GET /events`）、启用 auth 后新增的 bootstrap 系统路由（`POST /auth/request`、`POST /auth/status`、`POST /auth/claim`）、capability 声明/分发规则、SSE 编码、错误体格式和客户端发现握手。**不**覆盖任何业务 capability 的具体端点语义（如 `/input`、`/profiles/{id}` 的 body 字段）——那些是 capability 自己的 sub-contract，框架只负责路由到 handler。
 - **代码真理源**（Kotlin/native 实现必须对齐这些文件的线线行为）：
   - Dart：`dart/lib/src/control_plane.dart`、`transport.dart`、`http_codec.dart`、`http_sse_transport.dart`、`capability.dart`、`route_failure.dart`、`debug_event.dart`
   - Python：`python/debug_control_plane/device_discovery/protocol.py`、`endpoint.py`、`discovery/lan_scan.py`、`discovery/cross_identify.py`、`device_pool.py`
@@ -18,7 +18,7 @@
 
 ## §1 系统路由
 
-三条系统路由由 `ControlPlane` 自身处理，**优先级高于 capability 路由**（`control_plane.dart:129` `_matchSystemRoute` 先判，命中即返回，capability 分发不再跑）。三条系统路由**全部仅 GET**。
+baseline 系统路由由 `ControlPlane` 自身处理，**优先级高于 capability 路由**（`control_plane.dart:129` `_matchSystemRoute` 先判，命中即返回，capability 分发不再跑）。baseline 系统路由是 `GET /hello`、`GET /state`、`GET /events`，三者全部仅 GET。启用 debug plane auth 后，`GET /hello` 仍允许未授权访问以完成最小 bootstrap；`GET /state`、`GET /events` 和 capability routes 均为敏感端点，必须按 §2 校验 Bearer token。auth bootstrap routes 是独立的系统路由扩展，见 §2.3。
 
 ### 1.1 路由匹配总规则（先决约束）
 
@@ -27,8 +27,9 @@
 | 路径分段 | `transport.dart:63` `segments` | 请求路径按 `/` 切成段数组，如 `/profiles/abc` → `['profiles','abc']`。空尾段、重复斜杠的处理依赖各 HTTP 服务器的 `pathSegments`（Dart `Uri.pathSegments` 会去空段）。**native 实现必须复现"去空尾段"语义**，否则 `/hello/` 与 `/hello` 不等价会破坏契约。 |
 | 方法大写 | `transport.dart:61` | method 统一大写比较（`GET`/`POST`）。 |
 | 系统路由精确匹配 | `control_plane.dart:190-198` | 系统路由用 `_listEquals` 做**整段精确匹配**（长度 + 逐段字符串相等），不支持 `{id}` 占位符。`/hello` 必须恰好 `['hello']`。 |
-| 系统优先 | `control_plane.dart:129-132` | 系统路由先判；命中后 capability 路由不再执行。即业务 capability 不得声明 `GET /hello`、`GET /state`、`GET /events`（会被框架截胡，声明了也不生效）。 |
-| 系统路由仅 GET | `control_plane.dart:190-198` | 三条系统路由全部 `method == 'GET'`。POST `/hello` 等会落到 capability POST 分发，找不到则 404。 |
+| 系统优先 | `control_plane.dart:129-132` | 系统路由先判；命中后 capability 路由不再执行。即业务 capability 不得声明 `GET /hello`、`GET /state`、`GET /events` 或 §2.3 的 `/auth/*` bootstrap routes（会被框架截胡，声明了也不生效）。 |
+| baseline 系统路由仅 GET | `control_plane.dart:190-198` | baseline 三条系统路由全部 `method == 'GET'`。POST `/hello`、POST `/state` 等非 auth bootstrap 系统路径会落到 capability POST 分发，找不到则 404。 |
+| auth bootstrap 系统路由仅 POST | §2.3 | 启用 auth 后，`POST /auth/request`、`POST /auth/status`、`POST /auth/claim` 在 capability 分发前处理；它们不是 capability POST routes。非 POST 的 `/auth/*` 请求不属于 auth bootstrap 成功路径。 |
 
 ### 1.2 `GET /hello` — 发现握手 + 元数据聚合
 
@@ -48,9 +49,9 @@
 
 | key | 类型 | 来源/合并层 | 必含 | 说明 |
 |---|---|---|---|---|
-| `protocolVersion` | int (固定 `1`) | 框架常量 `control_plane.dart:10,209` | 是 | 协议版本，框架拥有（见 §6） |
+| `protocolVersion` | int (固定 `1`) | 框架常量 `control_plane.dart:10,209` | 是 | 协议版本，框架拥有（见 §7） |
 | `app` | string | appMeta 注入（业务） | 否* | app 标识 |
-| `deviceId` | string | appMeta 注入（业务） | 否* | app 内设备标识（**不稳定**，多设备撞同值，见 §5） |
+| `deviceId` | string | appMeta 注入（业务） | 否* | app 内设备标识（**不稳定**，多设备撞同值，见 §6） |
 | `deviceName` | string | appMeta 注入（业务） | 否* | 人类可读设备名 |
 | `platform` | string | appMeta 注入（业务） | 否* | 如 `"ios"`/`"android"` |
 | `capabilities` | string[] | appMeta 注入（业务） | 否* | 业务能力标签数组（语义由业务定义，框架透传） |
@@ -63,11 +64,31 @@
 | `eventsEndpoint` | string (固定 `"/events"`) | 框架硬编码 `control_plane.dart:212` | 是 | SSE 端点路径常量 |
 | `profileRevision` | int (固定 `1`) | 框架硬编码 `control_plane.dart:213` | 是 | 当前恒为 1（遗留字段，框架不维护递增） |
 | *(state 聚合键)* | any | `_aggregateState()` spread `control_plane.dart:214,245-256` | 视 capability | 各 capability `state()` 返回的键值被**扁平 spread** 进 `/hello` 顶层（不嵌套）。后注册 capability 的同键覆盖先注册者（`control_plane.dart:251-253`） |
-| `registeredCapabilities` | object[] | `_aggregateCapabilities()` spread `control_plane.dart:218,266-288` | 是 | runtime capability 镜像，schema 见 §2.2 |
+| `registeredCapabilities` | object[] | `_aggregateCapabilities()` spread `control_plane.dart:218,266-288` | 是 | runtime capability 镜像，schema 见 §3.2 |
 
 \* `否*`：框架层不强制，但实际线上 app 的 appMeta 都会注入。Python 客户端 `NetworkTarget.from_hello` 对这些键有默认值兜底（缺 `deviceId` 时回退 `"{host}:{port}"`）。
 
 **合并优先级**（同键后者覆盖前者）：`protocolVersion` → appMeta → serverInfo → `eventsEndpoint`/`profileRevision` → aggregateState → `registeredCapabilities`。`registeredCapabilities` 最后 spread，保证不被业务键冲掉。
+
+**启用 auth 时的 `/hello` bootstrap 差异**：
+
+| 状态 | HTTP status | 必含/可含字段 | 禁止字段 | 说明 |
+|---|---:|---|---|---|
+| 未带 token / token 无效 / token 过期 / token 撤销 | `200` | `protocolVersion`、服务发现字段、`eventsEndpoint`、`profileRevision`、`authRequired:true`、`authStatus`、`authEndpoints` | `registeredCapabilities`、capability 聚合 state | 最小 bootstrap 只暴露授权入口和发现所需信息，不暴露 runtime capability 镜像或业务状态。 |
+| token 有效 | `200` | 既有完整 `/hello` 字段、`registeredCapabilities`、capability 聚合 state、`authRequired:true`、`authStatus:"authorized"` | 无 | 授权后响应保持既有完整 hello 语义，并附加 auth 状态。 |
+| auth 未启用 | `200` | 既有完整 `/hello` 字段 | 无 | 默认裸用行为保持兼容；实现可省略 auth 字段或返回 `authRequired:false`。 |
+
+`authEndpoints` 固定描述 bootstrap 端点：
+
+```jsonc
+{
+  "authEndpoints": {
+    "request": "/auth/request",
+    "status": "/auth/status",
+    "claim": "/auth/claim"
+  }
+}
+```
 
 ### 1.3 `GET /state` — 实时状态快照
 
@@ -96,16 +117,82 @@
 | Response status | `200` | `http_sse_transport.dart:120` |
 | Response Content-Type | `text/event-stream; charset=utf-8` | `http_sse_transport.dart:122` |
 | Response headers | `Cache-Control: no-cache`、`Connection: keep-alive` | `http_sse_transport.dart:123-124` |
-| Response body | SSE 流，帧格式见 §3 | |
+| Response body | SSE 流，帧格式见 §4 | |
 | 连接生命周期 | 长连接，直到客户端断开（write 失败检测）或 `transport.close()` | `http_sse_transport.dart:131-133,166-170` |
 
 **第一帧硬约束**：连接建立后**立即**写 `: connected\n\n`（SSE 注释行，`http_sse_transport.dart:128`）。这是客户端判定"连上了"的信号。TEST01 golden 要求第一行是 `: connected` 而非 JSON body——**native 实现必须复现此首帧**。
 
+启用 auth 时，`/events` 必须在 transport hijack、写响应头、写 `: connected\n\n`、注册 subscriber 之前完成 Bearer token 校验。校验失败返回 `application/json` 401/403 错误体（§2.4 / §5.1），不得写任何 SSE 字节，不得增加 subscriber count。授权成功后 SSE 状态码、headers、首帧和事件帧格式保持不变。
+
 ---
 
-## §2 Capability 声明 + 路由分发
+## §2 Debug Plane Auth（App 侧授权）
 
-### 2.1 Capability 接口契约（`capability.dart:95-111`）
+### 2.1 边界与角色
+
+debug plane auth 是 App debug plane 自身的授权协议，不改变 MCP 拓扑：
+
+- App debug plane 是最终授权判定方，负责生成授权请求、接收用户批准/拒绝、签发 opaque token、保存 token hash 与过期/撤销元数据。
+- Python MCP adapter 是 debug plane HTTP client，只能携带 token、发起 bootstrap/claim 请求、清理本地缓存和向 Agent 暴露可操作错误；Python 不得自行判定 token 是否最终有效。
+- token 是 opaque bearer credential，不是 JWT，不包含可由客户端自解释的 scope/claims。第一版不定义 OAuth、refresh token、RBAC/scope 或完整 MCP Streamable HTTP server。
+
+### 2.2 Bearer token 传递
+
+敏感请求必须使用 HTTP header：
+
+```http
+Authorization: Bearer <opaque-token>
+```
+
+硬约束：
+
+- token 只能通过 `Authorization` header 传递。
+- token 不得放入 query string、URL path、request body、cookie、SSE event data、`appMeta` 或 `/hello` 聚合 state。
+- 服务端按每次敏感请求校验 token hash、过期和撤销状态；客户端缓存命中不等于授权通过。
+- `GET /hello` 和 `/auth/*` bootstrap 端点可未授权访问，但未授权 `/hello` 只能返回 §1.2 的最小 bootstrap。
+- `/state`、`/events`、capability GET resources、capability POST commands 均为敏感端点。
+
+### 2.3 Auth bootstrap endpoints
+
+`/auth/request`、`/auth/status`、`/auth/claim` 是系统 bootstrap routes，优先级高于 capability routes。三者使用 JSON object body；非 object body 按 §5.2 返回 `400 invalid_request`。
+
+| Endpoint | Method | Request body | Success status | Success body | Error status/code |
+|---|---|---|---:|---|---|
+| `/auth/request` | `POST` | `{ "clientNonce": string, "clientLabel"?: string, "requestedMethod"?: string, "requestedPath"?: string }` | `202` | `{ "ok": true, "requestId": string, "status": "pending", "pairingCode"?: string, "expiresAt": string }` | `403 authorization_denied` when policy/user blocks request creation |
+| `/auth/status` | `POST` | `{ "requestId": string, "clientNonce": string }` | `200` | `{ "ok": true, "requestId": string, "status": "pending"|"approved"|"denied"|"expired", "expiresAt"?: string }` | `401 invalid_token` for unknown request/nonce mismatch; `403 authorization_denied` for denied request |
+| `/auth/claim` | `POST` | `{ "requestId": string, "clientNonce": string }` | `200` | `{ "ok": true, "token": string, "tokenId": string, "expiresAt": string }` | `401 token_expired` for expired request/token; `401 invalid_token` for unknown request, nonce mismatch, or already-claimed request; `403 authorization_denied` for denied request |
+
+Claim semantics:
+
+- `clientNonce` binds request/status/claim and prevents another local client from claiming a user-approved request.
+- `token` appears only in successful `/auth/claim`; `/hello` and `/auth/status` never return plaintext token.
+- A request can be claimed once. Repeated claim returns `401 invalid_token` unless implementation uses a stricter same-code equivalent already listed in §2.4.
+- `expiresAt` is an RFC 3339 timestamp. Token expiry is evaluated by App debug plane on every sensitive request.
+
+### 2.4 Sensitive route authorization outcomes
+
+| Condition | HTTP status | code | message guidance |
+|---|---:|---|---|
+| Missing Bearer token or authorization not completed | `401` | `authorization_required` | Debug authorization is required. |
+| Malformed header, unknown token id, hash mismatch, nonce mismatch, or already-claimed request | `401` | `invalid_token` | Debug authorization token is invalid. |
+| Authorization request or token expired | `401` | `token_expired` | Debug authorization token expired. |
+| Token was revoked by App/user | `401` | `token_revoked` | Debug authorization token was revoked. |
+| User denied the pending authorization | `403` | `authorization_denied` | Debug authorization was denied. |
+| Future policy/scope check fails | `403` | `forbidden` | Debug authorization is forbidden. |
+
+All auth failures use the existing error body shape:
+
+```json
+{ "ok": false, "code": "authorization_required", "message": "Debug authorization is required." }
+```
+
+第一版不强制新增 `auth` nested object，不改变 `RouteResult.error` 的基础 schema。
+
+---
+
+## §3 Capability 声明 + 路由分发
+
+### 3.1 Capability 接口契约（`capability.dart:95-111`）
 
 ```
 Capability {
@@ -128,7 +215,7 @@ Capability {
 
 `RouteContext`（`capability.dart:8-24`）：`{pathParams: Map<String,String>, body: Map<String,Object?>, request: Object?}`。`request` 是不透明协议句柄（HTTP 传输下是 `HttpRequest`），框架从不自检，capability 需要时向下转型。
 
-### 2.2 `/hello.registeredCapabilities` 镜像 schema（`control_plane.dart:266-288`）
+### 3.2 `/hello.registeredCapabilities` 镜像 schema（`control_plane.dart:266-288`）
 
 runtime capability 注册表的动态镜像，供 MCP 工具层自动发现可调用端点。**这是跨语言对齐的关键 schema**——native 实现的 `/hello` 必须输出结构一致的 `registeredCapabilities`。
 
@@ -154,7 +241,7 @@ runtime capability 注册表的动态镜像，供 MCP 工具层自动发现可�
 - 每元素必有 `id`（string）、`resources`（array）、`commands`（array）三键。
 - `resources`/`commands` 每元素必有 `method`（string）、`path`（array）；`description` 在非 null 时才出现（`control_plane.dart:275,282` 的 `if (r.description != null)`）。
 
-### 2.3 ⚠️ `path` 是 JSON 数组（跨语言坑，关键约束）
+### 3.3 ⚠️ `path` 是 JSON 数组（跨语言坑，关键约束）
 
 **`path` 字段在 `/hello.registeredCapabilities[].resources[].path` 和 `.commands[].path` 中序列化为 JSON 数组**，**不是** `/`-joined 字符串。
 
@@ -163,9 +250,9 @@ runtime capability 注册表的动态镜像，供 MCP 工具层自动发现可�
 - Dart 现状测试验证：`aggregate_capabilities_test.dart:160` 断言 `expect(res['path'], <String>['profiles']);`——确认线上输出是数组。
 - **跨语言对齐**：Kotlin 用 `List<String>`，Python 端 `_opt_json_list`（`protocol.py:43-60`）当 opaque list 存。三端（Dart/Kotlin/fixture）必须一致——fixture 的 `path` 也是 JSON 数组。
 
-> 历史注记：slice-1 §7 U1 曾标记此点存疑（"是数组还是斜杠字符串"），现已由 Dart 现状测试 (`aggregate_capabilities_test.dart:160`) + Python 解析端 (`_opt_json_list`) 共同确认是**JSON 数组**。
+> 历史注记：slice-1 §8 U1 曾标记此点存疑（"是数组还是斜杠字符串"），现已由 Dart 现状测试 (`aggregate_capabilities_test.dart:160`) + Python 解析端 (`_opt_json_list`) 共同确认是**JSON 数组**。
 
-### 2.4 路由分发规则（`control_plane.dart:136-166`）
+### 3.4 路由分发规则（`control_plane.dart:136-166`）
 
 **核心：扁平、无前缀匹配**（decision D6，`control_plane.dart:19`）。所有 capability 的 resources/commands 共享一个全局路由表，无 `/capabilities/<id>/...` 前缀。
 
@@ -202,20 +289,20 @@ dispatch(req):
 - POST 请求必须带 JSON body 且顶层是 object。非 JSON / 非 object → `RouteFailure(400, 'invalid_request', 'Request body must be valid JSON object.')`。
 - GET 请求 body 恒为 `{}`（`http_sse_transport.dart:89-91`）。
 
-**handler 返回值**：`Future<Map<String,Object?>>`，直接作为 `RouteResult.ok` 的 body（`control_plane.dart:147,162`），**不**自动包 `ok:true`。handler 想加 `ok` 得自己加。handler 抛 `RouteFailure` → 走错误契约（§4）；抛其他异常 → 500 `internal_error`（`control_plane.dart:179-185`）。
+**handler 返回值**：`Future<Map<String,Object?>>`，直接作为 `RouteResult.ok` 的 body（`control_plane.dart:147,162`），**不**自动包 `ok:true`。handler 想加 `ok` 得自己加。handler 抛 `RouteFailure` → 走错误契约（§5）；抛其他异常 → 500 `internal_error`（`control_plane.dart:179-185`）。
 
 ---
 
-## §3 SSE / 事件编码
+## §4 SSE / 事件编码
 
-### 3.1 事件总线与 sequence 分配（`control_plane.dart:86-94`）
+### 4.1 事件总线与 sequence 分配（`control_plane.dart:86-94`）
 
 - 每个 capability 的 `events` stream 在注册时被框架订阅一次（`control_plane.dart:76`）。
 - 事件流入时，框架**重新构造**一个 `DebugEvent`，**分配全局递增 sequence**（`control_plane.dart:88-91`，`_nextSequence++` 从 0 开始，`control_plane.dart:52`）。capability 原始的 sequence **被丢弃**。
 - 同一事件被两路广播：(a) 加进内部 `_eventBus` stream（供非 HTTP 传输消费）；(b) 调 `transport.broadcast(event)`（HTTP 下写到所有 SSE 订阅者，`http_sse_transport.dart:137-145`）。
 - **sequence 是进程级单调递增**，跨 capability 共享一个计数器，从 0 起。重启归零。
 
-### 3.2 `DebugEvent` 序列化 schema（`debug_event.dart:33-35`）
+### 4.2 `DebugEvent` 序列化 schema（`debug_event.dart:33-35`）
 
 ```jsonc
 { "type": "<event type>", "sequence": <int>, ...payload }
@@ -225,7 +312,7 @@ dispatch(req):
 - `payload`（`Map<String,Object?>`）被**展开**进顶层（`debug_event.dart:34` `{type, sequence, ...payload}`），**不嵌套**在 `payload` key 下。
 - payload 键名是业务定义的 camelCase。框架不规定 payload 内容，只保证 `type`/`sequence` 前置 + payload 扁平展开。
 
-### 3.3 SSE 事件帧编码（`http_sse_transport.dart:139-140`）
+### 4.3 SSE 事件帧编码（`http_sse_transport.dart:139-140`）
 
 每一事件帧（SSE spec 兼容）：
 
@@ -241,7 +328,7 @@ data: <jsonEncode(event.toJson())>\n
 - 帧以 `\n\n` 结束（一个空行）。
 - **无 `id:` 字段**、**无 `retry:` 字段**。SSE Last-Event-ID 重连机制**未实现**（客户端断连重连后 sequence 不续传，从当前 `_nextSequence` 继续，丢中间事件）。
 
-### 3.4 连接建立首帧（`http_sse_transport.dart:128`）
+### 4.4 连接建立首帧（`http_sse_transport.dart:128`）
 
 ```
 : connected\n
@@ -250,11 +337,11 @@ data: <jsonEncode(event.toJson())>\n
 
 SSE 注释行（以 `:` 开头），客户端忽略内容但可用于探测连接已建立。**这是首帧硬约束**——必须在写响应头后、flush 前**立即**写。
 
-### 3.5 心跳 / keepalive
+### 4.5 心跳 / keepalive
 
 **当前框架不发心跳**。`broadcast` 仅在有事件时触发（`control_plane.dart:93`）。长时间无事件时 SSE 连接静默——靠 TCP keepalive 和客户端 write 失败检测断连。
 
-### 3.6 Content-Type 与响应头（`http_sse_transport.dart:120-124`）
+### 4.6 Content-Type 与响应头（`http_sse_transport.dart:120-124`）
 
 ```
 HTTP/1.1 200 OK
@@ -265,7 +352,7 @@ Connection: keep-alive
 
 `bufferOutput = false`（`http_sse_transport.dart:119`）——禁用缓冲，每帧立即 flush（`http_sse_transport.dart:129,186`）。
 
-### 3.7 连接生命周期
+### 4.7 连接生命周期
 
 - **建连**：客户端 GET `/events` → 服务端写头 + `: connected` + flush → 加入 `_sseSubscribers` 集合（`http_sse_transport.dart:126-129`）。
 - **广播**：`broadcast` 遍历订阅者集合的**拷贝**（防止迭代中增删，`http_sse_transport.dart:142`），每订阅者 best-effort write；write 抛异常被吞（`http_sse_transport.dart:190-192`），靠 `response.done` 的 `whenComplete` 移除死订阅者（`http_sse_transport.dart:131-133`）。
@@ -273,9 +360,9 @@ Connection: keep-alive
 
 ---
 
-## §4 错误契约
+## §5 错误契约
 
-### 4.1 错误响应体 schema（`transport.dart:22-37` `RouteResult.error` + `http_codec.dart:85-96` `writeError`）
+### 5.1 错误响应体 schema（`transport.dart:22-37` `RouteResult.error` + `http_codec.dart:85-96` `writeError`）
 
 ```jsonc
 { "ok": false, "code": "<machine-readable code>", "message": "<human-readable>" }
@@ -285,7 +372,7 @@ Connection: keep-alive
 - 可选 `extra` 键（`RouteResult.error` 的 `extra` 参数，`transport.dart:25-27`）被 spread 进顶层。当前框架自身错误不带 extra；业务 capability 可自带。
 - Content-Type `application/json`，status code 由错误类型决定。
 
-### 4.2 RouteFailure → HTTP 状态码映射
+### 5.2 RouteFailure → HTTP 状态码映射
 
 错误来源两类（`control_plane.dart:173-185`）：
 
@@ -301,20 +388,28 @@ Connection: keep-alive
 - `not_found`（404）
 - `invalid_request`（400）
 - `internal_error`（500）
+- `authorization_required`（401）
+- `invalid_token`（401）
+- `token_expired`（401）
+- `token_revoked`（401）
+- `authorization_denied`（403）
+- `forbidden`（403）
 
-业务 capability 可自定义 code（如 `real_controller_active`、`profile_not_found`），但框架层只保证这三个。
+业务 capability 可自定义 code（如 `real_controller_active`、`profile_not_found`），但框架层只保证上表列出的框架/鉴权 code。
 
-### 4.3 HTTP 层错误捕获（`http_sse_transport.dart:100-114`）
+auth 相关错误 code 由 debug plane auth gate 拥有，仍使用 §5.1 的错误体 schema；不要求业务 capability 自行生成。
+
+### 5.3 HTTP 层错误捕获（`http_sse_transport.dart:100-114`）
 
 传输层在 `_handleRoute` 里 catch 两类：`RouteFailure` → `writeError`；其他 → 500 `internal_error`。这与 `dispatch` 内部的 catch（`control_plane.dart:173-185`）**双重兜底**——正常路径 dispatch 已把异常转成 `RouteResult.error`，传输层只在 dispatch 本身抛出时兜底。native 实现需保证 handler 异常不泄漏成传输层栈 trace。
 
 ---
 
-## §5 客户端发现契约（Python `device_discovery`）
+## §6 客户端发现契约（Python `device_discovery`）
 
 > **边界**：本节是"客户端如何发现并识别服务端"的契约。R025 明确"不动客户端发现层协议"，所以 native 实现的服务端必须让现有 Python 客户端**零改动**就能发现。这约束了 `/hello` 的字段稳定性。
 
-### 5.1 发现机制总览
+### 6.1 发现机制总览
 
 两条并行发现通道，结果交叉识别（`cross_identify.py`）：
 
@@ -324,7 +419,7 @@ Connection: keep-alive
 | **USB 身份** | 平台命令（adb/ios 相关）拿设备 serial/model | `UsbCandidate(device_id, platform, model, android_lan_ip?)` | `usb_identity.py` |
 | **交叉识别** | 纯函数，USB 候选 ⊕ LAN 候选 → `DeviceRecord` | `DeviceRecord` 列表 | `cross_identify.py` |
 
-### 5.2 LAN 扫描握手契约（`endpoint.py` `probe_hello`）
+### 6.2 LAN 扫描握手契约（`endpoint.py` `probe_hello`）
 
 | 项 | 值 | 来源 |
 |---|---|---|
@@ -340,7 +435,7 @@ Connection: keep-alive
 
 **关键**：服务端**必须**在 18080 端口监听，否则 LAN 扫描发现不到。这是硬编码约定，非协商。
 
-### 5.3 device_id 来源契约（decision D9，跨语言关键）
+### 6.3 device_id 来源契约（decision D9，跨语言关键）
 
 **`DeviceRecord.device_id` 绝不来自 `/hello.deviceId`**（`device_pool.py:73-75`、`cross_identify.py:14-15`）。
 
@@ -353,7 +448,7 @@ device_id 真实来源（`cross_identify.py` `_merge`）：
 
 → **对 native 的约束**：native 实现的服务端 `/hello.deviceId` 可以继续输出 app 注入值（框架透传 appMeta），但**跨设备唯一性由 USB 身份保证，不依赖 `/hello.deviceId`**。
 
-### 5.4 交叉识别分层兜底链（`cross_identify.py`）
+### 6.4 交叉识别分层兜底链（`cross_identify.py`）
 
 5 层逐层抽取已匹配对，每层从剩余池移除已配项：
 
@@ -368,19 +463,19 @@ device_id 真实来源（`cross_identify.py` `_merge`）：
 
 ---
 
-## §6 protocolVersion（跨语言硬常量）
+## §7 protocolVersion（跨语言硬常量）
 
 - **`protocolVersion = 1`** 是跨语言硬常量（`control_plane.dart:10` `kDebugControlPlaneProtocolVersion`）。
-- **独立于包版本**：Dart pubspec 当前 `0.1.2`、Python `0.1.1`、Kotlin 未来 `0.2.0`——包版本各自演进，但 `protocolVersion` 三端必须同值 `1`。只有协议发生不兼容破坏性变更时才递增（如 SSE 帧格式改、`/hello` schema 删字段），向后兼容的字段新增**不**递增。
+- **独立于包版本**：Dart pubspec 当前 `0.1.2`、Python `0.1.1`、Kotlin 未来 `0.2.0`——包版本各自演进，但 `protocolVersion` 三端必须同值 `1`。只有协议发生不兼容破坏性变更时才递增（如 SSE 帧格式改、`/hello` schema 删字段），向后兼容的字段新增**不**递增。debug plane auth 新增 header、bootstrap 字段和 `/auth/*` routes 属于向后兼容扩展，`protocolVersion` 仍保持 `1`。
 - **fixture 守卫**：`fixtures/hello.json` 的 `protocolVersion` 字段固定 `1`，BF004-3 的 `ci/protocol-version-guard.sh` 会校验三端（Dart 常量 / Kotlin 常量 / fixture 值）同值。
 
 ---
 
-## §7 不确定点 / 已知历史包袱
+## §8 不确定点 / 已知历史包袱
 
 以下点是 Dart 现状的已知行为，native 实现照搬即可，但标注以待未来决策：
 
-- **U1（已消解）**：`registeredCapabilities[].resources[].path` 序列化格式——slice-1 曾存疑，现由 `aggregate_capabilities_test.dart:160` + Python `_opt_json_list` 确认是 **JSON 数组**（§2.3）。
+- **U1（已消解）**：`registeredCapabilities[].resources[].path` 序列化格式——slice-1 曾存疑，现由 `aggregate_capabilities_test.dart:160` + Python `_opt_json_list` 确认是 **JSON 数组**（§3.3）。
 - **U2**：SSE 心跳策略缺失。当前无应用层心跳，长时间无事件时连接静默。native（尤其 Android 的 NetworkCallback 网络切换）是否补 `: ping\n\n` 心跳待决策。
 - **U3**：sequence 重连不续传。SSE 无 `id:` 字段，客户端断连重连无法用 `Last-Event-ID` 续传。
 - **U4**：`/events` 内省兜底（`{ok:true, note:'event_bus_is_stream'}`）在生产 HTTP 传输下永远不可达（被 hijack）。native 若用不同传输实现，建议保留兜底（契约完整性），标注"仅非 SSE 传输可达"。
@@ -396,6 +491,12 @@ device_id 真实来源（`cross_identify.py` `_merge`）：
 |---|---|---|---|
 | 协议版本 | `protocolVersion = 1` | 是 | `fixtures/hello.json` |
 | 系统路由 | `GET /hello`、`GET /state`、`GET /events` | 是 | `fixtures/hello.json` / `state-*.json` / `sse-*.bin` |
+| Auth token 传递 | `Authorization: Bearer <opaque-token>` header only；禁止 query string | 是 | `fixtures/error-401-*.json`（R001-BF002） |
+| Auth bootstrap routes | `POST /auth/request`、`POST /auth/status`、`POST /auth/claim` | 是 | `fixtures/auth-*.json`（R001-BF002） |
+| 未授权 `/hello` | 最小 bootstrap，含 auth 引导；不含 `registeredCapabilities` 和聚合 state | 是 | `fixtures/hello-auth-required.json`（R001-BF002） |
+| 授权后 `/hello` | 完整 hello + `registeredCapabilities` + 聚合 state + auth status | 是 | `fixtures/hello-auth-authorized.json`（R001-BF002） |
+| Auth 错误体 | `{ok:false, code, message}`；code 见 §2.4 | 是 | `fixtures/error-401-*.json` / `error-403-*.json`（R001-BF002） |
+| `/events` auth 失败 | hijack 前返回 JSON 401/403；不得写 `: connected` | 是 | `fixtures/error-401-authorization-required.json`（R001-BF002） |
 | `/events` 首帧 | `: connected\n\n` | 是（字节级） | `fixtures/sse-connected.bin` |
 | SSE 事件帧 | `event: <type>\ndata: <json>\n\n` | 是（字节级） | `fixtures/sse-event-frame.bin` |
 | `/state` 无 `ok` 包裹 | 扁平 object | 是 | `fixtures/state-empty.json` / `state-with-cap.json` |

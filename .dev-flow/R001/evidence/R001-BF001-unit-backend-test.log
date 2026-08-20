@@ -1,0 +1,34 @@
+---
+task_id: R001-BF001
+layer: unit
+domain: backend
+status: pass
+passed: 1
+failed: 0
+deferred: false
+---
+
+# R001-BF001 Docs Protocol Check
+
+Command:
+
+```bash
+rg -n "Authorization: Bearer|query string|/auth/request|/auth/status|/auth/claim|authorization_required|invalid_token|token_expired|token_revoked|authorization_denied|forbidden|authRequired|registeredCapabilities|SSE|connected|protocolVersion.*1" PROTOCOL.md
+```
+
+Result: pass.
+
+Assertions:
+
+- `Authorization: Bearer <opaque-token>` is documented as the only token transport.
+- Query string, path, body, cookie, SSE event data, `appMeta`, and `/hello` aggregate state token transport are forbidden.
+- `/hello` auth bootstrap distinguishes unauthorized minimal bootstrap from authorized full hello.
+- `/auth/request`, `/auth/status`, and `/auth/claim` document method, body, status, response fields, and core error outcomes.
+- §0 includes both baseline system routes and auth bootstrap system routes in the protocol boundary.
+- §1 distinguishes baseline GET-only system routes from auth-enabled POST bootstrap system routes.
+- §1.1 explicitly says `/auth/*` bootstrap routes are handled before capability dispatch and are not capability POST routes.
+- Auth error codes cover `authorization_required`, `invalid_token`, `token_expired`, `token_revoked`, `authorization_denied`, and `forbidden`.
+- `/events` auth failure is documented as pre-hijack JSON 401/403 with no `: connected` bytes.
+- `protocolVersion` remains `1`.
+
+Fixture/golden executable checks are explicitly deferred to R001-BF002, which owns `fixtures/`.
