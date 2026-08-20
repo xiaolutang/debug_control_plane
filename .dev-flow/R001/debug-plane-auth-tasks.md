@@ -262,7 +262,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：`/events` 当前在 transport 层劫持，dispatch 内 gate 会漏掉 SSE。
 
-## R001-BF006：kotlin tests — auth coverage `⬜ 待处理`
+## R001-BF006：kotlin tests — auth coverage `✅ 已完成`
 
 - 文件：`kotlin/src/test/kotlin/com/pantas/debug/controlplane/*Auth*Test.kt`
 - 改动类型：新建
@@ -273,7 +273,7 @@ contextMdPaths:
 - risk_tags: [tests, kotlin, auth]
 - smoke_required: true
 - mode: direct
-- status: pending
+- status: completed
 - sourceCapabilities: [BF001, BF002, BF003]
 - sourceSlices: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-server-slice.md, .dev-flow/R001/analysis/2026-08-20--debug-plane-auth-app-slice.md]
 - sourceDesigns: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md]
@@ -292,9 +292,9 @@ contextMdPaths:
 - decision_refs: [DEC-R001-001, DEC-R001-002, DEC-R001-003, DEC-R001-005, DEC-R001-006]
 - blocked_files: []
 - 具体改动点：
-  - R001-BF006.1 `⬜` 新增 fake auth manager 与 fake capability。
-  - R001-BF006.2 `⬜` 新增 HTTP/SSE auth 测试。
-  - R001-BF006.3 `⬜` 新增 auth route lifecycle 测试。
+  - R001-BF006.1 `✅` 新增 fake auth manager 与 fake capability。
+  - R001-BF006.2 `✅` 新增 HTTP/SSE auth 测试。
+  - R001-BF006.3 `✅` 新增 auth route lifecycle 测试。
 - 关键代码片段：
   ```kotlin
   assertEquals(0, transport.subscriberCount())

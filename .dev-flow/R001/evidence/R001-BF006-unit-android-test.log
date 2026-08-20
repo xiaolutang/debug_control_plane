@@ -1,0 +1,56 @@
+---
+status: pass
+task_id: R001-BF006
+domain: android
+layer: unit
+passed: 112
+skipped: 0
+failed: 0
+errors: 0
+commands:
+  - command: "cd kotlin && ./gradlew build"
+    exit_code: 0
+    result: "BUILD SUCCESSFUL in 497ms; test task was UP-TO-DATE"
+  - command: "cd kotlin && ./gradlew test --rerun-tasks"
+    exit_code: 0
+    result: "BUILD SUCCESSFUL in 5s; 112 passed, 0 skipped, 0 failures, 0 errors"
+---
+
+# R001-BF006 Kotlin Test Log
+
+Build command:
+
+```bash
+cd kotlin && ./gradlew build
+```
+
+Result:
+
+```text
+BUILD SUCCESSFUL in 497ms
+7 actionable tasks: 7 up-to-date
+```
+
+Forced test command:
+
+```bash
+cd kotlin && ./gradlew test --rerun-tasks
+```
+
+Result summary from `kotlin/build/test-results/test/TEST-*.xml`:
+
+```text
+tests=112 failures=0 errors=0 skipped=0 passed=112
+```
+
+Key BF006 coverage:
+- `ControlPlaneAuthTest.helloWithoutValidTokenReturnsMinimalBootstrap`
+- `ControlPlaneAuthTest.helloWithValidTokenReturnsFullHelloWithAuthState`
+- `ControlPlaneAuthTest.stateDeniedShortCircuitsBeforeAggregation`
+- `ControlPlaneAuthTest.capabilityDeniedShortCircuitsBeforeHandler`
+- `ControlPlaneAuthTest.authBootstrapRoutesUseManagerResultsAndWinOverCapabilities`
+- `ControlPlaneAuthTest.authBootstrapRoutesMapDeniedResultsToErrors`
+- `ControlPlaneAuthTest.authBootstrapClaimCanReturnRevokedTokenError`
+- `DebugAuthTest.validateTokenRejectsExpiredAndRevokedRecords`
+- `SseAndRoutingIntegrationTest.sse_authDeniedReturnsJsonBeforeFirstFrameAndSubscriberRegistration`
+- `SseAndRoutingIntegrationTest.sse_authForbiddenReturnsJsonAndDoesNotSubscribe`

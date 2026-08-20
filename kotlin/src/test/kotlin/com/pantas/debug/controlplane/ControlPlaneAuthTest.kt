@@ -184,6 +184,23 @@ class ControlPlaneAuthTest {
         assertEquals("token_expired", expired.code)
     }
 
+    @Test
+    fun authBootstrapClaimCanReturnRevokedTokenError() {
+        val auth = RecordingAuthManager(
+            claimResult = DebugAuthRouteResult.Denied(
+                401,
+                "token_revoked",
+                "Debug authorization token was revoked.",
+            ),
+        )
+        val plane = newPlane(auth)
+
+        val revoked = dispatch(plane, post("/auth/claim")) as RouteResult.Error
+
+        assertEquals(401, revoked.statusCode)
+        assertEquals("token_revoked", revoked.code)
+    }
+
     private fun newPlane(auth: DebugAuthManager?): ControlPlane =
         ControlPlane(
             transport = transport,
