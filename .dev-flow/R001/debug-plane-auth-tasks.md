@@ -220,7 +220,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：普通 HTTP route 的最终授权必须由 App debug plane 判定。
 
-## R001-BF005：kotlin HttpSseTransport — SSE pre-hijack auth `⬜ 待处理`
+## R001-BF005：kotlin HttpSseTransport — SSE pre-hijack auth `✅ 已完成`
 
 - 文件：`kotlin/src/main/kotlin/com/pantas/debug/controlplane/HttpSseTransport.kt`
 - 改动类型：修改
@@ -231,7 +231,7 @@ contextMdPaths:
 - risk_tags: [kotlin, sse, auth]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [BF001, BF002]
 - sourceSlices: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-server-slice.md]
 - sourceDesigns: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md]
@@ -250,9 +250,9 @@ contextMdPaths:
 - decision_refs: [DEC-R001-005, DEC-R001-006]
 - blocked_files: []
 - 具体改动点：
-  - R001-BF005.1 `⬜` transport 可访问 auth checker 或 dispatch 前 preflight handler。
-  - R001-BF005.2 `⬜` 在 `hijackEvents()` 前短路 unauthorized response。
-  - R001-BF005.3 `⬜` 保持 authorized 首帧字节契约不变。
+  - R001-BF005.1 `✅` transport 可访问 auth checker 或 dispatch 前 preflight handler。
+  - R001-BF005.2 `✅` 在 `hijackEvents()` 前短路 unauthorized response。
+  - R001-BF005.3 `✅` 保持 authorized 首帧字节契约不变。
 - 关键代码片段：
   ```kotlin
   if (method == Method.GET && segments == listOf("events")) {

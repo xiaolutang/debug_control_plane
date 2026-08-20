@@ -1,0 +1,362 @@
+---
+status: pass
+task_id: R001-BF005
+requirement_cycle: R001
+layer: unit
+domain: android
+passed: 136
+focused_command: cd kotlin && ./gradlew test --tests com.pantas.debug.controlplane.SseAndRoutingIntegrationTest
+build_command: cd kotlin && ./gradlew build
+focused_status: pass
+build_status: pass
+---
+
+Configuration on demand is an incubating feature.
+> Task :checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :processResources NO-SOURCE
+> Task :processTestResources NO-SOURCE
+> Task :compileKotlin
+> Task :compileJava NO-SOURCE
+> Task :classes UP-TO-DATE
+> Task :jar
+> Task :compileTestKotlin
+> Task :compileTestJava NO-SOURCE
+> Task :testClasses UP-TO-DATE
+
+> Task :test
+
+SseAndRoutingIntegrationTest > sse_authDeniedReturnsJsonBeforeFirstFrameAndSubscriberRegistration PASSED
+
+SseAndRoutingIntegrationTest > routing_handlerExceptionIs500InternalError PASSED
+
+SseAndRoutingIntegrationTest > sse_firstFrameIsConnectedComment PASSED
+
+SseAndRoutingIntegrationTest > sse_broadcastWithNoSubscribersIsNoOp PASSED
+
+SseAndRoutingIntegrationTest > sse_droppingOneClientDoesNotAffectOthers STANDARD_ERROR
+    8月 20, 2026 8:06:35 下午 fi.iki.elonen.NanoHTTPD$Response send
+    严重: Could not send response to the client
+    java.net.SocketException: Broken pipe
+    	at java.base/sun.nio.ch.NioSocketImpl.implWrite(NioSocketImpl.java:425)
+    	at java.base/sun.nio.ch.NioSocketImpl.write(NioSocketImpl.java:445)
+    	at java.base/sun.nio.ch.NioSocketImpl$2.write(NioSocketImpl.java:831)
+    	at java.base/java.net.Socket$SocketOutputStream.write(Socket.java:1035)
+    	at java.base/java.io.OutputStream.write(OutputStream.java:127)
+    	at fi.iki.elonen.NanoHTTPD$Response$ChunkedOutputStream.write(NanoHTTPD.java:1442)
+    	at fi.iki.elonen.NanoHTTPD$Response.sendBody(NanoHTTPD.java:1694)
+    	at fi.iki.elonen.NanoHTTPD$Response.sendBodyWithCorrectEncoding(NanoHTTPD.java:1667)
+    	at fi.iki.elonen.NanoHTTPD$Response.sendBodyWithCorrectTransferAndEncoding(NanoHTTPD.java:1654)
+    	at fi.iki.elonen.NanoHTTPD$Response.send(NanoHTTPD.java:1624)
+    	at fi.iki.elonen.NanoHTTPD$HTTPSession.execute(NanoHTTPD.java:957)
+    	at fi.iki.elonen.NanoHTTPD$ClientHandler.run(NanoHTTPD.java:192)
+    	at java.base/java.lang.Thread.run(Thread.java:840)
+
+
+SseAndRoutingIntegrationTest > sse_droppingOneClientDoesNotAffectOthers PASSED
+
+SseAndRoutingIntegrationTest > routing_unknownEndpointIs404WithFixtureLiteral PASSED
+
+SseAndRoutingIntegrationTest > bind_occupiedPortThrowsBindException PASSED
+
+SseAndRoutingIntegrationTest > routing_postArrayBodyIs400 PASSED
+
+SseAndRoutingIntegrationTest > sse_headersMatchContract PASSED
+
+SseAndRoutingIntegrationTest > sse_authAuthorizedKeepsByteExactFirstFrame PASSED
+
+SseAndRoutingIntegrationTest > hello_trailingSlashEquivalent PASSED
+
+SseAndRoutingIntegrationTest > sse_multipleClientsBothReceiveBroadcast PASSED
+
+SseAndRoutingIntegrationTest > routing_postInvalidBodyIs400InvalidRequest PASSED
+
+SseAndRoutingIntegrationTest > sse_firstFrameIsByteExactPerFixture PASSED
+
+SseAndRoutingIntegrationTest > sse_eventFrameMatchesFixtureShape PASSED
+
+SseAndRoutingIntegrationTest > state_returnsFlatAggregationNoOk PASSED
+
+SseAndRoutingIntegrationTest > sse_authForbiddenReturnsJsonAndDoesNotSubscribe PASSED
+
+SseAndRoutingIntegrationTest > sse_connectionPersistsAcrossBroadcasts PASSED
+
+SseAndRoutingIntegrationTest > events_overHttpIsSseNotIntrospectionFallback PASSED
+
+SseAndRoutingIntegrationTest > sse_authMalformedBearerReturnsAuthorizationRequiredJson PASSED
+
+SseAndRoutingIntegrationTest > routing_literalProfileList PASSED
+
+SseAndRoutingIntegrationTest > routing_multiSegmentWithTwoPlaceholders PASSED
+
+SseAndRoutingIntegrationTest > hello_returnsProtocolVersionAndRegisteredCapabilities PASSED
+
+SseAndRoutingIntegrationTest > sse_authDisabledStillAllowsBareEvents PASSED
+
+SseAndRoutingIntegrationTest > routing_singleSegmentPlaceholderExtractsId PASSED
+
+BUILD SUCCESSFUL in 2s
+4 actionable tasks: 4 executed
+Configuration on demand is an incubating feature.
+> Task :checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :compileKotlin UP-TO-DATE
+> Task :compileJava NO-SOURCE
+> Task :processResources NO-SOURCE
+> Task :classes UP-TO-DATE
+> Task :jar UP-TO-DATE
+> Task :startScripts
+> Task :distTar
+> Task :distZip
+> Task :assemble
+> Task :compileTestKotlin UP-TO-DATE
+> Task :compileTestJava NO-SOURCE
+> Task :processTestResources NO-SOURCE
+> Task :testClasses UP-TO-DATE
+
+> Task :test
+
+ControlPlaneAuthTest > authDisabledKeepsBareControlPlaneBehavior PASSED
+
+ControlPlaneAuthTest > capabilityDeniedShortCircuitsBeforeHandler PASSED
+
+ControlPlaneAuthTest > authBootstrapRoutesUseManagerResultsAndWinOverCapabilities PASSED
+
+ControlPlaneAuthTest > helloWithValidTokenReturnsFullHelloWithAuthState PASSED
+
+ControlPlaneAuthTest > helloWithoutValidTokenReturnsMinimalBootstrap PASSED
+
+ControlPlaneAuthTest > authBootstrapRoutesMapDeniedResultsToErrors PASSED
+
+ControlPlaneAuthTest > capabilityAuthorizedDispatchesHandler PASSED
+
+ControlPlaneAuthTest > stateDeniedShortCircuitsBeforeAggregation PASSED
+
+ControlPlaneStartOnceTest > start failure is cached and rethrown PASSED
+
+ControlPlaneStartOnceTest > stop during an in-flight bind rejects the stale cache write PASSED
+
+ControlPlaneStartOnceTest > stop clears state and allows restart PASSED
+
+ControlPlaneStartOnceTest > restart after stop binds a fresh pipe PASSED
+
+ControlPlaneStartOnceTest > concurrent starts join the first bind PASSED
+
+ControlPlaneStartOnceTest > stop during an in-flight bind failure does not cache the stale failure PASSED
+
+ControlPlaneStartOnceTest > stop during an in-flight bind still stops the late-bound server PASSED
+
+ControlPlaneStartOnceTest > updateAppMeta is reflected in hello PASSED
+
+ControlPlaneStartOnceTest > start twice sequentially returns same uri and binds once PASSED
+
+ControlPlaneTest > dispatch_notFoundBodyShapeMatchesError404Fixture PASSED
+
+ControlPlaneTest > hello_protocolVersionAndEndpoints PASSED
+
+ControlPlaneTest > state_emptyRegistry_isEmptyObject_noOkField PASSED
+
+ControlPlaneTest > dispatch_pathParamsNotLeakedAcrossDeclarations PASSED
+
+ControlPlaneTest > events_introspectionFallbackShape PASSED
+
+ControlPlaneTest > state_flatSpreadAcrossCapabilities PASSED
+
+ControlPlaneTest > dispatch_nonGetMethodOnSystemRouteFallsThroughTo404 PASSED
+
+ControlPlaneTest > dispatch_systemRoutesWinOverCapabilityDeclarations PASSED
+
+ControlPlaneTest > hello_stateKeysSpreadFlat PASSED
+
+ControlPlaneTest > duplicateRegisterThrows PASSED
+
+ControlPlaneTest > dispatch_getResourceWithPathParams PASSED
+
+ControlPlaneTest > state_laterRegistrationWinsOnKeyCollision PASSED
+
+ControlPlaneTest > unregisterUnknownIsNoOp PASSED
+
+ControlPlaneTest > dispatch_routeFailureMapsToItsStatusAndCode PASSED
+
+ControlPlaneTest > hello_appMetaInjectedBetweenProtocolVersionAndServerInfo PASSED
+
+ControlPlaneTest > dispatch_segmentCountMismatchIs404 PASSED
+
+ControlPlaneTest > dispatch_postDoesNotHitGetResources PASSED
+
+ControlPlaneTest > dispatch_firstMatchWinsInRegistrationOrder PASSED
+
+ControlPlaneTest > dispatch_arbitraryExceptionMapsTo500InternalError PASSED
+
+ControlPlaneTest > dispatch_postCommandReceivesBody PASSED
+
+ControlPlaneTest > hello_mergeOrder_appMetaCannotClobberLaterFrameworkKeys PASSED
+
+ControlPlaneTest > registerAddsId_unregisterRemoves PASSED
+
+ControlPlaneTest > hello_registeredCapabilities_schemaAndOrder PASSED
+
+DebugAuthTest > validateTokenAuthorizesMatchingHashBeforeExpiry PASSED
+
+DebugAuthTest > noOpManagerKeepsBareDebugPlaneAuthorized PASSED
+
+DebugAuthTest > validateTokenRejectsUnknownOrMismatchedToken PASSED
+
+DebugAuthTest > bearerTokenParsesCaseInsensitiveAuthorizationHeaderKey PASSED
+
+DebugAuthTest > classifyRouteMarksHelloBootstrapOnlyForGetHello PASSED
+
+DebugAuthTest > validateTokenRejectsExpiredAndRevokedRecords PASSED
+
+DebugAuthTest > bearerTokenRejectsMissingNonBearerEmptyAndMalformedValues PASSED
+
+DebugAuthTest > classifyRouteMarksAuthBootstrapPostEndpoints PASSED
+
+DebugAuthTest > tokenHashIsStableAndDoesNotExposePlaintext PASSED
+
+DebugAuthTest > classifyRouteDefaultsStateEventsAndCapabilitiesToSensitive PASSED
+
+DebugAuthTest > validateTokenRequiresMissingToken PASSED
+
+EventBusTest > capability event reaches transport broadcast with plane sequence PASSED
+
+EventBusTest > multiple subscribers each receive every event PASSED
+
+EventBusTest > capability-provided sequence is discarded and globally renumbered PASSED
+
+EventBusTest > bus fans out to both transport broadcast and bus collectors PASSED
+
+EventBusTest > cancelled subscriber stops receiving, others unaffected PASSED
+
+EventBusTest > unregister cancels the collection job - no leak PASSED
+
+EventBusTest > replay is zero - new subscriber misses earlier events PASSED
+
+EventBusTest > high-frequency emit over buffer does not block the producer PASSED
+
+GoldenFixtureTest > state_emptyPlaneMatchesGoldenFixture PASSED
+
+GoldenFixtureTest > normalize_skipsUnderscoreKeys PASSED
+
+GoldenFixtureTest > hello_unstableReasonsAreFromClosedSet PASSED
+
+GoldenFixtureTest > normalize_replacesUnstableMarkersWithTypeGuards PASSED
+
+GoldenFixtureTest > error500_matchesGoldenFixtureWithUnstableNormalization PASSED
+
+GoldenFixtureTest > hello_matchesGoldenFixture PASSED
+
+GoldenFixtureTest > sse_eventFrameIsByteExactPerFixture PASSED
+
+GoldenFixtureTest > routeDecl_matchesGoldenFixture PASSED
+
+GoldenFixtureTest > error400_matchesGoldenFixture PASSED
+
+GoldenFixtureTest > normalize_detectsRealDrift PASSED
+
+GoldenFixtureTest > state_withCapabilityMatchesGoldenFixture PASSED
+
+GoldenFixtureTest > sse_connectedFrameIsByteExactPerFixture PASSED
+
+GoldenFixtureTest > error404_matchesGoldenFixture PASSED
+
+GoldenFixtureTest > normalize_rejectsUnknownReason PASSED
+
+GoldenFixtureTest > discoveryPython_constantsMatchPythonSource PASSED
+
+HttpSseTransportBindGuardTest > close resets boundPort and allows rebinding PASSED
+
+HttpSseTransportBindGuardTest > second bind throws BindException PASSED
+
+RoutePathTest > placeholderAcceptsAnyNonBracketedToken PASSED
+
+RoutePathTest > segmentsSplitStripsLeadingTrailingSlash PASSED
+
+RoutePathTest > literalMatchNoPlaceholder PASSED
+
+RoutePathTest > literalSegmentMustEqualExactly PASSED
+
+RoutePathTest > segmentCountMismatchFails PASSED
+
+RoutePathTest > singleSegmentPlaceholderCaptures PASSED
+
+SseAndRoutingIntegrationTest > sse_authDeniedReturnsJsonBeforeFirstFrameAndSubscriberRegistration PASSED
+
+SseAndRoutingIntegrationTest > routing_handlerExceptionIs500InternalError PASSED
+
+SseAndRoutingIntegrationTest > sse_firstFrameIsConnectedComment PASSED
+
+SseAndRoutingIntegrationTest > sse_broadcastWithNoSubscribersIsNoOp PASSED
+
+SseAndRoutingIntegrationTest > sse_droppingOneClientDoesNotAffectOthers STANDARD_ERROR
+    8月 20, 2026 8:06:44 下午 fi.iki.elonen.NanoHTTPD$Response send
+    严重: Could not send response to the client
+    java.net.SocketException: Broken pipe
+    	at java.base/sun.nio.ch.NioSocketImpl.implWrite(NioSocketImpl.java:425)
+    	at java.base/sun.nio.ch.NioSocketImpl.write(NioSocketImpl.java:445)
+    	at java.base/sun.nio.ch.NioSocketImpl$2.write(NioSocketImpl.java:831)
+    	at java.base/java.net.Socket$SocketOutputStream.write(Socket.java:1035)
+    	at java.base/java.io.OutputStream.write(OutputStream.java:127)
+    	at fi.iki.elonen.NanoHTTPD$Response$ChunkedOutputStream.write(NanoHTTPD.java:1442)
+    	at fi.iki.elonen.NanoHTTPD$Response.sendBody(NanoHTTPD.java:1694)
+    	at fi.iki.elonen.NanoHTTPD$Response.sendBodyWithCorrectEncoding(NanoHTTPD.java:1667)
+    	at fi.iki.elonen.NanoHTTPD$Response.sendBodyWithCorrectTransferAndEncoding(NanoHTTPD.java:1654)
+    	at fi.iki.elonen.NanoHTTPD$Response.send(NanoHTTPD.java:1624)
+    	at fi.iki.elonen.NanoHTTPD$HTTPSession.execute(NanoHTTPD.java:957)
+    	at fi.iki.elonen.NanoHTTPD$ClientHandler.run(NanoHTTPD.java:192)
+    	at java.base/java.lang.Thread.run(Thread.java:840)
+
+
+SseAndRoutingIntegrationTest > sse_droppingOneClientDoesNotAffectOthers PASSED
+
+SseAndRoutingIntegrationTest > routing_unknownEndpointIs404WithFixtureLiteral PASSED
+
+SseAndRoutingIntegrationTest > bind_occupiedPortThrowsBindException PASSED
+
+SseAndRoutingIntegrationTest > routing_postArrayBodyIs400 PASSED
+
+SseAndRoutingIntegrationTest > sse_headersMatchContract PASSED
+
+SseAndRoutingIntegrationTest > sse_authAuthorizedKeepsByteExactFirstFrame PASSED
+
+SseAndRoutingIntegrationTest > hello_trailingSlashEquivalent PASSED
+
+SseAndRoutingIntegrationTest > sse_multipleClientsBothReceiveBroadcast PASSED
+
+SseAndRoutingIntegrationTest > routing_postInvalidBodyIs400InvalidRequest PASSED
+
+SseAndRoutingIntegrationTest > sse_firstFrameIsByteExactPerFixture PASSED
+
+SseAndRoutingIntegrationTest > sse_eventFrameMatchesFixtureShape PASSED
+
+SseAndRoutingIntegrationTest > state_returnsFlatAggregationNoOk PASSED
+
+SseAndRoutingIntegrationTest > sse_authForbiddenReturnsJsonAndDoesNotSubscribe PASSED
+
+SseAndRoutingIntegrationTest > sse_connectionPersistsAcrossBroadcasts PASSED
+
+SseAndRoutingIntegrationTest > events_overHttpIsSseNotIntrospectionFallback PASSED
+
+SseAndRoutingIntegrationTest > sse_authMalformedBearerReturnsAuthorizationRequiredJson PASSED
+
+SseAndRoutingIntegrationTest > routing_literalProfileList PASSED
+
+SseAndRoutingIntegrationTest > routing_multiSegmentWithTwoPlaceholders PASSED
+
+SseAndRoutingIntegrationTest > hello_returnsProtocolVersionAndRegisteredCapabilities PASSED
+
+SseAndRoutingIntegrationTest > sse_authDisabledStillAllowsBareEvents PASSED
+
+SseAndRoutingIntegrationTest > routing_singleSegmentPlaceholderExtractsId PASSED
+
+UriProbeTest > queryParameters_doNotPollutePathRouting PASSED
+
+UriProbeTest > trailingSlash_systemRouteEquivalent PASSED
+
+UriProbeTest > percentEncodedSegment_decodedBeforeMatch PASSED
+
+UriProbeTest > trailingSlash_capabilityRouteEquivalent PASSED
+
+> Task :check
+> Task :build
+
+BUILD SUCCESSFUL in 3s
+7 actionable tasks: 4 executed, 3 up-to-date

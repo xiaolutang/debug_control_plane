@@ -39,21 +39,35 @@ class SseAndRoutingIntegrationTest {
     private lateinit var transport: HttpSseTransport
     private lateinit var plane: ControlPlane
     private var port: Int = 0
+    private var authManager: RecordingAuthManager? = null
 
     @Before
     fun setUp() {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
-        val (p, t) = ControlPlaneServer.create(
+        startPlane()
+    }
+
+    private fun startPlane(auth: RecordingAuthManager? = null) {
+        authManager = auth
+        val (createdPlane, createdTransport) = ControlPlaneServer.create(
             scope = scope,
             appMeta = { mapOf("app" to "kotlin-test", "deviceId" to "kt", "platform" to "jvm") },
+            authManager = auth,
         )
-        plane = p
-        transport = t
+        plane = createdPlane
+        transport = createdTransport
         kotlinx.coroutines.runBlocking { plane.start(0) }
         port = transport.listeningPort
         assertTrue("server listening port must be > 0", port > 0)
+        registerDemoCapability()
+    }
 
-        // Register a demo capability with placeholder routes.
+    private fun restartPlane(auth: RecordingAuthManager?) {
+        kotlinx.coroutines.runBlocking { plane.stop() }
+        startPlane(auth)
+    }
+
+    private fun registerDemoCapability() {
         plane.register(object : FakeCapability(
             id = "demo",
             resources = listOf(
@@ -197,6 +211,100 @@ class SseAndRoutingIntegrationTest {
         transport.broadcast(DebugEvent("orphan", 0))   // must not throw
     }
 
+    @Test
+    fun sse_authDeniedReturnsJsonBeforeFirstFrameAndSubscriberRegistration() {
+        val auth = RecordingAuthManager(DebugAuth.invalidToken())
+        restartPlane(auth)
+
+        val (status, body, contentType) = httpGetWithHeaders(
+            "/events",
+            "Authorization" to "Bearer bad-token",
+        )
+
+        assertEquals(401, status)
+        assertEquals("application/json", contentType?.substringBefore(";"))
+        assertEquals("""{"ok":false,"code":"invalid_token","message":"Debug authorization token is invalid."}""", body)
+        assertFalse("denied response must not contain SSE first frame", body.contains(": connected"))
+        assertEquals(0, transport.subscriberCount())
+        val request = auth.authorizeRequests.single()
+        assertEquals("GET", request.method)
+        assertEquals(listOf("events"), request.segments)
+        assertEquals(DebugAuthRouteClass.SENSITIVE, request.routeClass)
+        assertEquals("bad-token", request.bearerToken)
+    }
+
+    @Test
+    fun sse_authMalformedBearerReturnsAuthorizationRequiredJson() {
+        val auth = RecordingAuthManager(DebugAuth.authorizationRequired())
+        restartPlane(auth)
+
+        val (status, body, contentType) = httpGetWithHeaders(
+            "/events",
+            "Authorization" to "Bearer token with spaces",
+        )
+
+        assertEquals(401, status)
+        assertEquals("application/json", contentType?.substringBefore(";"))
+        assertEquals(
+            """{"ok":false,"code":"authorization_required","message":"Debug authorization is required."}""",
+            body,
+        )
+        assertEquals(0, transport.subscriberCount())
+        assertEquals(null, auth.authorizeRequests.single().bearerToken)
+    }
+
+    @Test
+    fun sse_authForbiddenReturnsJsonAndDoesNotSubscribe() {
+        restartPlane(
+            RecordingAuthManager(
+                DebugAuthDecision.Denied(
+                    403,
+                    "authorization_denied",
+                    "Debug authorization was denied.",
+                ),
+            ),
+        )
+
+        val (status, body, contentType) = httpGetWithHeaders("/events")
+
+        assertEquals(403, status)
+        assertEquals("application/json", contentType?.substringBefore(";"))
+        assertEquals("""{"ok":false,"code":"authorization_denied","message":"Debug authorization was denied."}""", body)
+        assertFalse(body.contains(": connected"))
+        assertEquals(0, transport.subscriberCount())
+    }
+
+    @Test
+    fun sse_authAuthorizedKeepsByteExactFirstFrame() {
+        restartPlane(RecordingAuthManager(DebugAuthDecision.Authorized))
+
+        val conn = openSse("/events", "Authorization" to "Bearer good-token")
+        val bytes = ByteArray(13)
+        var read = 0
+        while (read < bytes.size) {
+            val n = conn.inputStream.read(bytes, read, bytes.size - read)
+            if (n < 0) break
+            read += n
+        }
+
+        assertEquals(": connected\n\n", String(bytes, 0, read, Charsets.UTF_8))
+        waitForSubscriberCount(1, timeoutMs = 3000)
+        assertEquals("good-token", authManager?.authorizeRequests?.single()?.bearerToken)
+        conn.disconnect()
+    }
+
+    @Test
+    fun sse_authDisabledStillAllowsBareEvents() {
+        restartPlane(auth = null)
+
+        val conn = openSse("/events")
+        val reader = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8))
+
+        assertEquals(": connected", reader.readLine())
+        assertEquals("", reader.readLine())
+        conn.disconnect()
+    }
+
     // =========================================================================
     // System routes through the production ControlPlane
     // =========================================================================
@@ -311,9 +419,10 @@ class SseAndRoutingIntegrationTest {
     // Helpers
     // =========================================================================
 
-    private fun openSse(path: String): HttpURLConnection {
+    private fun openSse(path: String, vararg headers: Pair<String, String>): HttpURLConnection {
         val conn = URL("http://127.0.0.1:$port$path").openConnection() as HttpURLConnection
         conn.setRequestProperty("Accept", "text/event-stream")
+        for ((key, value) in headers) conn.setRequestProperty(key, value)
         conn.connectTimeout = 3000
         conn.readTimeout = 0
         conn.inputStream
@@ -365,17 +474,35 @@ class SseAndRoutingIntegrationTest {
         throw AssertionError("timed out waiting for $target subscribers; have ${transport.subscriberCount()}")
     }
 
-    private fun httpGet(path: String): Pair<Int, String> = httpRequest("GET", path, null)
+    private fun httpGet(path: String): Pair<Int, String> {
+        val (status, body, _) = httpRequest("GET", path, null)
+        return status to body
+    }
 
-    private fun httpPost(path: String, jsonBody: String): Pair<Int, String> = httpRequest("POST", path, jsonBody)
+    private fun httpGetWithHeaders(path: String, vararg headers: Pair<String, String>): Triple<Int, String, String?> =
+        httpRequest("GET", path, null, *headers)
 
-    private fun httpPostRaw(path: String, rawBody: String): Pair<Int, String> = httpRequest("POST", path, rawBody)
+    private fun httpPost(path: String, jsonBody: String): Pair<Int, String> {
+        val (status, body, _) = httpRequest("POST", path, jsonBody)
+        return status to body
+    }
 
-    private fun httpRequest(method: String, path: String, body: String?): Pair<Int, String> {
+    private fun httpPostRaw(path: String, rawBody: String): Pair<Int, String> {
+        val (status, body, _) = httpRequest("POST", path, rawBody)
+        return status to body
+    }
+
+    private fun httpRequest(
+        method: String,
+        path: String,
+        body: String?,
+        vararg headers: Pair<String, String>,
+    ): Triple<Int, String, String?> {
         val conn = URL("http://127.0.0.1:$port$path").openConnection() as HttpURLConnection
         conn.requestMethod = method
         conn.connectTimeout = 3000
         conn.readTimeout = 5000
+        for ((key, value) in headers) conn.setRequestProperty(key, value)
         if (body != null) {
             conn.doOutput = true
             conn.setRequestProperty("Content-Type", "application/json")
@@ -385,9 +512,23 @@ class SseAndRoutingIntegrationTest {
             val code = conn.responseCode
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
             val text = stream?.bufferedReader()?.use { it.readText() } ?: ""
-            return code to text
+            return Triple(code, text, conn.getHeaderField("Content-Type"))
         } finally {
             conn.disconnect()
         }
+    }
+
+    private class RecordingAuthManager(
+        private val decision: DebugAuthDecision,
+    ) : DebugAuthManager {
+        val authorizeRequests = mutableListOf<DebugAuthRequest>()
+
+        override suspend fun authorize(request: DebugAuthRequest): DebugAuthDecision {
+            authorizeRequests += request
+            return decision
+        }
+
+        override suspend fun helloAuthState(token: String?): Map<String, Any?> =
+            mapOf("authRequired" to true, "authStatus" to "authorized")
     }
 }

@@ -29,9 +29,15 @@ object ControlPlaneServer {
         scope: CoroutineScope,
         appMeta: (suspend () -> Map<String, Any?>)? = null,
         port: Int = 0,
+        authManager: DebugAuthManager? = null,
     ): Pair<ControlPlane, HttpSseTransport> {
         val transport = HttpSseTransport(scope, port)
-        val plane = ControlPlane(transport = transport, scope = scope, appMeta = appMeta)
+        val plane = ControlPlane(
+            transport = transport,
+            scope = scope,
+            appMeta = appMeta,
+            authManager = authManager,
+        )
         return plane to transport
     }
 }

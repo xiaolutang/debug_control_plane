@@ -45,6 +45,9 @@ class HttpSseTransport(
 
     private var dispatcher: (suspend (RouteRequest) -> RouteResult)? = null
 
+    @Volatile
+    private var eventsPreflight: (suspend (RouteRequest) -> RouteResult?)? = null
+
     /** Active long-lived `/events` subscribers. */
     private val subscribers: MutableSet<SseSubscriber> =
         java.util.concurrent.ConcurrentHashMap.newKeySet()
@@ -59,6 +62,10 @@ class HttpSseTransport(
 
     override fun listen(handler: suspend (RouteRequest) -> RouteResult) {
         dispatcher = handler
+    }
+
+    fun setEventsPreflight(handler: (suspend (RouteRequest) -> RouteResult?)?) {
+        eventsPreflight = handler
     }
 
     override suspend fun bind(port: Int): URI = withContext(Dispatchers.IO) {
@@ -149,6 +156,16 @@ class HttpSseTransport(
         // invoked (§1.4; the plane's introspection fallback would break the
         // SSE first-frame byte contract).
         if (method == Method.GET && segments == listOf("events")) {
+            val preflightRequest = RouteRequest(
+                method = method.name.uppercase(),
+                segments = segments,
+                headers = session.headers,
+                request = session,
+            )
+            eventsPreflight?.let { preflight ->
+                kotlinx.coroutines.runBlocking { preflight(preflightRequest) }
+                    ?.let { return it.toNanoResponse() }
+            }
             return hijackEvents()
         }
 

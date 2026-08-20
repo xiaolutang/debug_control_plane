@@ -208,6 +208,7 @@ class ControlPlane(
         // Cancel a stale pipe from an earlier start/stop cycle first —
         // otherwise a restart would leak the old bus->transport collector.
         pipeJob?.cancel()
+        configureEventsPreflight()
         transport.listen(::dispatch)
         val pipe = bus.pipeTo(scope, transport)
         pipeJob = pipe
@@ -436,6 +437,24 @@ class ControlPlane(
             is DebugAuthRouteResult.Ok -> RouteResult.Ok(result.body, result.statusCode)
             is DebugAuthRouteResult.Denied -> RouteResult.error(result.statusCode, result.code, result.message)
         }
+
+    private fun configureEventsPreflight() {
+        val sseTransport = transport as? HttpSseTransport ?: return
+        val auth = authManager
+        sseTransport.setEventsPreflight(
+            if (auth == null) {
+                null
+            } else {
+                { req ->
+                    when (val decision = auth.authorize(req.toAuthRequest())) {
+                        DebugAuthDecision.Authorized -> null
+                        is DebugAuthDecision.Denied ->
+                            RouteResult.error(decision.statusCode, decision.code, decision.message)
+                    }
+                }
+            },
+        )
+    }
 
     private suspend fun authorize(req: RouteRequest): DebugAuthDecision.Denied? {
         val auth = authManager ?: return null
