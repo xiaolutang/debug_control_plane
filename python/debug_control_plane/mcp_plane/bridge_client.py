@@ -54,8 +54,8 @@ Refs:
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-from typing import TYPE_CHECKING, Any
+from collections.abc import Iterator, Mapping
+from typing import TYPE_CHECKING, Any, Protocol
 
 import httpx
 
@@ -138,6 +138,30 @@ class DeviceHttpError(BridgeError):
         super().__init__(f"{prefix}{detail}")
 
 
+class DeviceAuthError(DeviceHttpError):
+    """The phone returned a stable debug auth failure code."""
+
+    def __init__(self, status_code: int, body: Any, code: str, message: str = "") -> None:
+        self.code = code
+        super().__init__(status_code, body, message or f" auth_code={code}")
+
+
+class DebugAuthTokenProvider(Protocol):
+    """Per-device debug auth token provider.
+
+    Implementations own storage. DevicePool remains identity-only and must not
+    be used to persist bearer tokens.
+    """
+
+    def get_token(self, device_id: str) -> str | None: ...
+
+    def save_token(
+        self, device_id: str, token: str, metadata: Mapping[str, Any]
+    ) -> None: ...
+
+    def clear_token(self, device_id: str, reason: str) -> None: ...
+
+
 # ---------------------------------------------------------------------------
 # Service
 # ---------------------------------------------------------------------------
@@ -181,6 +205,7 @@ class BridgeClient:
         client: httpx.Client | None = None,
         request_timeout: float = DEFAULT_REQUEST_TIMEOUT,
         stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
+        token_provider: DebugAuthTokenProvider | None = None,
     ) -> None:
         self._pool = pool
         self._port = port
@@ -192,6 +217,7 @@ class BridgeClient:
             self._owns_client = True
         self._request_timeout = request_timeout
         self._stream_timeout = stream_timeout
+        self._token_provider = token_provider
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -282,17 +308,18 @@ class BridgeClient:
         """
         host = self.resolve(device_id)
         url = self._build_url(host, path)
+        headers = self._auth_headers(device_id)
         try:
             if isinstance(body, (dict, list)):
-                resp = self._client.request(method, url, json=body)
+                resp = self._client.request(method, url, json=body, headers=headers)
             else:
-                resp = self._client.request(method, url, content=body)
+                resp = self._client.request(method, url, content=body, headers=headers)
         except httpx.HTTPError as exc:
             # Connect refused / DNS / timeout / etc — surface as transport
             # failure so the caller catches a single exception type.
             raise DeviceHttpError(0, None, f"transport: {exc!s}") from exc
         if resp.status_code >= 400:
-            raise DeviceHttpError(resp.status_code, _safe_body(resp))
+            raise self._http_error(device_id, resp)
         return _safe_body(resp)
 
     def read(self, device_id: str, path: list[str]) -> Any:
@@ -317,12 +344,13 @@ class BridgeClient:
         """
         host = self.resolve(device_id)
         url = self._build_url(host, ["hello"])
+        headers = self._auth_headers(device_id)
         try:
-            resp = self._client.get(url)
+            resp = self._client.get(url, headers=headers)
         except httpx.HTTPError as exc:
             raise DeviceHttpError(0, None, f"transport: {exc!s}") from exc
         if resp.status_code != 200:
-            raise DeviceHttpError(resp.status_code, _safe_body(resp))
+            raise self._http_error(device_id, resp)
         data = resp.json()
         if not isinstance(data, dict):
             raise DeviceHttpError(
@@ -370,13 +398,16 @@ class BridgeClient:
         """
         host = self.resolve(device_id)
         url = self._build_url(host, ["events"])
+        headers = self._auth_headers(device_id)
         type_set = set(event_types) if event_types else None
         try:
-            with self._client.stream("GET", url, timeout=self._stream_timeout) as resp:
+            with self._client.stream(
+                "GET", url, headers=headers, timeout=self._stream_timeout
+            ) as resp:
                 if resp.status_code >= 400:
                     # Read the body so the caller sees the error payload.
                     resp.read()
-                    raise DeviceHttpError(resp.status_code, _safe_body(resp))
+                    raise self._http_error(device_id, resp)
                 for raw_data, _event_field in _iter_sse(resp):
                     try:
                         payload = _parse_json_object(raw_data)
@@ -392,9 +423,74 @@ class BridgeClient:
         except httpx.HTTPError as exc:
             raise DeviceHttpError(0, None, f"transport: {exc!s}") from exc
 
+    def auth_request(
+        self,
+        device_id: str,
+        client_nonce: str,
+        *,
+        client_label: str | None = None,
+        requested_method: str | None = None,
+        requested_path: str | None = None,
+    ) -> Any:
+        """Create a pending App-side authorization request."""
+        body: dict[str, Any] = {"clientNonce": client_nonce}
+        if client_label is not None:
+            body["clientLabel"] = client_label
+        if requested_method is not None:
+            body["requestedMethod"] = requested_method
+        if requested_path is not None:
+            body["requestedPath"] = requested_path
+        return self.invoke(device_id, "POST", ["auth", "request"], body)
+
+    def auth_status(self, device_id: str, request_id: str, client_nonce: str) -> Any:
+        """Poll App-side authorization status."""
+        return self.invoke(
+            device_id,
+            "POST",
+            ["auth", "status"],
+            {"requestId": request_id, "clientNonce": client_nonce},
+        )
+
+    def auth_claim(self, device_id: str, request_id: str, client_nonce: str) -> Any:
+        """Claim an approved App-side authorization token and save it if present."""
+        body = self.invoke(
+            device_id,
+            "POST",
+            ["auth", "claim"],
+            {"requestId": request_id, "clientNonce": client_nonce},
+        )
+        if isinstance(body, dict):
+            token = body.get("token")
+            if isinstance(token, str) and self._token_provider is not None:
+                metadata = {
+                    key: body[key]
+                    for key in ("tokenId", "expiresAt")
+                    if key in body
+                }
+                self._token_provider.save_token(device_id, token, metadata)
+        return body
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _auth_headers(self, device_id: str) -> dict[str, str]:
+        provider = self._token_provider
+        if provider is None:
+            return {}
+        token = provider.get_token(device_id)
+        if not token:
+            return {}
+        return {"Authorization": f"Bearer {token}"}
+
+    def _http_error(self, device_id: str, resp: httpx.Response) -> DeviceHttpError:
+        body = _safe_body(resp)
+        code = _auth_error_code(resp.status_code, body)
+        if code is None:
+            return DeviceHttpError(resp.status_code, body)
+        if code in _CLEAR_TOKEN_AUTH_CODES and self._token_provider is not None:
+            self._token_provider.clear_token(device_id, reason=code)
+        return DeviceAuthError(resp.status_code, body, code=code)
 
     def _build_url(self, host: str, path: list[str]) -> str:
         """Assemble ``http://{host}:{port}/{seg1}/{seg2}...``.
@@ -512,12 +608,43 @@ def _parse_json_object(raw: str) -> dict[str, Any]:
     return parsed
 
 
+def _auth_error_code(status_code: int, body: Any) -> str | None:
+    if status_code not in (401, 403) or not isinstance(body, dict):
+        return None
+    code = body.get("code")
+    if isinstance(code, str) and code in _AUTH_ERROR_CODES:
+        return code
+    return None
+
+
+_AUTH_ERROR_CODES = frozenset(
+    {
+        "authorization_required",
+        "invalid_token",
+        "token_expired",
+        "token_revoked",
+        "authorization_denied",
+        "forbidden",
+    }
+)
+
+_CLEAR_TOKEN_AUTH_CODES = frozenset(
+    {
+        "invalid_token",
+        "token_expired",
+        "token_revoked",
+    }
+)
+
+
 __all__ = [
     "DEFAULT_PORT",
     "DEFAULT_REQUEST_TIMEOUT",
     "DEFAULT_STREAM_TIMEOUT",
     "BridgeClient",
     "BridgeError",
+    "DebugAuthTokenProvider",
+    "DeviceAuthError",
     "DeviceHttpError",
     "DeviceStale",
     # AD-B9: DeviceUnreachable 已下沉 device_discovery.protocol,

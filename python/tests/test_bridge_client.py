@@ -29,6 +29,7 @@ AC 覆盖:
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -39,6 +40,7 @@ from debug_control_plane.device_discovery.device_pool import ResolveResult
 from debug_control_plane.mcp_plane.bridge_client import (
     BridgeClient,
     BridgeError,
+    DeviceAuthError,
     DeviceHttpError,
     DeviceStale,
     DeviceUnreachable,
@@ -66,6 +68,28 @@ class _MockPool:
         )
 
 
+@dataclass
+class _FakeTokenProvider:
+    tokens: dict[str, str | None]
+    get_calls: list[str]
+    saved: list[tuple[str, str, dict[str, Any]]]
+    cleared: list[tuple[str, str]]
+
+    def get_token(self, device_id: str) -> str | None:
+        self.get_calls.append(device_id)
+        return self.tokens.get(device_id)
+
+    def save_token(
+        self, device_id: str, token: str, metadata: Mapping[str, Any]
+    ) -> None:
+        self.saved.append((device_id, token, dict(metadata)))
+        self.tokens[device_id] = token
+
+    def clear_token(self, device_id: str, reason: str) -> None:
+        self.cleared.append((device_id, reason))
+        self.tokens.pop(device_id, None)
+
+
 def _fresh(host: str = "192.168.1.34") -> ResolveResult:
     return ResolveResult(host=host, is_stale=False, found=True)
 
@@ -83,11 +107,14 @@ def _make_client(
     handler,
     *,
     port: int = 18080,
+    token_provider: _FakeTokenProvider | None = None,
 ) -> BridgeClient:
     """构造一个注入 MockTransport 的 BridgeClient."""
     transport = httpx.MockTransport(handler)
     http_client = httpx.Client(transport=transport)
-    return BridgeClient(pool=pool, port=port, client=http_client)
+    return BridgeClient(
+        pool=pool, port=port, client=http_client, token_provider=token_provider
+    )
 
 
 def _ok_json(body: Any, status: int = 200) -> httpx.Response:
@@ -96,6 +123,17 @@ def _ok_json(body: Any, status: int = 200) -> httpx.Response:
 
 def _ok_text(text: str, status: int = 200) -> httpx.Response:
     return httpx.Response(status, text=text)
+
+
+def _auth_error(code: str, status: int = 401) -> httpx.Response:
+    return httpx.Response(
+        status,
+        json={
+            "ok": False,
+            "code": code,
+            "message": f"Debug auth test error: {code}",
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -294,6 +332,214 @@ class TestInvoke:
         client = _make_client(pool, handler)
         client.invoke("dev1", "POST", ["raw"], b"hello-bytes")
         assert captured[0].content == b"hello-bytes"
+
+
+# ---------------------------------------------------------------------------
+# auth token provider + auth error taxonomy (R001-BF009)
+# ---------------------------------------------------------------------------
+
+
+class TestBridgeAuth:
+    def test_invoke_read_hello_events_inject_bearer_from_provider(self):
+        captured: list[httpx.Request] = []
+        event_payload = json.dumps({"type": "state", "sequence": 1})
+
+        def handler(req: httpx.Request) -> httpx.Response:
+            captured.append(req)
+            if req.url.path == "/events":
+                return _sse_response([(event_payload, None)])
+            if req.url.path == "/hello":
+                return _ok_json(TestHello()._hello_payload())
+            return _ok_json({"ok": True})
+
+        pool = _MockPool({"dev1": _fresh()}, [])
+        provider = _FakeTokenProvider({"dev1": "test-token-plain"}, [], [], [])
+        client = _make_client(pool, handler, token_provider=provider)
+
+        client.invoke("dev1", "POST", ["virtual", "connect"], {})
+        client.read("dev1", ["state"])
+        client.hello("dev1")
+        list(client.events("dev1"))
+
+        assert [req.url.path for req in captured] == [
+            "/virtual/connect",
+            "/state",
+            "/hello",
+            "/events",
+        ]
+        assert all(
+            req.headers.get("Authorization") == "Bearer test-token-plain"
+            for req in captured
+        )
+        assert provider.get_calls == ["dev1", "dev1", "dev1", "dev1"]
+
+    def test_missing_token_sends_no_authorization_and_app_401_surfaces(self):
+        captured: list[httpx.Request] = []
+
+        def handler(req: httpx.Request) -> httpx.Response:
+            captured.append(req)
+            return _auth_error("authorization_required")
+
+        pool = _MockPool({"dev1": _fresh()}, [])
+        provider = _FakeTokenProvider({"dev1": None}, [], [], [])
+        client = _make_client(pool, handler, token_provider=provider)
+
+        with pytest.raises(DeviceAuthError) as exc_info:
+            client.read("dev1", ["state"])
+
+        assert "Authorization" not in captured[0].headers
+        assert exc_info.value.status_code == 401
+        assert exc_info.value.code == "authorization_required"
+        assert provider.cleared == []
+
+    @pytest.mark.parametrize(
+        "code",
+        ["invalid_token", "token_expired", "token_revoked"],
+    )
+    def test_401_clear_token_codes_clear_provider_token(self, code: str):
+        def handler(req: httpx.Request) -> httpx.Response:
+            return _auth_error(code)
+
+        pool = _MockPool({"dev1": _fresh()}, [])
+        provider = _FakeTokenProvider({"dev1": "old-token"}, [], [], [])
+        client = _make_client(pool, handler, token_provider=provider)
+
+        with pytest.raises(DeviceAuthError) as exc_info:
+            client.invoke("dev1", "GET", ["state"], None)
+
+        assert exc_info.value.code == code
+        assert exc_info.value.body["code"] == code
+        assert provider.cleared == [("dev1", code)]
+        assert provider.tokens == {}
+
+    @pytest.mark.parametrize(
+        ("code", "status"),
+        [("authorization_required", 401), ("authorization_denied", 403), ("forbidden", 403)],
+    )
+    def test_auth_codes_that_do_not_invalidate_token_do_not_clear(
+        self, code: str, status: int
+    ):
+        def handler(req: httpx.Request) -> httpx.Response:
+            return _auth_error(code, status)
+
+        pool = _MockPool({"dev1": _fresh()}, [])
+        provider = _FakeTokenProvider({"dev1": "still-valid"}, [], [], [])
+        client = _make_client(pool, handler, token_provider=provider)
+
+        with pytest.raises(DeviceAuthError) as exc_info:
+            client.read("dev1", ["state"])
+
+        assert exc_info.value.status_code == status
+        assert exc_info.value.code == code
+        assert provider.cleared == []
+        assert provider.tokens == {"dev1": "still-valid"}
+
+    def test_non_auth_http_error_keeps_device_http_error(self):
+        def handler(req: httpx.Request) -> httpx.Response:
+            return httpx.Response(401, json={"errorCode": "legacy_error"})
+
+        pool = _MockPool({"dev1": _fresh()}, [])
+        provider = _FakeTokenProvider({"dev1": "token"}, [], [], [])
+        client = _make_client(pool, handler, token_provider=provider)
+
+        with pytest.raises(DeviceHttpError) as exc_info:
+            client.read("dev1", ["state"])
+
+        assert not isinstance(exc_info.value, DeviceAuthError)
+        assert provider.cleared == []
+
+    def test_events_auth_error_iterates_generator_and_clears_expired_token(self):
+        captured: list[httpx.Request] = []
+
+        def handler(req: httpx.Request) -> httpx.Response:
+            captured.append(req)
+            return _auth_error("token_expired")
+
+        pool = _MockPool({"dev1": _fresh()}, [])
+        provider = _FakeTokenProvider({"dev1": "expired-token"}, [], [], [])
+        client = _make_client(pool, handler, token_provider=provider)
+
+        with pytest.raises(DeviceAuthError) as exc_info:
+            list(client.events("dev1"))
+
+        assert captured[0].url.path == "/events"
+        assert captured[0].headers.get("Authorization") == "Bearer expired-token"
+        assert exc_info.value.code == "token_expired"
+        assert provider.cleared == [("dev1", "token_expired")]
+
+    def test_auth_request_status_claim_helpers_use_post_json_and_save_claim_token(self):
+        captured: list[httpx.Request] = []
+
+        def handler(req: httpx.Request) -> httpx.Response:
+            captured.append(req)
+            body = json.loads(req.content)
+            if req.url.path == "/auth/request":
+                assert body == {
+                    "clientNonce": "nonce-1",
+                    "clientLabel": "Codex",
+                    "requestedMethod": "GET",
+                    "requestedPath": "/state",
+                }
+                return _ok_json(
+                    {
+                        "ok": True,
+                        "requestId": "req-1",
+                        "status": "pending",
+                        "expiresAt": "2026-08-20T13:00:00Z",
+                    },
+                    status=202,
+                )
+            if req.url.path == "/auth/status":
+                assert body == {"requestId": "req-1", "clientNonce": "nonce-1"}
+                return _ok_json(
+                    {
+                        "ok": True,
+                        "requestId": "req-1",
+                        "status": "approved",
+                    }
+                )
+            if req.url.path == "/auth/claim":
+                assert body == {"requestId": "req-1", "clientNonce": "nonce-1"}
+                return _ok_json(
+                    {
+                        "ok": True,
+                        "token": "new-token",
+                        "tokenId": "token-1",
+                        "expiresAt": "2026-08-20T14:00:00Z",
+                    }
+                )
+            raise AssertionError(f"unexpected path {req.url.path}")
+
+        pool = _MockPool({"dev1": _fresh()}, [])
+        provider = _FakeTokenProvider({}, [], [], [])
+        client = _make_client(pool, handler, token_provider=provider)
+
+        request = client.auth_request(
+            "dev1",
+            "nonce-1",
+            client_label="Codex",
+            requested_method="GET",
+            requested_path="/state",
+        )
+        status = client.auth_status("dev1", "req-1", "nonce-1")
+        claim = client.auth_claim("dev1", "req-1", "nonce-1")
+
+        assert request["status"] == "pending"
+        assert status["status"] == "approved"
+        assert claim["token"] == "new-token"
+        assert [req.method for req in captured] == ["POST", "POST", "POST"]
+        assert [req.url.path for req in captured] == [
+            "/auth/request",
+            "/auth/status",
+            "/auth/claim",
+        ]
+        assert provider.saved == [
+            (
+                "dev1",
+                "new-token",
+                {"tokenId": "token-1", "expiresAt": "2026-08-20T14:00:00Z"},
+            )
+        ]
 
 
 # ---------------------------------------------------------------------------

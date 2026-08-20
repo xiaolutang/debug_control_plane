@@ -1,0 +1,57 @@
+---
+status: pass
+task_id: R001-BF009
+domain: backend
+passed: 328
+skipped: 2
+failed: 0
+commands:
+  - command: "cd python && ${PYTHON_BIN:-python3} -m pytest tests/test_bridge_client.py -q --no-header"
+    exit_code: 0
+    result: "65 passed in 0.86s"
+  - command: "cd python && ${PYTHON_BIN:-python3} -m pytest tests -q --no-header"
+    exit_code: 0
+    result: "328 passed, 2 skipped in 16.93s"
+notes:
+  - "A sandboxed full-test run failed before escalation because local bind(127.0.0.1) and ~/.gradle wrapper lock access were denied; the same command passed with required execution permissions."
+---
+
+# R001-BF009 Backend Test Log
+
+Focused command:
+
+```bash
+cd python && ${PYTHON_BIN:-python3} -m pytest tests/test_bridge_client.py -q --no-header
+```
+
+Result:
+
+```text
+.................................................................        [100%]
+65 passed in 0.86s
+```
+
+Full Python regression command:
+
+```bash
+cd python && ${PYTHON_BIN:-python3} -m pytest tests -q --no-header
+```
+
+Result:
+
+```text
+........................................................................ [ 21%]
+........................................................................ [ 43%]
+........................................................................ [ 65%]
+................................................ss...................... [ 87%]
+..........................................                               [100%]
+328 passed, 2 skipped in 16.93s
+```
+
+Key BF009 coverage:
+- `TestBridgeAuth.test_invoke_read_hello_events_inject_bearer_from_provider`
+- `TestBridgeAuth.test_missing_token_sends_no_authorization_and_app_401_surfaces`
+- `TestBridgeAuth.test_401_clear_token_codes_clear_provider_token`
+- `TestBridgeAuth.test_auth_codes_that_do_not_invalidate_token_do_not_clear`
+- `TestBridgeAuth.test_events_auth_error_iterates_generator_and_clears_expired_token`
+- `TestBridgeAuth.test_auth_request_status_claim_helpers_use_post_json_and_save_claim_token`

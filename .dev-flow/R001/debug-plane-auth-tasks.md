@@ -503,7 +503,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：App 弹窗和 token 私有存储属于 Flutter/plugin/宿主运行时边界。
 
-## R001-BF009：Python BridgeClient — token provider and header injection `⬜ 待处理`
+## R001-BF009：Python BridgeClient — token provider and header injection `✅ 已完成`
 
 - 文件：`python/debug_control_plane/mcp_plane/bridge_client.py`
 - 改动类型：修改
@@ -514,7 +514,7 @@ contextMdPaths:
 - risk_tags: [python, auth, token]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [BF004]
 - sourceSlices: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-python-slice.md]
 - sourceDesigns: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md]
@@ -534,10 +534,10 @@ contextMdPaths:
 - decision_refs: [DEC-R001-001, DEC-R001-006]
 - blocked_files: [python/debug_control_plane/device_discovery/device_pool.py]
 - 具体改动点：
-  - R001-BF009.1 `⬜` 定义 `DebugAuthTokenProvider` Protocol。
-  - R001-BF009.2 `⬜` 抽出 `_auth_headers(device_id)` 并用于 request/get/stream。
-  - R001-BF009.3 `⬜` 增加 `DeviceAuthError` 并解析 stable `code`。
-  - R001-BF009.4 `⬜` 增加 `/auth/request/status/claim` helper。
+  - R001-BF009.1 `✅` 定义 `DebugAuthTokenProvider` Protocol。
+  - R001-BF009.2 `✅` 抽出 `_auth_headers(device_id)` 并用于 request/get/stream。
+  - R001-BF009.3 `✅` 增加 `DeviceAuthError` 并解析 stable `code`。
+  - R001-BF009.4 `✅` 增加 `/auth/request/status/claim` helper。
 - 关键代码片段：
   ```python
   class DebugAuthTokenProvider(Protocol):
