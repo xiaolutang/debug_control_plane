@@ -134,7 +134,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：fixtures 是协议可执行投影，后续实现必须以它们对齐。
 
-## R001-BF003：kotlin Auth types — pure JVM auth model `⬜ 待处理`
+## R001-BF003：kotlin Auth types — pure JVM auth model `✅ 已完成`
 
 - 文件：`kotlin/src/main/kotlin/com/pantas/debug/controlplane/DebugAuth.kt`
 - 改动类型：新建
@@ -145,7 +145,7 @@ contextMdPaths:
 - risk_tags: [kotlin, auth, api]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [BF001, BF003]
 - sourceSlices: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-server-slice.md, .dev-flow/R001/analysis/2026-08-20--debug-plane-auth-app-slice.md]
 - sourceDesigns: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md]
@@ -164,9 +164,9 @@ contextMdPaths:
 - decision_refs: [DEC-R001-001, DEC-R001-007]
 - blocked_files: []
 - 具体改动点：
-  - R001-BF003.1 `⬜` 新增 sealed result：`Authorized`、`Denied(statusCode, code, message)`。
-  - R001-BF003.2 `⬜` 新增 route classification：`HELLO_BOOTSTRAP`、`AUTH_BOOTSTRAP`、`SENSITIVE`。
-  - R001-BF003.3 `⬜` 新增 helper 解析 Bearer header。
+  - R001-BF003.1 `✅` 新增 sealed result：`Authorized`、`Denied(statusCode, code, message)`。
+  - R001-BF003.2 `✅` 新增 route classification：`HELLO_BOOTSTRAP`、`AUTH_BOOTSTRAP`、`SENSITIVE`。
+  - R001-BF003.3 `✅` 新增 helper 解析 Bearer header。
 - 关键代码片段：
   ```kotlin
   interface DebugAuthManager {

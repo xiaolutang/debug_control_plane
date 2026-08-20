@@ -1,0 +1,62 @@
+---
+task_id: R001-BF003
+layer: unit
+domain: android
+status: pass
+passed: 11
+failed: 0
+deferred: false
+---
+
+# R001-BF003 Kotlin Auth Model Tests
+
+## Focused Unit Test
+
+Command:
+
+```bash
+cd kotlin && ./gradlew test --tests com.pantas.debug.controlplane.DebugAuthTest
+```
+
+Result: pass.
+
+Observed test cases:
+
+- `validateTokenAuthorizesMatchingHashBeforeExpiry`
+- `noOpManagerKeepsBareDebugPlaneAuthorized`
+- `validateTokenRejectsUnknownOrMismatchedToken`
+- `bearerTokenParsesCaseInsensitiveAuthorizationHeaderKey`
+- `classifyRouteMarksHelloBootstrapOnlyForGetHello`
+- `validateTokenRejectsExpiredAndRevokedRecords`
+- `bearerTokenRejectsMissingNonBearerEmptyAndMalformedValues`
+- `classifyRouteMarksAuthBootstrapPostEndpoints`
+- `tokenHashIsStableAndDoesNotExposePlaintext`
+- `classifyRouteDefaultsStateEventsAndCapabilitiesToSensitive`
+- `validateTokenRequiresMissingToken`
+
+Summary: `11` tests completed, `0` failed.
+
+## Kotlin Build
+
+Command:
+
+```bash
+cd kotlin && ./gradlew build
+```
+
+Result: pass.
+
+Build output included:
+
+- `DebugAuthTest` 11/11 pass.
+- Existing Kotlin unit/integration-style JVM tests pass.
+- `BUILD SUCCESSFUL`.
+
+Note: `SseAndRoutingIntegrationTest > sse_droppingOneClientDoesNotAffectOthers` prints an expected broken-pipe stderr from the dropped client scenario, while the test itself passes.
+
+## Coverage Notes
+
+- Scenario coverage: authorized, authorization required, invalid token, expired, revoked.
+- Route classification coverage: `GET /hello`, `POST /auth/request`, `POST /auth/status`, `POST /auth/claim`, `/state`, `/events`, capability-like routes, unknown routes.
+- Bearer parsing coverage: valid `Authorization: Bearer <token>`, missing header, non-Bearer, empty token, whitespace/malformed token, lowercase scheme rejection.
+- Security assertions: `DebugAuthTokenRecord` stores hash metadata only, `tokenHash` output does not include plaintext token, no query/body/cookie token helper is introduced.
