@@ -1,0 +1,101 @@
+---
+task_id: R001-BF002
+layer: unit
+domain: backend
+status: pass
+passed: 3
+failed: 0
+deferred: false
+---
+
+# R001-BF002 Fixture Tests
+
+## JSON Parse
+
+Command:
+
+```bash
+for f in fixtures/*.json; do
+  python3 -m json.tool "$f" >/tmp/"$(basename "$f").check"
+done
+```
+
+Result: pass for all existing and newly added JSON fixtures.
+
+## Auth Fixture Contract
+
+Command:
+
+```bash
+python3 - <<'PY'
+import json
+from pathlib import Path
+root = Path('fixtures')
+required = {
+    'hello-auth-required.json',
+    'hello-auth-authorized.json',
+    'error-401-authorization-required.json',
+    'error-401-token-expired.json',
+    'error-403-authorization-denied.json',
+    'auth-claim-approved.json',
+}
+for name in sorted(required):
+    data = json.loads((root / name).read_text(encoding='utf-8'))
+    assert isinstance(data, dict), name
+
+required_hello = json.loads((root / 'hello-auth-required.json').read_text(encoding='utf-8'))
+assert required_hello['protocolVersion'] == 1
+assert required_hello['authRequired'] is True
+assert required_hello['authEndpoints']['request'] == '/auth/request'
+assert 'registeredCapabilities' not in required_hello
+assert 'aKey1' not in required_hello
+
+authorized = json.loads((root / 'hello-auth-authorized.json').read_text(encoding='utf-8'))
+assert authorized['protocolVersion'] == 1
+assert authorized['authRequired'] is True
+assert authorized['authStatus'] == 'authorized'
+assert isinstance(authorized['registeredCapabilities'], list) and authorized['registeredCapabilities']
+assert authorized['aKey1'] == 'value1'
+
+errors = {
+    'error-401-authorization-required.json': (401, 'authorization_required'),
+    'error-401-token-expired.json': (401, 'token_expired'),
+    'error-403-authorization-denied.json': (403, 'authorization_denied'),
+}
+for name, (status, code) in errors.items():
+    data = json.loads((root / name).read_text(encoding='utf-8'))
+    assert data['_fixture_meta']['http_status'] == status
+    assert data['ok'] is False
+    assert data['code'] == code
+    assert isinstance(data['message'], str) and data['message']
+
+claim = json.loads((root / 'auth-claim-approved.json').read_text(encoding='utf-8'))
+assert claim['_fixture_meta']['http_status'] == 200
+assert claim['ok'] is True
+assert claim['token'] == 'test-token-not-real'
+assert claim['tokenId'] == 'test-token-id-not-real'
+assert claim['expiresAt'].endswith('Z')
+print('auth fixture contract checks passed')
+PY
+```
+
+Result: `auth fixture contract checks passed`.
+
+Assertions:
+
+- `hello-auth-required.json` has `protocolVersion=1`, auth bootstrap endpoints, and no `registeredCapabilities` or aggregate state.
+- `hello-auth-authorized.json` has `protocolVersion=1`, `authStatus=authorized`, `registeredCapabilities`, and sample aggregate state.
+- Auth error fixtures use `{ok:false, code, message}` with expected 401/403 `http_status` metadata.
+- `auth-claim-approved.json` uses obvious fake token values: `test-token-not-real` and `test-token-id-not-real`.
+
+## Dart Golden Fixture Regression
+
+Command:
+
+```bash
+cd dart && fvm flutter test test/golden_fixture_test.dart
+```
+
+Result: pass, `15/15` tests passed.
+
+Note: Kotlin/Python auth implementation-specific fixture assertions are covered by later implementation tasks. This task validates the fixture files and keeps existing Dart fixture regression green.

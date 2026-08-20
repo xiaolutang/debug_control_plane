@@ -1,0 +1,26 @@
+{
+  "_fixture_meta": {
+    "endpoint": "GET /hello without valid Bearer token when debug plane auth is enabled",
+    "contract_ref": "PROTOCOL.md §1.2 + §2.2",
+    "type": "semantic",
+    "http_status": 200,
+    "notes": "Unauthorized hello is a minimal bootstrap response. It must not include registeredCapabilities or capability aggregate state. BF003 normalization skips _-prefixed keys."
+  },
+  "protocolVersion": 1,
+  "app": "$$unstable:app-injected",
+  "deviceId": "$$unstable:app-injected",
+  "deviceName": "$$unstable:app-injected",
+  "platform": "$$unstable:app-injected",
+  "serverHost": "$$unstable:request-host",
+  "serverPort": "$$unstable:bound-port",
+  "localIps": "$$unstable:network-ips",
+  "eventsEndpoint": "/events",
+  "profileRevision": 1,
+  "authRequired": true,
+  "authStatus": "authorization_required",
+  "authEndpoints": {
+    "request": "/auth/request",
+    "status": "/auth/status",
+    "claim": "/auth/claim"
+  }
+}

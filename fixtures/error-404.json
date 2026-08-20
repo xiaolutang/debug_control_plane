@@ -1,7 +1,7 @@
 {
   "_fixture_meta": {
     "endpoint": "任意未命中的 GET/POST 路由",
-    "contract_ref": "PROTOCOL.md §4.2",
+    "contract_ref": "PROTOCOL.md §5.2",
     "source_of_truth": "dart/lib/src/control_plane.dart:168-172 + http_codec.dart:85-96 writeError",
     "type": "semantic",
     "http_status": 404,

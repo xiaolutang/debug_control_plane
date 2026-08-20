@@ -36,15 +36,21 @@
 | 文件 | 类型 | 对应契约 | 断言要点 |
 |---|---|---|---|
 | `hello.json` | 语义级 | §1.2 `/hello` | protocolVersion=1、eventsEndpoint、profileRevision=1、registeredCapabilities schema、path 是 JSON 数组 |
+| `hello-auth-required.json` | 语义级 | §1.2 + §2 未授权 `/hello` | 最小 bootstrap、authRequired/authEndpoints、**无 registeredCapabilities / 聚合 state** |
+| `hello-auth-authorized.json` | 语义级 | §1.2 + §2 授权后 `/hello` | 完整 hello + registeredCapabilities + 聚合 state + authStatus=authorized |
 | `state-empty.json` | 语义级 | §1.3 `/state` 空载 | **无 ok 包裹**、空 object `{}` |
 | `state-with-cap.json` | 语义级 | §1.3 `/state` 含 capability | 扁平聚合、后注册覆盖、无 ok |
-| `sse-connected.bin` | 字节级 | §3.4 首帧 | `: connected\n\n`（13 字节） |
-| `sse-event-frame.bin` | 字节级 | §3.3 事件帧 | `event: <type>\ndata: <json>\n\n`，data 是整个 toJson。**注意**：`sequence:0` 是样例值（假定是进程启动后第一个事件），.bin 原样比对时 BF003-1 需同样用首事件构造帧 |
-| `error-404.json` | 语义级 | §4.2 路由未命中 | `{ok:false, code:"not_found", message:"Endpoint was not found."}` |
-| `error-400.json` | 语义级 | §4.2 POST body 非法 | `{ok:false, code:"invalid_request", ...}` |
-| `error-500.json` | 语义级 | §4.2 handler 异常 | `{ok:false, code:"internal_error", ...}` |
-| `route-decl.json` | 语义级 | §2.2 + §2.3 capability 路由声明 | path 是 JSON 数组 `["profiles","{id}"]`、description 可选 |
-| `discovery-python.json` | 语义级 | §5 客户端发现 | 端口 18080、protocolVersion=1、device_id 来自 USB 非 /hello.deviceId |
+| `sse-connected.bin` | 字节级 | §4.4 首帧 | `: connected\n\n`（13 字节） |
+| `sse-event-frame.bin` | 字节级 | §4.3 事件帧 | `event: <type>\ndata: <json>\n\n`，data 是整个 toJson。**注意**：`sequence:0` 是样例值（假定是进程启动后第一个事件），.bin 原样比对时 BF003-1 需同样用首事件构造帧 |
+| `error-404.json` | 语义级 | §5.2 路由未命中 | `{ok:false, code:"not_found", message:"Endpoint was not found."}` |
+| `error-400.json` | 语义级 | §5.2 POST body 非法 | `{ok:false, code:"invalid_request", ...}` |
+| `error-500.json` | 语义级 | §5.2 handler 异常 | `{ok:false, code:"internal_error", ...}` |
+| `error-401-authorization-required.json` | 语义级 | §2.4 auth 缺失 | `{ok:false, code:"authorization_required", ...}` |
+| `error-401-token-expired.json` | 语义级 | §2.4 auth 过期 | `{ok:false, code:"token_expired", ...}` |
+| `error-403-authorization-denied.json` | 语义级 | §2.4 auth 拒绝 | `{ok:false, code:"authorization_denied", ...}` |
+| `auth-claim-approved.json` | 语义级 | §2.3 `/auth/claim` 成功 | `{ok:true, token, tokenId, expiresAt}`；token 是明显假值 |
+| `route-decl.json` | 语义级 | §3.2 + §3.3 capability 路由声明 | path 是 JSON 数组 `["profiles","{id}"]`、description 可选 |
+| `discovery-python.json` | 语义级 | §6 客户端发现 | 端口 18080、protocolVersion=1、device_id 来自 USB 非 /hello.deviceId |
 
 ## 零业务依赖
 

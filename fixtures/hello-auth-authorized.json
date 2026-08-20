@@ -1,0 +1,45 @@
+{
+  "_fixture_meta": {
+    "endpoint": "GET /hello with valid Authorization: Bearer token when debug plane auth is enabled",
+    "contract_ref": "PROTOCOL.md §1.2 + §2.2",
+    "type": "semantic",
+    "http_status": 200,
+    "notes": "Authorized hello preserves the existing full hello shape and adds auth status fields. BF003 normalization skips _-prefixed keys."
+  },
+  "protocolVersion": 1,
+  "app": "$$unstable:app-injected",
+  "deviceId": "$$unstable:app-injected",
+  "deviceName": "$$unstable:app-injected",
+  "platform": "$$unstable:app-injected",
+  "capabilities": "$$unstable:app-injected",
+  "hardwareName": "$$unstable:app-injected",
+  "machineId": "$$unstable:app-injected",
+  "serverHost": "$$unstable:request-host",
+  "serverPort": "$$unstable:bound-port",
+  "localIps": "$$unstable:network-ips",
+  "eventsEndpoint": "/events",
+  "profileRevision": 1,
+  "authRequired": true,
+  "authStatus": "authorized",
+  "aKey1": "value1",
+  "aKey2": true,
+  "registeredCapabilities": [
+    {
+      "id": "cap-alpha",
+      "resources": [
+        {
+          "method": "GET",
+          "path": ["items"],
+          "description": "示例资源（中性占位，非业务语义约束）"
+        }
+      ],
+      "commands": [
+        {
+          "method": "POST",
+          "path": ["invoke"],
+          "description": "示例命令（占位）"
+        }
+      ]
+    }
+  ]
+}

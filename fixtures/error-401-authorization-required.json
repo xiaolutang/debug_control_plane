@@ -1,0 +1,12 @@
+{
+  "_fixture_meta": {
+    "endpoint": "Sensitive route without Bearer token",
+    "contract_ref": "PROTOCOL.md §2.4 + §5.1",
+    "type": "semantic",
+    "http_status": 401,
+    "notes": "Auth errors keep the existing error body shape. BF003 normalization skips _-prefixed keys."
+  },
+  "ok": false,
+  "code": "authorization_required",
+  "message": "Debug authorization is required."
+}

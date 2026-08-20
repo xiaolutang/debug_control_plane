@@ -1,0 +1,13 @@
+{
+  "_fixture_meta": {
+    "endpoint": "POST /auth/claim after user approval",
+    "contract_ref": "PROTOCOL.md §2.3",
+    "type": "semantic",
+    "http_status": 200,
+    "notes": "Token is an obvious fake test value, not a real credential. BF003 normalization skips _-prefixed keys."
+  },
+  "ok": true,
+  "token": "test-token-not-real",
+  "tokenId": "test-token-id-not-real",
+  "expiresAt": "2030-01-01T00:00:00Z"
+}

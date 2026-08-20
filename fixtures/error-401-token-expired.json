@@ -1,0 +1,12 @@
+{
+  "_fixture_meta": {
+    "endpoint": "Sensitive route with expired Bearer token",
+    "contract_ref": "PROTOCOL.md §2.4 + §5.1",
+    "type": "semantic",
+    "http_status": 401,
+    "notes": "Auth errors keep the existing error body shape. BF003 normalization skips _-prefixed keys."
+  },
+  "ok": false,
+  "code": "token_expired",
+  "message": "Debug authorization token expired."
+}

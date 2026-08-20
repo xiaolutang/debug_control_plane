@@ -95,7 +95,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：协议是跨 Kotlin/Dart/Python/Flutter 的真相源，必须先固化再实现。
 
-## R001-BF002：fixtures — Auth golden fixtures `⬜ 待处理`
+## R001-BF002：fixtures — Auth golden fixtures `✅ 已完成`
 
 - 文件：`fixtures/README.md` + `fixtures/*.json`
 - 改动类型：修改 / 新建
@@ -106,7 +106,7 @@ contextMdPaths:
 - risk_tags: [fixtures, protocol]
 - smoke_required: true
 - mode: direct
-- status: pending
+- status: completed
 - sourceCapabilities: [BF002]
 - sourceSlices: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-server-slice.md, .dev-flow/R001/analysis/2026-08-20--debug-plane-auth-python-slice.md]
 - sourceDesigns: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md]
@@ -125,9 +125,9 @@ contextMdPaths:
 - decision_refs: [DEC-R001-003, DEC-R001-006]
 - blocked_files: []
 - 具体改动点：
-  - R001-BF002.1 `⬜` 新建 `hello-auth-required.json`、`hello-auth-authorized.json`。
-  - R001-BF002.2 `⬜` 新建 `error-401-authorization-required.json`、`error-401-token-expired.json`、`error-403-authorization-denied.json`。
-  - R001-BF002.3 `⬜` 新建 `auth-claim-approved.json` 并更新 fixtures README。
+  - R001-BF002.1 `✅` 新建 `hello-auth-required.json`、`hello-auth-authorized.json`。
+  - R001-BF002.2 `✅` 新建 `error-401-authorization-required.json`、`error-401-token-expired.json`、`error-403-authorization-denied.json`。
+  - R001-BF002.3 `✅` 新建 `auth-claim-approved.json` 并更新 fixtures README。
 - 关键代码片段：
   ```json
   {"ok":false,"code":"authorization_required","message":"Debug authorization is required."}

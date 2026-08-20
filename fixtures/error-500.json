@@ -1,7 +1,7 @@
 {
   "_fixture_meta": {
     "endpoint": "capability handler 抛非 RouteFailure 异常",
-    "contract_ref": "PROTOCOL.md §4.2",
+    "contract_ref": "PROTOCOL.md §5.2",
     "source_of_truth": "dart/lib/src/control_plane.dart:179-185 + http_sse_transport.dart:107-114",
     "type": "semantic",
     "http_status": 500,

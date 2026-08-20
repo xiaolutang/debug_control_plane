@@ -1,7 +1,7 @@
 {
   "_fixture_meta": {
     "endpoint": "Python device_discovery 客户端发现 + cross-identify 期望",
-    "contract_ref": "PROTOCOL.md §5",
+    "contract_ref": "PROTOCOL.md §6",
     "source_of_truth": "python/debug_control_plane/device_discovery/{endpoint.py,lan_scan.py,cross_identify.py,device_pool.py}",
     "type": "semantic",
     "hard_constraints": [

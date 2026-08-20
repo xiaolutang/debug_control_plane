@@ -1,7 +1,7 @@
 {
   "_fixture_meta": {
     "endpoint": "POST 请求 body 非法（非 JSON / 非 object / 空字符串）",
-    "contract_ref": "PROTOCOL.md §4.2",
+    "contract_ref": "PROTOCOL.md §5.2",
     "source_of_truth": "dart/lib/src/http_codec.dart:27-61 readObject/requiredObject/requiredString + http_sse_transport.dart:88-91",
     "type": "semantic",
     "http_status": 400,
