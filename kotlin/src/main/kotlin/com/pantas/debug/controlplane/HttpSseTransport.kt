@@ -168,6 +168,7 @@ class HttpSseTransport(
             method = method.name.uppercase(),
             segments = segments,
             body = body,
+            headers = session.headers,
             request = session,
         )
 

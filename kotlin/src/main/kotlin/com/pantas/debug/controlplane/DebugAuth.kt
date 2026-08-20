@@ -30,6 +30,19 @@ data class DebugAuthTokenRecord(
     val clientLabel: String? = null,
 )
 
+data class DebugAuthPendingRequest(
+    val requestId: String,
+    val status: String,
+    val expiresAt: String? = null,
+    val pairingCode: String? = null,
+)
+
+data class DebugAuthClaim(
+    val token: String,
+    val tokenId: String,
+    val expiresAt: String,
+)
+
 /** Authorization decision shared by future route and SSE gates. */
 sealed class DebugAuthDecision {
     data object Authorized : DebugAuthDecision()
@@ -41,11 +54,33 @@ sealed class DebugAuthDecision {
     ) : DebugAuthDecision()
 }
 
+sealed class DebugAuthRouteResult {
+    data class Ok(
+        val body: Map<String, Any?>,
+        val statusCode: Int = 200,
+    ) : DebugAuthRouteResult()
+
+    data class Denied(
+        val statusCode: Int,
+        val code: String,
+        val message: String,
+    ) : DebugAuthRouteResult()
+}
+
 /** Pluggable App-side authorizer. */
 interface DebugAuthManager {
     suspend fun authorize(request: DebugAuthRequest): DebugAuthDecision
 
     suspend fun helloAuthState(token: String?): Map<String, Any?>
+
+    suspend fun requestAuthorization(body: Map<String, Any?>): DebugAuthRouteResult =
+        DebugAuthRouteResult.Denied(401, "authorization_required", "Debug authorization is required.")
+
+    suspend fun authorizationStatus(body: Map<String, Any?>): DebugAuthRouteResult =
+        DebugAuthRouteResult.Denied(401, "invalid_token", "Debug authorization token is invalid.")
+
+    suspend fun claimAuthorization(body: Map<String, Any?>): DebugAuthRouteResult =
+        DebugAuthRouteResult.Denied(401, "invalid_token", "Debug authorization token is invalid.")
 }
 
 /** Compatibility manager used when the host has not enabled debug auth. */

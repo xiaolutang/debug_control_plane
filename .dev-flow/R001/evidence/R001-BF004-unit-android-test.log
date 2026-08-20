@@ -1,0 +1,59 @@
+---
+task_id: R001-BF004
+layer: unit
+domain: android
+status: pass
+passed: 8
+failed: 0
+deferred: false
+---
+
+# R001-BF004 ControlPlane Auth Route Tests
+
+## Focused Unit Test
+
+Command:
+
+```bash
+cd kotlin && ./gradlew test --tests com.pantas.debug.controlplane.ControlPlaneAuthTest
+```
+
+Result: pass.
+
+Observed test cases:
+
+- `authDisabledKeepsBareControlPlaneBehavior`
+- `capabilityDeniedShortCircuitsBeforeHandler`
+- `authBootstrapRoutesUseManagerResultsAndWinOverCapabilities`
+- `helloWithValidTokenReturnsFullHelloWithAuthState`
+- `helloWithoutValidTokenReturnsMinimalBootstrap`
+- `authBootstrapRoutesMapDeniedResultsToErrors`
+- `capabilityAuthorizedDispatchesHandler`
+- `stateDeniedShortCircuitsBeforeAggregation`
+
+Summary: `8` tests completed, `0` failed.
+
+## Kotlin Build
+
+Command:
+
+```bash
+cd kotlin && ./gradlew build
+```
+
+Result: pass.
+
+Build output included:
+
+- `ControlPlaneAuthTest` 8/8 pass.
+- Existing Kotlin tests pass, including `ControlPlaneTest`, `DebugAuthTest`, golden fixtures, and SSE/routing integration-style tests.
+- `BUILD SUCCESSFUL`.
+
+Note: `SseAndRoutingIntegrationTest > sse_droppingOneClientDoesNotAffectOthers` prints an expected broken-pipe stderr from the dropped client scenario, while the test itself passes.
+
+## Coverage Notes
+
+- `/hello` coverage: auth disabled full hello, auth enabled unauthorized minimal bootstrap, auth enabled authorized full hello with auth state.
+- Sensitive route coverage: `/state` denied before aggregation, capability resource/command denied before handler, capability resource authorized.
+- Auth bootstrap coverage: `/auth/request` success 202, `/auth/status` approved success and denied error, `/auth/claim` token success and expired error.
+- Security assertions: unauthorized hello does not contain `registeredCapabilities`, capability state, appMeta `capabilities`, or token; token only appears in successful `/auth/claim`.

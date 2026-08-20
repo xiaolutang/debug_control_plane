@@ -16,4 +16,6 @@ data class RouteRequest(
     val body: Map<String, Any?> = emptyMap(),
     /** Opaque protocol handle. May be null. */
     val request: Any? = null,
+    /** HTTP headers with transport-provided casing; auth helpers match case-insensitively. */
+    val headers: Map<String, String> = emptyMap(),
 )

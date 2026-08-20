@@ -30,6 +30,7 @@ class ControlPlane(
     private val transport: Transport,
     private val scope: CoroutineScope,
     appMeta: (suspend () -> Map<String, Any?>)? = null,
+    private val authManager: DebugAuthManager? = null,
 ) {
 
     private val lock = Any()
@@ -266,9 +267,16 @@ class ControlPlane(
      */
     suspend fun dispatch(req: RouteRequest): RouteResult {
         return try {
+            val routeClass = DebugAuth.classifyRoute(req.method, req.segments)
             // System routes — handled by the plane itself, GET-only, exact
             // segment match, priority over capability routes (§1.1).
-            matchSystemRoute(req.method, req.segments)?.let { return RouteResult.ok(it(req)) }
+            matchSystemRoute(req.method, req.segments)?.let { return it(req) }
+
+            if (routeClass == DebugAuthRouteClass.SENSITIVE) {
+                authorize(req)?.let { denied ->
+                    return RouteResult.error(denied.statusCode, denied.code, denied.message)
+                }
+            }
 
             // Capability routes — flat, prefix-less, first-match-wins in
             // registration order then declaration order (§2.4).
@@ -312,10 +320,13 @@ class ControlPlane(
     private fun matchSystemRoute(
         method: String,
         segments: List<String>,
-    ): (suspend (RouteRequest) -> Map<String, Any?>)? {
+    ): (suspend (RouteRequest) -> RouteResult)? {
         if (method == "GET" && segments == listOf("hello")) return ::handleHello
-        if (method == "GET" && segments == listOf("state")) return ::handleState
-        if (method == "GET" && segments == listOf("events")) return ::handleEvents
+        if (method == "POST" && segments == listOf("auth", "request")) return ::handleAuthRequest
+        if (method == "POST" && segments == listOf("auth", "status")) return ::handleAuthStatus
+        if (method == "POST" && segments == listOf("auth", "claim")) return ::handleAuthClaim
+        if (method == "GET" && segments == listOf("state")) return handleSensitiveSystemRoute(::handleState)
+        if (method == "GET" && segments == listOf("events")) return handleSensitiveSystemRoute(::handleEvents)
         return null
     }
 
@@ -329,7 +340,20 @@ class ControlPlane(
      * eventsEndpoint/profileRevision -> aggregateState ->
      * registeredCapabilities (last, so business keys can't clobber it).
      */
-    suspend fun handleHello(req: RouteRequest): Map<String, Any?> {
+    suspend fun handleHello(req: RouteRequest): RouteResult {
+        val auth = authManager
+        if (auth != null) {
+            when (val decision = auth.authorize(req.toAuthRequest())) {
+                DebugAuthDecision.Authorized ->
+                    return RouteResult.Ok(fullHello(req) + auth.helloAuthState(req.bearerToken()))
+                is DebugAuthDecision.Denied ->
+                    return RouteResult.Ok(minimalAuthHello(req, decision))
+            }
+        }
+        return RouteResult.Ok(fullHello(req))
+    }
+
+    private suspend fun fullHello(req: RouteRequest): Map<String, Any?> {
         val meta = appMeta?.invoke() ?: emptyMap()
         return buildMap {
             put("protocolVersion", PROTOCOL_VERSION)
@@ -339,6 +363,24 @@ class ControlPlane(
             put("profileRevision", 1)
             putAll(aggregateState())
             putAll(aggregateCapabilities())
+        }
+    }
+
+    private suspend fun minimalAuthHello(
+        req: RouteRequest,
+        decision: DebugAuthDecision.Denied,
+    ): Map<String, Any?> {
+        val meta = appMeta?.invoke().orEmpty()
+            .filterKeys { key -> key in HELLO_BOOTSTRAP_META_KEYS }
+        return buildMap {
+            put("protocolVersion", PROTOCOL_VERSION)
+            putAll(meta)
+            putAll(transport.serverInfo(req.request))
+            put("eventsEndpoint", "/events")
+            put("profileRevision", 1)
+            put("authRequired", true)
+            put("authStatus", decision.code)
+            put("authEndpoints", AUTH_ENDPOINTS)
         }
     }
 
@@ -358,6 +400,61 @@ class ControlPlane(
             "ok" to true,
             "note" to "event_bus_is_stream",
             "eventsEndpoint" to "/events",
+        )
+
+    private fun handleSensitiveSystemRoute(
+        handler: suspend (RouteRequest) -> Map<String, Any?>,
+    ): suspend (RouteRequest) -> RouteResult = { req ->
+        authorize(req)?.let { denied ->
+            RouteResult.error(denied.statusCode, denied.code, denied.message)
+        } ?: RouteResult.Ok(handler(req))
+    }
+
+    private suspend fun handleAuthRequest(req: RouteRequest): RouteResult =
+        authRouteResult(authManager?.requestAuthorization(req.body) ?: DebugAuthRouteResult.Denied(
+            401,
+            "authorization_required",
+            "Debug authorization is required.",
+        ))
+
+    private suspend fun handleAuthStatus(req: RouteRequest): RouteResult =
+        authRouteResult(authManager?.authorizationStatus(req.body) ?: DebugAuthRouteResult.Denied(
+            401,
+            "authorization_required",
+            "Debug authorization is required.",
+        ))
+
+    private suspend fun handleAuthClaim(req: RouteRequest): RouteResult =
+        authRouteResult(authManager?.claimAuthorization(req.body) ?: DebugAuthRouteResult.Denied(
+            401,
+            "authorization_required",
+            "Debug authorization is required.",
+        ))
+
+    private fun authRouteResult(result: DebugAuthRouteResult): RouteResult =
+        when (result) {
+            is DebugAuthRouteResult.Ok -> RouteResult.Ok(result.body, result.statusCode)
+            is DebugAuthRouteResult.Denied -> RouteResult.error(result.statusCode, result.code, result.message)
+        }
+
+    private suspend fun authorize(req: RouteRequest): DebugAuthDecision.Denied? {
+        val auth = authManager ?: return null
+        return when (val decision = auth.authorize(req.toAuthRequest())) {
+            DebugAuthDecision.Authorized -> null
+            is DebugAuthDecision.Denied -> decision
+        }
+    }
+
+    private fun RouteRequest.bearerToken(): String? = DebugAuth.bearerToken(headers)
+
+    private fun RouteRequest.toAuthRequest(): DebugAuthRequest =
+        DebugAuthRequest(
+            method = method,
+            segments = segments,
+            routeClass = DebugAuth.classifyRoute(method, segments),
+            bearerToken = bearerToken(),
+            body = body,
+            request = request,
         )
 
     /**
@@ -409,5 +506,13 @@ class ControlPlane(
          * Kotlin 0.2.0). Only bumped on incompatible protocol breaks.
          */
         const val PROTOCOL_VERSION: Int = 1
+
+        private val AUTH_ENDPOINTS = mapOf(
+            "request" to "/auth/request",
+            "status" to "/auth/status",
+            "claim" to "/auth/claim",
+        )
+
+        private val HELLO_BOOTSTRAP_META_KEYS = setOf("app", "deviceId", "deviceName", "platform")
     }
 }

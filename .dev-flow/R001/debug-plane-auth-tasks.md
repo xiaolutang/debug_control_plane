@@ -176,7 +176,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：AuthGate 需要跨普通路由和 SSE 共享的纯接口。
 
-## R001-BF004：kotlin ControlPlane — AuthGate and auth routes `⬜ 待处理`
+## R001-BF004：kotlin ControlPlane — AuthGate and auth routes `✅ 已完成`
 
 - 文件：`kotlin/src/main/kotlin/com/pantas/debug/controlplane/ControlPlane.kt`
 - 改动类型：修改
@@ -187,7 +187,7 @@ contextMdPaths:
 - risk_tags: [kotlin, auth, routing]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [BF001, BF002, BF003]
 - sourceSlices: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-server-slice.md, .dev-flow/R001/analysis/2026-08-20--debug-plane-auth-app-slice.md]
 - sourceDesigns: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md]
@@ -206,10 +206,10 @@ contextMdPaths:
 - decision_refs: [DEC-R001-002, DEC-R001-003, DEC-R001-004, DEC-R001-006, DEC-R001-007]
 - blocked_files: []
 - 具体改动点：
-  - R001-BF004.1 `⬜` 构造函数接收可选 `authManager`。
-  - R001-BF004.2 `⬜` `_handleHello` 按 auth 状态选择 minimal/full payload。
-  - R001-BF004.3 `⬜` dispatch 前对 sensitive routes 调用 auth manager。
-  - R001-BF004.4 `⬜` 增加 `/auth/*` system routes。
+  - R001-BF004.1 `✅` 构造函数接收可选 `authManager`。
+  - R001-BF004.2 `✅` `_handleHello` 按 auth 状态选择 minimal/full payload。
+  - R001-BF004.3 `✅` dispatch 前对 sensitive routes 调用 auth manager。
+  - R001-BF004.4 `✅` 增加 `/auth/*` system routes。
 - 关键代码片段：
   ```kotlin
   if (auth.enabled && isSensitive(req)) {
