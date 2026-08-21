@@ -20,10 +20,20 @@ Future<Map<String, Object?>> _getBodyAndClose(HttpClientResponse response,
 
 /// A simple dispatch handler for tests: returns JSON echoes or 404.
 Future<RouteResult> _echoHandler(RouteRequest req) async {
-  if (req.method == 'GET' && req.segments.length == 1 && req.segments.first == 'echo') {
-    return RouteResult.ok(<String, Object?>{'ok': true, 'segments': req.segments});
+  if (req.method == 'GET' &&
+      req.segments.length == 1 &&
+      req.segments.first == 'echo') {
+    final authorization =
+        req.headers['authorization'] ?? req.headers['Authorization'];
+    return RouteResult.ok(<String, Object?>{
+      'ok': true,
+      'segments': req.segments,
+      if (authorization != null) 'authorization': authorization,
+    });
   }
-  if (req.method == 'POST' && req.segments.length == 1 && req.segments.first == 'echo') {
+  if (req.method == 'POST' &&
+      req.segments.length == 1 &&
+      req.segments.first == 'echo') {
     return RouteResult.ok(<String, Object?>{'ok': true, 'echo': req.body});
   }
   return RouteResult.error(404, 'not_found', 'Endpoint was not found.');
@@ -67,7 +77,10 @@ void main() {
         final response =
             await client.getUrl(uri!.resolve('/echo')).then((r) => r.close());
         final body = await _getBodyAndClose(response);
-        expect(body, {'ok': true, 'segments': ['echo']});
+        expect(body, {
+          'ok': true,
+          'segments': ['echo']
+        });
       } finally {
         client.close(force: true);
       }
@@ -98,7 +111,34 @@ void main() {
         final response =
             await client.getUrl(uri!.resolve('/echo')).then((r) => r.close());
         final body = await _getBodyAndClose(response);
-        expect(body, {'ok': true, 'segments': ['echo']});
+        expect(body, {
+          'ok': true,
+          'segments': ['echo']
+        });
+      } finally {
+        client.close(force: true);
+      }
+    });
+
+    test('GET routes carry request headers through RouteRequest', () async {
+      final transport = HttpSseTransport();
+      addTearDown(transport.close);
+      final uri = await transport.bind(
+        address: InternetAddress.loopbackIPv4,
+        port: 0,
+      );
+      transport.listen(_echoHandler);
+
+      final client = HttpClient();
+      try {
+        final request = await client.getUrl(uri!.resolve('/echo'));
+        request.headers.set(
+          HttpHeaders.authorizationHeader,
+          'Bearer test-token-not-real',
+        );
+        final response = await request.close();
+        final body = await _getBodyAndClose(response);
+        expect(body['authorization'], 'Bearer test-token-not-real');
       } finally {
         client.close(force: true);
       }
@@ -140,9 +180,8 @@ void main() {
 
       final client = HttpClient();
       try {
-        final response = await client
-            .getUrl(uri!.resolve('/nope'))
-            .then((r) => r.close());
+        final response =
+            await client.getUrl(uri!.resolve('/nope')).then((r) => r.close());
         expect(response.statusCode, HttpStatus.notFound);
         final raw = await utf8.decoder.bind(response).join();
         final body = Map<String, Object?>.from(jsonDecode(raw) as Map);
@@ -155,6 +194,78 @@ void main() {
   });
 
   group('HttpSseTransport /events hijack', () {
+    test('preflight denial returns JSON before first frame and no subscriber',
+        () async {
+      final transport = HttpSseTransport();
+      addTearDown(transport.close);
+      final uri = await transport.bind(
+        address: InternetAddress.loopbackIPv4,
+        port: 0,
+      );
+      var handlerCalled = false;
+      var preflightBearer = '';
+      transport.setEventsPreflight((req) async {
+        preflightBearer =
+            req.headers['authorization'] ?? req.headers['Authorization'] ?? '';
+        return RouteResult.error(
+          HttpStatus.unauthorized,
+          'authorization_required',
+          'Debug authorization is required.',
+        );
+      });
+      transport.listen((req) async {
+        handlerCalled = true;
+        return RouteResult.ok(<String, Object?>{'ok': true});
+      });
+
+      final client = HttpClient();
+      try {
+        final request = await client.getUrl(uri!.resolve('/events'));
+        request.headers.set(
+          HttpHeaders.authorizationHeader,
+          'Bearer bad-token',
+        );
+        final response = await request.close();
+        expect(response.statusCode, HttpStatus.unauthorized);
+        expect(response.headers.contentType?.mimeType, 'application/json');
+        final raw = await utf8.decoder.bind(response).join();
+        expect(raw, isNot(contains(': connected')));
+        final body = Map<String, Object?>.from(jsonDecode(raw) as Map);
+        expect(body['ok'], false);
+        expect(body['code'], 'authorization_required');
+        expect(preflightBearer, 'Bearer bad-token');
+        expect(handlerCalled, isFalse);
+        expect(transport.subscriberCount, 0);
+      } finally {
+        client.close(force: true);
+      }
+    });
+
+    test('null preflight preserves connected first frame', () async {
+      final transport = HttpSseTransport();
+      addTearDown(transport.close);
+      final uri = await transport.bind(
+        address: InternetAddress.loopbackIPv4,
+        port: 0,
+      );
+      transport.setEventsPreflight((req) async => null);
+      transport.listen(_echoHandler);
+
+      final client = HttpClient();
+      try {
+        final response =
+            await client.getUrl(uri!.resolve('/events')).then((r) => r.close());
+        final firstLine = await response
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .first
+            .timeout(const Duration(seconds: 2));
+        expect(firstLine, ': connected');
+      } finally {
+        client.close(force: true);
+      }
+    });
+
     test('GET /events streams ": connected" preamble + text/event-stream',
         () async {
       final transport = HttpSseTransport();
@@ -167,9 +278,8 @@ void main() {
 
       final client = HttpClient();
       try {
-        final response = await client
-            .getUrl(uri!.resolve('/events'))
-            .then((r) => r.close());
+        final response =
+            await client.getUrl(uri!.resolve('/events')).then((r) => r.close());
         expect(
           response.headers.contentType?.mimeType,
           'text/event-stream',
@@ -202,9 +312,8 @@ void main() {
 
       final client = HttpClient();
       try {
-        final response = await client
-            .getUrl(uri!.resolve('/events'))
-            .then((r) => r.close());
+        final response =
+            await client.getUrl(uri!.resolve('/events')).then((r) => r.close());
         final firstLine = await response
             .transform(utf8.decoder)
             .transform(const LineSplitter())
@@ -232,9 +341,8 @@ void main() {
 
       final client = HttpClient();
       try {
-        final response = await client
-            .getUrl(uri!.resolve('/events'))
-            .then((r) => r.close());
+        final response =
+            await client.getUrl(uri!.resolve('/events')).then((r) => r.close());
         final lines = <String>[];
         final sub = response
             .transform(utf8.decoder)
@@ -254,13 +362,11 @@ void main() {
         await sub.cancel();
 
         // Verify frame format.
-        final eventIdx =
-            lines.indexOf('event: controller_state_changed');
+        final eventIdx = lines.indexOf('event: controller_state_changed');
         expect(eventIdx, greaterThanOrEqualTo(0));
         final dataLine = lines[eventIdx + 1];
         expect(dataLine.startsWith('data: '), isTrue);
-        final json =
-            jsonDecode(dataLine.substring('data: '.length)) as Map;
+        final json = jsonDecode(dataLine.substring('data: '.length)) as Map;
         expect(json['type'], 'controller_state_changed');
         expect(json['sequence'], 42);
         expect(json['activeSource'], 'virtual');
@@ -282,7 +388,8 @@ void main() {
   });
 
   group('HttpSseTransport serverInfo', () {
-    test('serverInfo returns {serverHost, serverPort, localIps} from bound '
+    test(
+        'serverInfo returns {serverHost, serverPort, localIps} from bound '
         'socket', () async {
       final transport = HttpSseTransport();
       addTearDown(transport.close);
@@ -348,8 +455,9 @@ void main() {
         // requestEndpoint() parses that header; the returned host matches the
         // loopback literal the client used (not the synthetic '0.0.0.0'
         // fallback that fires only when the header is absent).
-        final response =
-            await client.getUrl(uri!.resolve('/whatever')).then((r) => r.close());
+        final response = await client
+            .getUrl(uri!.resolve('/whatever'))
+            .then((r) => r.close());
         final body = await _getBodyAndClose(response, expect200: false);
         expect(body['serverHost'], uri.host);
         expect(body['serverPort'], uri.port);
@@ -379,7 +487,8 @@ void main() {
   });
 
   group('Transport protocol-agnostic replaceability', () {
-    test('a non-HttpSseTransport still drives plane.dispatch through its '
+    test(
+        'a non-HttpSseTransport still drives plane.dispatch through its '
         'handler', () async {
       // This is a structural smoke: proves ControlPlane.dispatch works
       // regardless of which Transport implementation is plugged in. The
@@ -438,7 +547,8 @@ class _FakeCap implements Capability {
   List<Resource> get resources => const <Resource>[];
 
   @override
-  Map<String, Object?> state() => const <String, Object?>{'activeSource': 'none'};
+  Map<String, Object?> state() =>
+      const <String, Object?>{'activeSource': 'none'};
 }
 
 Future<void> _waitForLines(

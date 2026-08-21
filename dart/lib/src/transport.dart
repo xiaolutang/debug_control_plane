@@ -55,6 +55,7 @@ class RouteRequest {
     required this.segments,
     required this.body,
     required this.request,
+    this.headers = const <String, String>{},
   });
 
   /// HTTP method, upper-cased (`GET`, `POST`, ...).
@@ -65,6 +66,9 @@ class RouteRequest {
 
   /// Parsed JSON body (empty map for bodyless requests).
   final Map<String, Object?> body;
+
+  /// Wire request headers, normalized by the transport as best effort.
+  final Map<String, String> headers;
 
   /// Opaque protocol handle (e.g. `HttpRequest`). May be `null`.
   final Object? request;

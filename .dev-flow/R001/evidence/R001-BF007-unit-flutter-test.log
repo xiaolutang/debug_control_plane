@@ -1,0 +1,52 @@
+---
+status: pass
+task_id: R001-BF007
+domain: flutter
+layer: unit
+passed: 89
+failed: 0
+commands:
+  - command: "cd dart && fvm dart format --set-exit-if-changed lib/debug_control_plane.dart lib/src/control_plane.dart lib/src/debug_auth.dart lib/src/http_sse_transport.dart lib/src/transport.dart test/control_plane_test.dart test/debug_auth_test.dart test/http_sse_transport_test.dart"
+    exit_code: 0
+  - command: "cd dart && fvm flutter test test/debug_auth_test.dart test/control_plane_test.dart test/http_sse_transport_test.dart"
+    exit_code: 0
+    passed: 54
+  - command: "cd dart && fvm flutter test"
+    exit_code: 0
+    passed: 89
+---
+
+# R001-BF007 Flutter Unit Test Log
+
+## Targeted Auth Tests
+
+Command:
+
+```bash
+cd dart && fvm flutter test test/debug_auth_test.dart test/control_plane_test.dart test/http_sse_transport_test.dart
+```
+
+Result:
+
+```text
+00:00 +54: All tests passed!
+```
+
+## Dart Package Full Test Suite
+
+Command:
+
+```bash
+cd dart && fvm flutter test
+```
+
+Result:
+
+```text
+00:00 +89: All tests passed!
+```
+
+## Notes
+
+- No command substitution was required; `fvm` was available.
+- First compile attempt failed because `HttpHeaders.map` does not exist in `dart:io`; implementation was corrected to use `HttpHeaders.forEach`, then both targeted and full suites passed.

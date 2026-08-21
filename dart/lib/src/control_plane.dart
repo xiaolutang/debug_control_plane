@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'capability.dart';
 import 'debug_event.dart';
+import 'debug_auth.dart';
+import 'http_sse_transport.dart';
 import 'route_failure.dart';
 import 'transport.dart';
 
@@ -31,13 +33,20 @@ class ControlPlane {
   /// [appMeta] is invoked per `/hello` request to supply app identity. When
   /// omitted, `/hello` emits an empty app-meta block (the framework still
   /// fills in `protocolVersion` and capability listings).
-  ControlPlane({required this.transport, this.appMeta});
+  ControlPlane({
+    required this.transport,
+    this.appMeta,
+    this.authManager,
+  });
 
   /// The transport this plane routes through.
   final Transport transport;
 
   /// Injected app metadata provider for `/hello`.
   final Map<String, Object?> Function()? appMeta;
+
+  /// Optional App-side debug auth boundary. `null` preserves bare mode.
+  final DebugAuthManager? authManager;
 
   final Map<String, Capability> _capabilities = <String, Capability>{};
 
@@ -103,6 +112,9 @@ class ControlPlane {
     required Object address,
     required int port,
   }) async {
+    if (authManager != null && transport is HttpSseTransport) {
+      (transport as HttpSseTransport).setEventsPreflight(_eventsPreflight);
+    }
     transport.listen(dispatch);
     return transport.bind(address: address, port: port);
   }
@@ -128,7 +140,8 @@ class ControlPlane {
       // System routes — handled by the plane itself.
       final system = _matchSystemRoute(req.method, req.segments);
       if (system != null) {
-        return RouteResult.ok(await system(req));
+        final result = await system(req);
+        return RouteResult(statusCode: result.statusCode, body: result.body);
       }
 
       // Capability routes — flat, prefix-less matching across all declared
@@ -139,6 +152,8 @@ class ControlPlane {
             if (decl.method != req.method) continue;
             final pathParams = <String, String>{};
             if (_matchPath(decl.path, req.segments, pathParams)) {
+              final denied = await _authorize(req);
+              if (denied != null) return _authDeniedResult(denied);
               final ctx = RouteContext(
                 pathParams: pathParams,
                 body: req.body,
@@ -154,6 +169,8 @@ class ControlPlane {
             if (decl.method != req.method) continue;
             final pathParams = <String, String>{};
             if (_matchPath(decl.path, req.segments, pathParams)) {
+              final denied = await _authorize(req);
+              if (denied != null) return _authDeniedResult(denied);
               final ctx = RouteContext(
                 pathParams: pathParams,
                 body: req.body,
@@ -185,8 +202,8 @@ class ControlPlane {
     }
   }
 
-  Future<Map<String, Object?>> Function(RouteRequest req)?
-      _matchSystemRoute(String method, List<String> segments) {
+  Future<RouteResult> Function(RouteRequest req)? _matchSystemRoute(
+      String method, List<String> segments) {
     if (method == 'GET' && _listEquals(segments, const ['hello'])) {
       return _handleHello;
     }
@@ -196,6 +213,15 @@ class ControlPlane {
     if (method == 'GET' && _listEquals(segments, const ['events'])) {
       return _handleEvents;
     }
+    if (method == 'POST' && _listEquals(segments, const ['auth', 'request'])) {
+      return _handleAuthRequest;
+    }
+    if (method == 'POST' && _listEquals(segments, const ['auth', 'status'])) {
+      return _handleAuthStatus;
+    }
+    if (method == 'POST' && _listEquals(segments, const ['auth', 'claim'])) {
+      return _handleAuthClaim;
+    }
     return null;
   }
 
@@ -203,7 +229,24 @@ class ControlPlane {
   // System route handlers
   // ---------------------------------------------------------------------------
 
-  Future<Map<String, Object?>> _handleHello(RouteRequest req) async {
+  Future<RouteResult> _handleHello(RouteRequest req) async {
+    final auth = authManager;
+    if (auth != null) {
+      final token = DebugAuth.bearerToken(req.headers);
+      final authReq = _toAuthRequest(req, AuthRouteClass.helloBootstrap);
+      final decision = await auth.authorize(authReq);
+      if (decision is AuthDenied) {
+        return RouteResult.ok(await _minimalAuthHello(req, decision));
+      }
+      return RouteResult.ok(<String, Object?>{
+        ...await _fullHello(req),
+        ...await auth.helloAuthState(token),
+      });
+    }
+    return RouteResult.ok(await _fullHello(req));
+  }
+
+  Future<Map<String, Object?>> _fullHello(RouteRequest req) async {
     final meta = appMeta?.call() ?? const <String, Object?>{};
     return <String, Object?>{
       'protocolVersion': kDebugControlPlaneProtocolVersion,
@@ -219,28 +262,130 @@ class ControlPlane {
     };
   }
 
-  Future<Map<String, Object?>> _handleState(RouteRequest req) async {
+  Future<Map<String, Object?>> _minimalAuthHello(
+    RouteRequest req,
+    AuthDenied decision,
+  ) async {
+    final meta = appMeta?.call() ?? const <String, Object?>{};
+    final safeMeta = <String, Object?>{
+      for (final key in const ['app', 'deviceId', 'deviceName', 'platform'])
+        if (meta.containsKey(key)) key: meta[key],
+    };
+    return <String, Object?>{
+      'protocolVersion': kDebugControlPlaneProtocolVersion,
+      ...safeMeta,
+      ...await transport.serverInfo(req.request),
+      'eventsEndpoint': '/events',
+      'profileRevision': 1,
+      'authRequired': true,
+      'authStatus': decision.code,
+      'authEndpoints': const <String, String>{
+        'request': '/auth/request',
+        'status': '/auth/status',
+        'claim': '/auth/claim',
+      },
+    };
+  }
+
+  Future<RouteResult> _handleState(RouteRequest req) async {
     // Byte-level parity with the legacy launcher `/state` body: the legacy
     // `_statePayload()` returned the flat aggregate state with no top-level
     // `ok` flag. Adding `ok` here would diverge from the TEST01 contract
     // (golden snapshot). R019-FF002 contract-alignment (extension of BF002.0
     // which originally only named `/hello`).
-    return _aggregateState();
+    final denied = await _authorize(req);
+    if (denied != null) return _authDeniedResult(denied);
+    return RouteResult.ok(_aggregateState());
   }
 
-  Future<Map<String, Object?>> _handleEvents(RouteRequest req) async {
+  Future<RouteResult> _handleEvents(RouteRequest req) async {
     // `/events` is a long-lived stream handshake in the BF002 transport
     // (text/event-stream). The framework exposes the data source via
     // [eventBus]; the wire-level implementation lives in `HttpSseTransport`.
     // Direct GET /events through this code path (without a transport that
     // hijacks the connection) returns the current bus subscription info so
     // the route is non-404 and introspectable.
-    return <String, Object?>{
+    final denied = await _authorize(req);
+    if (denied != null) return _authDeniedResult(denied);
+    return RouteResult.ok(<String, Object?>{
       'ok': true,
       'note': 'event_bus_is_stream',
       'eventsEndpoint': '/events',
+    });
+  }
+
+  Future<RouteResult> _handleAuthRequest(RouteRequest req) async =>
+      _authRouteResult(
+        await (authManager?.requestAuthorization(req.body) ??
+            Future<AuthRouteResult>.value(AuthRouteDenied(
+              statusCode: 401,
+              code: 'authorization_required',
+              message: 'Debug authorization is required.',
+            ))),
+      );
+
+  Future<RouteResult> _handleAuthStatus(RouteRequest req) async =>
+      _authRouteResult(
+        await (authManager?.authorizationStatus(req.body) ??
+            Future<AuthRouteResult>.value(AuthRouteDenied(
+              statusCode: 401,
+              code: 'authorization_required',
+              message: 'Debug authorization is required.',
+            ))),
+      );
+
+  Future<RouteResult> _handleAuthClaim(RouteRequest req) async =>
+      _authRouteResult(
+        await (authManager?.claimAuthorization(req.body) ??
+            Future<AuthRouteResult>.value(AuthRouteDenied(
+              statusCode: 401,
+              code: 'authorization_required',
+              message: 'Debug authorization is required.',
+            ))),
+      );
+
+  RouteResult _authRouteResult(AuthRouteResult result) {
+    return switch (result) {
+      AuthRouteOk(:final body, :final statusCode) =>
+        RouteResult(statusCode: statusCode, body: body),
+      AuthRouteDenied(:final statusCode, :final code, :final message) =>
+        RouteResult.error(statusCode, code, message),
     };
   }
+
+  Future<RouteResult?> _eventsPreflight(RouteRequest req) async {
+    final denied = await _authorize(req);
+    return denied == null ? null : _authDeniedResult(denied);
+  }
+
+  Future<AuthDenied?> _authorize(RouteRequest req) async {
+    final auth = authManager;
+    if (auth == null) return null;
+    final decision = await auth.authorize(_toAuthRequest(req));
+    return decision is AuthDenied ? decision : null;
+  }
+
+  AuthRequest _toAuthRequest(
+    RouteRequest req, [
+    AuthRouteClass? routeClass,
+  ]) {
+    final classified =
+        routeClass ?? DebugAuth.classifyRoute(req.method, req.segments);
+    return AuthRequest(
+      method: req.method,
+      segments: List<String>.unmodifiable(req.segments),
+      routeClass: classified,
+      bearerToken: DebugAuth.bearerToken(req.headers),
+      body: req.body,
+      request: req.request,
+    );
+  }
+
+  RouteResult _authDeniedResult(AuthDenied denied) => RouteResult.error(
+        denied.statusCode,
+        denied.code,
+        denied.message,
+      );
 
   Map<String, Object?> _aggregateState() {
     final state = <String, Object?>{};
@@ -272,14 +417,16 @@ class ControlPlane {
                     .map((r) => <String, Object?>{
                           'method': r.method,
                           'path': r.path,
-                          if (r.description != null) 'description': r.description,
+                          if (r.description != null)
+                            'description': r.description,
                         })
                     .toList(),
                 'commands': cap.commands
                     .map((c) => <String, Object?>{
                           'method': c.method,
                           'path': c.path,
-                          if (c.description != null) 'description': c.description,
+                          if (c.description != null)
+                            'description': c.description,
                         })
                     .toList(),
               })

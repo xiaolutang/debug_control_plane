@@ -47,6 +47,80 @@ class _FakeTransport implements Transport {
   }
 }
 
+class _RecordingAuthManager implements DebugAuthManager {
+  _RecordingAuthManager({
+    this.authorizeDecision = const AuthAuthorized(),
+    this.requestResult = const AuthRouteOk(
+      <String, Object?>{
+        'ok': true,
+        'requestId': 'req-1',
+        'status': 'pending',
+        'pairingCode': '123456',
+        'expiresAt': '2026-08-20T10:05:00Z',
+      },
+      statusCode: 202,
+    ),
+    this.statusResult = const AuthRouteOk(<String, Object?>{
+      'ok': true,
+      'requestId': 'req-1',
+      'status': 'approved',
+      'expiresAt': '2026-08-20T11:00:00Z',
+    }),
+    this.claimResult = const AuthRouteOk(<String, Object?>{
+      'ok': true,
+      'token': 'test-token-not-real',
+      'tokenId': 'test-token-id-not-real',
+      'expiresAt': '2026-08-20T11:00:00Z',
+    }),
+  });
+
+  AuthDecision authorizeDecision;
+  AuthRouteResult requestResult;
+  AuthRouteResult statusResult;
+  AuthRouteResult claimResult;
+  final List<AuthRequest> authorizeRequests = <AuthRequest>[];
+  final List<Map<String, Object?>> requestBodies = <Map<String, Object?>>[];
+  final List<Map<String, Object?>> statusBodies = <Map<String, Object?>>[];
+  final List<Map<String, Object?>> claimBodies = <Map<String, Object?>>[];
+
+  @override
+  Future<AuthDecision> authorize(AuthRequest request) async {
+    authorizeRequests.add(request);
+    return authorizeDecision;
+  }
+
+  @override
+  Future<Map<String, Object?>> helloAuthState(String? token) async =>
+      const <String, Object?>{
+        'authRequired': true,
+        'authStatus': 'authorized',
+      };
+
+  @override
+  Future<AuthRouteResult> requestAuthorization(
+    Map<String, Object?> body,
+  ) async {
+    requestBodies.add(body);
+    return requestResult;
+  }
+
+  @override
+  Future<AuthRouteResult> authorizationStatus(
+    Map<String, Object?> body,
+  ) async {
+    statusBodies.add(body);
+    return statusResult;
+  }
+
+  @override
+  Future<AuthRouteResult> claimAuthorization(
+    Map<String, Object?> body,
+  ) async {
+    claimBodies.add(body);
+    return claimResult;
+  }
+}
+
 class _FakeCapability implements Capability {
   _FakeCapability({
     required this.id,
@@ -78,18 +152,29 @@ class _FakeCapability implements Capability {
   Map<String, Object?> state() => Map<String, Object?>.from(initialState);
 }
 
-RouteRequest _get(List<String> segments, {Object? request}) => RouteRequest(
+RouteRequest _get(
+  List<String> segments, {
+  Object? request,
+  Map<String, String> headers = const <String, String>{},
+}) =>
+    RouteRequest(
       method: 'GET',
       segments: segments,
       body: const <String, Object?>{},
+      headers: headers,
       request: request,
     );
 
-RouteRequest _post(List<String> segments, Map<String, Object?> body) =>
+RouteRequest _post(
+  List<String> segments,
+  Map<String, Object?> body, {
+  Map<String, String> headers = const <String, String>{},
+}) =>
     RouteRequest(
       method: 'POST',
       segments: segments,
       body: body,
+      headers: headers,
       request: null,
     );
 
@@ -228,8 +313,8 @@ void main() {
         ],
       ));
 
-      final result = await plane
-          .dispatch(_post(const ['foo'], const <String, Object?>{}));
+      final result =
+          await plane.dispatch(_post(const ['foo'], const <String, Object?>{}));
       expect(result.statusCode, 404);
       expect(result.body['code'], 'not_found');
     });
@@ -245,8 +330,8 @@ void main() {
             method: 'POST',
             path: const ['boom'],
             handler: (ctx) async {
-              throw const RouteFailure(409, 'real_controller_active',
-                  'Real controller is active.');
+              throw const RouteFailure(
+                  409, 'real_controller_active', 'Real controller is active.');
             },
           ),
         ],
@@ -298,7 +383,8 @@ void main() {
 
       cap.emit(const DebugEvent(
         type: 'controller_state_changed',
-        sequence: -1, // capability-side pre-sequence; plane assigns the real one
+        sequence:
+            -1, // capability-side pre-sequence; plane assigns the real one
         payload: <String, Object?>{'activeSource': 'virtual'},
       ));
       await Future<void>.delayed(Duration.zero);
@@ -367,8 +453,7 @@ void main() {
   });
 
   group('ControlPlane system routes', () {
-    test('/hello aggregates appMeta + serverInfo + protocolVersion',
-        () async {
+    test('/hello aggregates appMeta + serverInfo + protocolVersion', () async {
       final transport = _FakeTransport();
       final plane = ControlPlane(
         transport: transport,
@@ -416,8 +501,7 @@ void main() {
       expect(result.body['deviceId'], 'dev-x');
       expect(result.body['deviceName'], 'Virtual Debug');
       expect(result.body['platform'], 'ios');
-      expect(result.body['protocolVersion'],
-          kDebugControlPlaneProtocolVersion);
+      expect(result.body['protocolVersion'], kDebugControlPlaneProtocolVersion);
       expect(result.body['capabilities'], <String>[
         'virtual_input',
         'profiles',
@@ -445,8 +529,7 @@ void main() {
 
       final result = await plane.dispatch(_get(const ['hello']));
       expect(result.statusCode, 200);
-      expect(result.body['protocolVersion'],
-          kDebugControlPlaneProtocolVersion);
+      expect(result.body['protocolVersion'], kDebugControlPlaneProtocolVersion);
       // serverInfo is always spread (transport owns it).
       expect(result.body['serverHost'], '127.0.0.1');
       expect(result.body['serverPort'], 0);
@@ -491,6 +574,298 @@ void main() {
       expect(result.statusCode, 200);
       expect(result.body['ok'], true);
       expect(result.body['eventsEndpoint'], '/events');
+    });
+  });
+
+  group('ControlPlane auth routes', () {
+    test('auth disabled keeps hello state and capability behavior', () async {
+      final transport = _FakeTransport();
+      final plane = ControlPlane(transport: transport);
+      var handlerCalls = 0;
+      plane.register(_FakeCapability(
+        id: 'cap-a',
+        resources: [
+          Resource(
+            method: 'GET',
+            path: const ['foo'],
+            handler: (ctx) async {
+              handlerCalls += 1;
+              return <String, Object?>{'ok': true};
+            },
+          ),
+        ],
+        initialState: const <String, Object?>{'activeSource': 'none'},
+      ));
+
+      final hello = await plane.dispatch(_get(const ['hello']));
+      final state = await plane.dispatch(_get(const ['state']));
+      final resource = await plane.dispatch(_get(const ['foo']));
+
+      expect(hello.body['registeredCapabilities'], isA<List>());
+      expect(hello.body['activeSource'], 'none');
+      expect(state.body['activeSource'], 'none');
+      expect(resource.statusCode, 200);
+      expect(handlerCalls, 1);
+    });
+
+    test('unauthorized hello returns minimal bootstrap without state',
+        () async {
+      final auth = _RecordingAuthManager(
+        authorizeDecision: DebugAuth.authorizationRequired(),
+      );
+      final transport = _FakeTransport();
+      final plane = ControlPlane(
+        transport: transport,
+        authManager: auth,
+        appMeta: () => const <String, Object?>{
+          'app': 'example-app',
+          'deviceId': 'dev-x',
+          'deviceName': 'Virtual Debug',
+          'platform': 'ios',
+          'capabilities': <String>['must-not-leak'],
+        },
+      );
+      plane.register(_FakeCapability(
+        id: 'cap-a',
+        initialState: const <String, Object?>{'activeSource': 'none'},
+      ));
+
+      final result = await plane.dispatch(_get(const ['hello']));
+
+      expect(result.statusCode, 200);
+      expect(result.body['protocolVersion'], 1);
+      expect(result.body['app'], 'example-app');
+      expect(result.body['deviceId'], 'dev-x');
+      expect(result.body['eventsEndpoint'], '/events');
+      expect(result.body['authRequired'], true);
+      expect(result.body['authStatus'], 'authorization_required');
+      expect(result.body['authEndpoints'], const <String, String>{
+        'request': '/auth/request',
+        'status': '/auth/status',
+        'claim': '/auth/claim',
+      });
+      expect(result.body.containsKey('registeredCapabilities'), isFalse);
+      expect(result.body.containsKey('activeSource'), isFalse);
+      expect(result.body.containsKey('capabilities'), isFalse);
+      expect(result.body.containsKey('token'), isFalse);
+      expect(auth.authorizeRequests.single.routeClass,
+          AuthRouteClass.helloBootstrap);
+    });
+
+    test('authorized hello returns full hello with auth state', () async {
+      final auth = _RecordingAuthManager();
+      final plane = ControlPlane(
+        transport: _FakeTransport(),
+        authManager: auth,
+      );
+      plane.register(_FakeCapability(
+        id: 'cap-a',
+        initialState: const <String, Object?>{'activeSource': 'none'},
+      ));
+
+      final result = await plane.dispatch(_get(
+        const ['hello'],
+        headers: const <String, String>{
+          'Authorization': 'Bearer test-token-not-real',
+        },
+      ));
+
+      expect(result.body['registeredCapabilities'], isA<List>());
+      expect(result.body['activeSource'], 'none');
+      expect(result.body['authRequired'], true);
+      expect(result.body['authStatus'], 'authorized');
+      expect(auth.authorizeRequests.single.bearerToken, 'test-token-not-real');
+    });
+
+    test('unauthorized state does not expose aggregate state', () async {
+      final auth = _RecordingAuthManager(
+        authorizeDecision: DebugAuth.tokenExpired(),
+      );
+      var stateCalls = 0;
+      final plane = ControlPlane(
+        transport: _FakeTransport(),
+        authManager: auth,
+      );
+      plane.register(_FakeCapability(
+        id: 'cap-a',
+        initialState: const <String, Object?>{'activeSource': 'none'},
+      ));
+      plane.register(_FakeCapability(
+        id: 'cap-b',
+        resources: const <Resource>[],
+        commands: const <Command>[],
+      ));
+
+      final result = await plane.dispatch(_get(const ['state']));
+
+      expect(result.statusCode, 401);
+      expect(result.body['code'], 'token_expired');
+      expect(result.body.containsKey('activeSource'), isFalse);
+      expect(auth.authorizeRequests.single.segments, const ['state']);
+      expect(stateCalls, 0);
+    });
+
+    test('unauthorized capability routes do not invoke handlers', () async {
+      final auth = _RecordingAuthManager(
+        authorizeDecision: DebugAuth.invalidToken(),
+      );
+      var resourceCalls = 0;
+      var commandCalls = 0;
+      final plane = ControlPlane(
+        transport: _FakeTransport(),
+        authManager: auth,
+      );
+      plane.register(_FakeCapability(
+        id: 'cap-a',
+        resources: [
+          Resource(
+            method: 'GET',
+            path: const ['items'],
+            handler: (ctx) async {
+              resourceCalls += 1;
+              return <String, Object?>{'ok': true};
+            },
+          ),
+        ],
+        commands: [
+          Command(
+            method: 'POST',
+            path: const ['invoke'],
+            handler: (ctx) async {
+              commandCalls += 1;
+              return <String, Object?>{'ok': true};
+            },
+          ),
+        ],
+      ));
+
+      final resource = await plane.dispatch(_get(
+        const ['items'],
+        headers: const <String, String>{'Authorization': 'Bearer bad-token'},
+      ));
+      final command = await plane.dispatch(_post(
+        const ['invoke'],
+        const <String, Object?>{'x': 1},
+        headers: const <String, String>{'Authorization': 'Bearer bad-token'},
+      ));
+
+      expect(resource.statusCode, 401);
+      expect(command.statusCode, 401);
+      expect(resource.body['code'], 'invalid_token');
+      expect(command.body['code'], 'invalid_token');
+      expect(resourceCalls, 0);
+      expect(commandCalls, 0);
+      expect(auth.authorizeRequests.first.bearerToken, 'bad-token');
+      expect(auth.authorizeRequests.last.body, const <String, Object?>{'x': 1});
+    });
+
+    test('auth bootstrap routes use manager and beat capabilities', () async {
+      final auth = _RecordingAuthManager();
+      var shadowCalls = 0;
+      final plane = ControlPlane(
+        transport: _FakeTransport(),
+        authManager: auth,
+      );
+      plane.register(_FakeCapability(
+        id: 'shadow',
+        commands: [
+          Command(
+            method: 'POST',
+            path: const ['auth', 'request'],
+            handler: (ctx) async {
+              shadowCalls += 1;
+              return <String, Object?>{'shadow': true};
+            },
+          ),
+        ],
+      ));
+
+      final request = await plane.dispatch(
+        _post(const [
+          'auth',
+          'request'
+        ], const <String, Object?>{
+          'clientNonce': 'nonce',
+        }),
+      );
+      final status = await plane.dispatch(
+        _post(const [
+          'auth',
+          'status'
+        ], const <String, Object?>{
+          'requestId': 'req-1',
+        }),
+      );
+      final claim = await plane.dispatch(
+        _post(const [
+          'auth',
+          'claim'
+        ], const <String, Object?>{
+          'requestId': 'req-1',
+        }),
+      );
+
+      expect(request.statusCode, 202);
+      expect(request.body['status'], 'pending');
+      expect(status.statusCode, 200);
+      expect(status.body['status'], 'approved');
+      expect(claim.statusCode, 200);
+      expect(claim.body['token'], 'test-token-not-real');
+      expect(shadowCalls, 0);
+      expect(auth.requestBodies.single['clientNonce'], 'nonce');
+    });
+
+    test('auth bootstrap denied results preserve status and body shape',
+        () async {
+      final auth = _RecordingAuthManager(
+        statusResult: const AuthRouteDenied(
+          statusCode: 403,
+          code: 'authorization_denied',
+          message: 'Debug authorization was denied.',
+        ),
+        claimResult: const AuthRouteDenied(
+          statusCode: 401,
+          code: 'token_revoked',
+          message: 'Debug authorization token was revoked.',
+        ),
+      );
+      final plane = ControlPlane(
+        transport: _FakeTransport(),
+        authManager: auth,
+      );
+
+      final denied = await plane.dispatch(
+        _post(const ['auth', 'status'], const <String, Object?>{}),
+      );
+      final revoked = await plane.dispatch(
+        _post(const ['auth', 'claim'], const <String, Object?>{}),
+      );
+
+      expect(denied.statusCode, 403);
+      expect(denied.body, const <String, Object?>{
+        'ok': false,
+        'code': 'authorization_denied',
+        'message': 'Debug authorization was denied.',
+      });
+      expect(revoked.statusCode, 401);
+      expect(revoked.body['code'], 'token_revoked');
+    });
+
+    test('direct events dispatch is sensitive when auth is enabled', () async {
+      final auth = _RecordingAuthManager(
+        authorizeDecision: DebugAuth.authorizationRequired(),
+      );
+      final plane = ControlPlane(
+        transport: _FakeTransport(),
+        authManager: auth,
+      );
+
+      final result = await plane.dispatch(_get(const ['events']));
+
+      expect(result.statusCode, 401);
+      expect(result.body['code'], 'authorization_required');
+      expect(
+          auth.authorizeRequests.single.routeClass, AuthRouteClass.sensitive);
     });
   });
 

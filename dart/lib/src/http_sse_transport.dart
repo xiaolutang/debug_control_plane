@@ -38,8 +38,13 @@ class HttpSseTransport implements Transport {
   /// called.
   final Set<_SseSubscriber> _sseSubscribers = <_SseSubscriber>{};
 
+  Future<RouteResult?> Function(RouteRequest req)? _eventsPreflight;
+
   /// The bound HTTP server, if any. Exposed for tests + `serverInfo`.
   HttpServer? get server => _server;
+
+  /// Active SSE subscriber count. Exposed for auth preflight and lifecycle tests.
+  int get subscriberCount => _sseSubscribers.length;
 
   @override
   Future<Uri?> bind({required Object address, required int port}) async {
@@ -59,6 +64,12 @@ class HttpSseTransport implements Transport {
     _attachHandlerIfPending();
   }
 
+  void setEventsPreflight(
+    Future<RouteResult?> Function(RouteRequest req)? handler,
+  ) {
+    _eventsPreflight = handler;
+  }
+
   void _attachHandlerIfPending() {
     final server = _server;
     final handler = _pendingHandler;
@@ -74,7 +85,7 @@ class HttpSseTransport implements Transport {
       if (request.method == 'GET' &&
           segments.length == 1 &&
           segments.first == 'events') {
-        _handleEventsHijack(request);
+        unawaited(_handleEventsHijack(request));
         return;
       }
       unawaited(_handleRoute(request, handler));
@@ -93,10 +104,12 @@ class HttpSseTransport implements Transport {
         method: request.method,
         segments: request.uri.pathSegments,
         body: body,
+        headers: _headers(request),
         request: request,
       );
       final result = await handler(routeReq);
-      await writeJson(request.response, result.body, statusCode: result.statusCode);
+      await writeJson(request.response, result.body,
+          statusCode: result.statusCode);
     } on RouteFailure catch (error) {
       await writeError(
         request.response,
@@ -114,7 +127,26 @@ class HttpSseTransport implements Transport {
     }
   }
 
-  void _handleEventsHijack(HttpRequest request) {
+  Future<void> _handleEventsHijack(HttpRequest request) async {
+    final preflight = _eventsPreflight;
+    if (preflight != null) {
+      final result = await preflight(RouteRequest(
+        method: request.method,
+        segments: request.uri.pathSegments,
+        body: const <String, Object?>{},
+        headers: _headers(request),
+        request: request,
+      ));
+      if (result != null) {
+        await writeJson(
+          request.response,
+          result.body,
+          statusCode: result.statusCode,
+        );
+        return;
+      }
+    }
+
     final response = request.response;
     response.bufferOutput = false;
     response.statusCode = HttpStatus.ok;
@@ -131,6 +163,14 @@ class HttpSseTransport implements Transport {
     response.done.whenComplete(() {
       _sseSubscribers.remove(subscriber);
     });
+  }
+
+  Map<String, String> _headers(HttpRequest request) {
+    final headers = <String, String>{};
+    request.headers.forEach((name, values) {
+      headers[name] = values.join(',');
+    });
+    return headers;
   }
 
   @override
@@ -201,4 +241,3 @@ class _SseSubscriber {
     }
   }
 }
-

@@ -302,7 +302,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：鉴权是安全边界，必须先由单元测试锁定。
 
-## R001-BF007：dart core — auth protocol mirror `⬜ 待处理`
+## R001-BF007：dart core — auth protocol mirror `✅ 已实现`
 
 - 文件：`dart/lib/src/control_plane.dart` + `dart/lib/src/http_sse_transport.dart`
 - 改动类型：修改
@@ -313,7 +313,7 @@ contextMdPaths:
 - risk_tags: [dart, protocol, auth]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: implemented
 - sourceCapabilities: [BF001, BF002, BF003]
 - sourceSlices: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-server-slice.md, .dev-flow/R001/analysis/2026-08-20--debug-plane-auth-app-slice.md]
 - sourceDesigns: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md]
@@ -332,9 +332,9 @@ contextMdPaths:
 - decision_refs: [DEC-R001-003, DEC-R001-004, DEC-R001-005, DEC-R001-006, DEC-R001-007]
 - blocked_files: []
 - 具体改动点：
-  - R001-BF007.1 `⬜` 增加 Dart auth abstraction。
-  - R001-BF007.2 `⬜` 更新 `ControlPlane.dispatch` 和 `/hello`。
-  - R001-BF007.3 `⬜` 更新 `HttpSseTransport` events preflight。
+  - R001-BF007.1 `✅` 增加 Dart auth abstraction。
+  - R001-BF007.2 `✅` 更新 `ControlPlane.dispatch` 和 `/hello`。
+  - R001-BF007.3 `✅` 更新 `HttpSseTransport` events preflight。
 - 关键代码片段：
   ```dart
   abstract interface class DebugAuthManager {
