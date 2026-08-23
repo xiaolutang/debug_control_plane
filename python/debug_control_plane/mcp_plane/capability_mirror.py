@@ -78,6 +78,7 @@ from debug_control_plane.device_discovery.protocol import JsonMap, NetworkTarget
 from .bridge_client import (
     BridgeClient,
     BridgeError,
+    DeviceAuthError,
     DeviceHttpError,
     DeviceStale,
     DeviceUnreachable,
@@ -397,6 +398,12 @@ class CapabilityMirror:
         # (design §4.1 note: capability schema is CapabilityMirror's runtime
         # mirror, NOT a DeviceRecord field).
         self._cache: dict[str, list[CapabilitySchema]] = {}
+        # R001-BB001: per-device last auth error (DeviceAuthError). Auth
+        # failure ≠ offline — the schema cache is preserved and the signal is
+        # queryable via auth_error() instead of silently degrading. Cleared on
+        # the next successful refresh. GIL-guarded dict ops suffice (contract
+        # risk note).
+        self._auth_errors: dict[str, DeviceAuthError] = {}
 
     # ------------------------------------------------------------------
     # Provider registry (BF010 registration hook)
@@ -430,19 +437,31 @@ class CapabilityMirror:
             True iff the parsed schema differs from the cached snapshot
             (including "no cache → cache populated", which IS a change).
             False if /hello failed (cache cleared) or the schema is identical.
+            Auth errors (R001-BB001): cache is PRESERVED and False returned —
+            the phone is reachable, just unauthorized; see :meth:`auth_error`.
         """
         try:
             target = self._client.hello(device_id)
+        except DeviceAuthError as exc:
+            # R001-BB001: auth error ≠ offline. Preserve the schema cache
+            # (capabilities remain valid once authorized), record the auth
+            # failure for auth_error() queries, return False (no spurious
+            # list_changed). refresh stays poll-safe (never raises).
+            self._auth_errors[device_id] = exc
+            return False
         except (DeviceUnreachable, DeviceStale, DeviceHttpError, BridgeError):
-            # Any /hello failure → degrade. Clear cache so build_tools falls
-            # to static-only and a later successful refresh re-signals the
-            # transition back. We do NOT report a change here: list_changed
-            # signals "the manifest grew/shrank", and going from "had tools"
-            # to "static only" is a real change — but only if we actually had
-            # a non-empty manifest before. Reporting False on a cache→empty
-            # transition would be a lie, so we surface it honestly.
+            # Any non-auth /hello failure → degrade. Clear cache (and any
+            # stale auth state — an unreachable phone has no auth verdict)
+            # so build_tools falls to static-only and a later successful
+            # refresh re-signals the transition back. We do NOT report a
+            # change here: list_changed signals "the manifest grew/shrank",
+            # and going from "had tools" to "static only" is a real change —
+            # but only if we actually had a non-empty manifest before.
+            # Reporting False on a cache→empty transition would be a lie, so
+            # we surface it honestly.
             had_cache = device_id in self._cache
             self._cache.pop(device_id, None)
+            self._auth_errors.pop(device_id, None)
             # Transition from "had dynamic tools" to "static only" IS a change
             # the AI client needs to know about (its cached tools are stale).
             return had_cache
@@ -452,7 +471,19 @@ class CapabilityMirror:
         changed = old_schemas != new_schemas
         if changed:
             self._cache[device_id] = new_schemas
+        # Successful /hello means the device is authorized again.
+        self._auth_errors.pop(device_id, None)
         return changed
+
+    def auth_error(self, device_id: str) -> DeviceAuthError | None:
+        """Return the last :class:`DeviceAuthError` seen for ``device_id``.
+
+        R001-BB001: lets callers (h_list_capabilities) distinguish "auth
+        failed" from "offline degrade" without refresh raising. ``None`` when
+        the device is healthy or the last failure was non-auth (offline /
+        stale / HTTP). Cleared by the next successful refresh.
+        """
+        return self._auth_errors.get(device_id)
 
     # ------------------------------------------------------------------
     # Cache access (no I/O)

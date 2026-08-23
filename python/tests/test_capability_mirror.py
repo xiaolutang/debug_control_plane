@@ -27,6 +27,7 @@ import pytest
 from debug_control_plane.device_discovery.protocol import NetworkTarget
 from debug_control_plane.mcp_plane.bridge_client import (
     BridgeError,
+    DeviceAuthError,
     DeviceHttpError,
     DeviceStale,
     DeviceUnreachable,
@@ -493,6 +494,96 @@ class TestHelloUnreachable:
         names = {t.name for t in tools}
         assert "list_capabilities" in names
         assert "list_devices" in names
+
+
+# ---------------------------------------------------------------------------
+# Auth error refresh policy (R001-BB001) — distinct from offline degrade
+# ---------------------------------------------------------------------------
+
+
+class TestRefreshAuthError:
+    """DeviceAuthError ≠ offline: keep schema cache, record queryable auth
+    state, stay poll-safe (refresh never raises)."""
+
+    def _auth_client(self, code: str = "token_expired"):
+        return _mock_client_hello(
+            raises=DeviceAuthError(401, {"code": code}, code)
+        )
+
+    def test_refresh_auth_error_does_not_raise(self):
+        """Poll safety: refresh must not raise on auth errors (poll callers
+        like _maybe_emit_list_changed_* depend on this invariant)."""
+        client = self._auth_client()
+        mirror = CapabilityMirror(client=client)
+        assert mirror.refresh("dev1") is False  # no exception
+
+    def test_refresh_auth_error_keeps_schema_cache(self):
+        """Auth error must NOT clear the cache (unlike offline): the phone is
+        reachable, just unauthorized — capabilities are still valid."""
+        client = _mock_client_hello(_target(registered=(_gamepad_schema_dict(),)))
+        mirror = CapabilityMirror(client=client)
+        mirror.refresh("dev1")
+        cached = mirror.schemas("dev1")
+        assert cached != []
+
+        client.hello.side_effect = DeviceAuthError(
+            401, {"code": "token_expired"}, "token_expired"
+        )
+        assert mirror.refresh("dev1") is False  # not a change
+        assert mirror.schemas("dev1") == cached  # cache preserved
+
+    def test_refresh_auth_error_no_had_cache_change_signal(self):
+        """Even with a populated cache, auth error returns False (no spurious
+        list_changed — offline returning had_cache=True is the contrast)."""
+        client = _mock_client_hello(_target(registered=(_gamepad_schema_dict(),)))
+        mirror = CapabilityMirror(client=client)
+        mirror.refresh("dev1")
+        client.hello.side_effect = DeviceAuthError(
+            401, {"code": "authorization_required"}, "authorization_required"
+        )
+        assert mirror.refresh("dev1") is False
+
+    def test_auth_error_queryable_per_device(self):
+        """auth_error(device_id) exposes the last auth failure; None when
+        healthy / offline; cleared on successful refresh."""
+        client = self._auth_client()
+        mirror = CapabilityMirror(client=client)
+        mirror.refresh("dev1")
+        err = mirror.auth_error("dev1")
+        assert err is not None
+        assert err.code == "token_expired"
+        # Other devices unaffected.
+        assert mirror.auth_error("other") is None
+
+        # Successful refresh clears the auth state.
+        client.hello.side_effect = None
+        client.hello.return_value = _target(registered=(_gamepad_schema_dict(),))
+        mirror.refresh("dev1")
+        assert mirror.auth_error("dev1") is None
+
+    def test_offline_error_not_recorded_as_auth_error(self):
+        """Offline/stale/HTTP errors stay degrade-only — no auth state."""
+        client = _mock_client_hello(raises=DeviceUnreachable("offline"))
+        mirror = CapabilityMirror(client=client)
+        mirror.refresh("dev1")
+        assert mirror.auth_error("dev1") is None
+        assert mirror.schemas("dev1") == []  # offline still clears cache
+
+    def test_offline_still_clears_cache_after_auth_error(self):
+        """Auth error keeps cache; a subsequent offline error still clears it
+        (degrade path unchanged regardless of prior auth state)."""
+        client = _mock_client_hello(_target(registered=(_gamepad_schema_dict(),)))
+        mirror = CapabilityMirror(client=client)
+        mirror.refresh("dev1")
+        client.hello.side_effect = DeviceAuthError(
+            401, {"code": "token_expired"}, "token_expired"
+        )
+        mirror.refresh("dev1")
+        assert mirror.schemas("dev1") != []
+        client.hello.side_effect = DeviceUnreachable("now offline")
+        assert mirror.refresh("dev1") is True  # had-cache degrade transition
+        assert mirror.schemas("dev1") == []
+        assert mirror.auth_error("dev1") is None
 
 
 # ---------------------------------------------------------------------------

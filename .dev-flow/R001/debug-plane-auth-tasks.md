@@ -547,7 +547,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：Python 是 App debug plane client，只携带凭证和处理授权错误。
 
-## R001-BB001：Python MCP server — auth error surfacing `⬜ 待处理`
+## R001-BB001：Python MCP server — auth error surfacing `✅ 已完成`
 
 - 文件：`python/debug_control_plane/mcp_plane/server.py` + `capability_mirror.py`
 - 改动类型：修改
@@ -558,7 +558,7 @@ contextMdPaths:
 - risk_tags: [python, mcp, auth]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [BB001, BF004]
 - sourceSlices: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-python-slice.md]
 - sourceDesigns: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md]
@@ -577,9 +577,9 @@ contextMdPaths:
 - decision_refs: [DEC-R001-006]
 - blocked_files: []
 - 具体改动点：
-  - R001-BB001.1 `⬜` 在 `_bridge_error_to_mcp` 增加 `DeviceAuthError` 分支。
-  - R001-BB001.2 `⬜` 调整 `CapabilityMirror.refresh` 对 auth error 的处理策略。
-  - R001-BB001.3 `⬜` 增加用户可执行的授权下一步提示。
+  - R001-BB001.1 `✅` 在 `_bridge_error_to_mcp` 增加 `DeviceAuthError` 分支。
+  - R001-BB001.2 `✅` 调整 `CapabilityMirror.refresh` 对 auth error 的处理策略。
+  - R001-BB001.3 `✅` 增加用户可执行的授权下一步提示。
 - 关键代码片段：
   ```python
   if isinstance(exc, DeviceAuthError):

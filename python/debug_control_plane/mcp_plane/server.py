@@ -80,6 +80,7 @@ from debug_control_plane.device_discovery.discovery.vpn_immune import VpnImmune
 from .bridge_client import (
     BridgeClient,
     BridgeError,
+    DeviceAuthError,
     DeviceHttpError,
     DeviceStale,
     DeviceUnreachable,
@@ -141,6 +142,34 @@ def _tool_spec_to_mcp(spec: ToolSpec) -> types.Tool:
 # ---------------------------------------------------------------------------
 
 
+# R001-BB001 (BB001.1/BB001.3): auth errors carry a stable ``code``
+# (PROTOCOL.md §2.4). Map each code to the user's next step — never a bare
+# "token validation failed". Token clearing already happened in BridgeClient
+# (BF009); the MCP layer only surfaces the hint, and the message must never
+# contain a plaintext token.
+_TOKEN_CLEARED_ACTION = (
+    " — the locally cached token was cleared; re-authorize on the App "
+    "(open the App and grant access again), then retry"
+)
+_DENIED_ACTION = (
+    " — the App denied or does not grant this access; do not retry "
+    "automatically (check the App's permission settings or ask the "
+    "user to allow this client)"
+)
+_AUTH_CODE_ACTIONS: dict[str, str] = {
+    "authorization_required": (
+        " — open the App on the device and approve the authorization request "
+        "(this client is not yet authorized; no token was sent or accepted)"
+    ),
+    # Token-family codes share one remediation.
+    **dict.fromkeys(
+        ("token_expired", "token_revoked", "invalid_token"), _TOKEN_CLEARED_ACTION
+    ),
+    # authorization_denied / forbidden: no automatic retry.
+    **dict.fromkeys(("authorization_denied", "forbidden"), _DENIED_ACTION),
+}
+
+
 def _bridge_error_to_mcp(exc: BridgeError | DeviceUnreachable) -> McpError:
     """Translate a :class:`BridgeError` into an MCP ``isError`` result.
 
@@ -158,7 +187,17 @@ def _bridge_error_to_mcp(exc: BridgeError | DeviceUnreachable) -> McpError:
     so AI clients that branch on the code treat it as a retryable user error
     rather than a fatal server fault.
     """
-    if isinstance(exc, DeviceHttpError):
+    if isinstance(exc, DeviceAuthError):
+        # MUST precede the DeviceHttpError branch: DeviceAuthError is a
+        # DeviceHttpError subclass, so isinstance order decides which branch
+        # fires. Unknown codes fall back to the deny-style hint (safe default:
+        # no automatic retry).
+        action = _AUTH_CODE_ACTIONS.get(exc.code, _DENIED_ACTION)
+        message = (
+            f"device authorization error: auth_code={exc.code} "
+            f"status={exc.status_code}{action}"
+        )
+    elif isinstance(exc, DeviceHttpError):
         hint = ""
         # 409 real_controller_active: the phone's contract says the real pad
         # wins; surface that as an actionable hint (analysis fault injection).
@@ -329,11 +368,19 @@ class McpServer:
             # list. We capture refresh's change signal here (one HTTP probe)
             # and feed it straight into ``_emit_list_changed`` below, rather
             # than re-probing via ``_maybe_emit_list_changed_for``.
+            # R001-BB001: refresh also stays non-raising for auth errors
+            # (recording them queryably instead); we surface them HERE as an
+            # MCP error so "unauthorized" is never silently degraded to an
+            # empty "no capabilities" answer.
             def _probe():
                 changed = mirror.refresh(device_id)
-                return mirror.schemas(device_id), changed
+                auth_err = mirror.auth_error(device_id)
+                return mirror.schemas(device_id), changed, auth_err
 
-            schemas, changed = await anyio.to_thread.run_sync(_probe)
+            schemas, changed, auth_err = await anyio.to_thread.run_sync(_probe)
+
+            if auth_err is not None:
+                raise _bridge_error_to_mcp(auth_err)
 
             # Drive list_changed from this request's context (session is
             # reachable here — see module docstring spike note). Best-effort:

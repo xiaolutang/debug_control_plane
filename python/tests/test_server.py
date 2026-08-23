@@ -37,6 +37,7 @@ from debug_control_plane.mcp_plane import server
 from debug_control_plane.mcp_plane.bridge_client import (
     BridgeClient,
     BridgeError,
+    DeviceAuthError,
     DeviceHttpError,
     DeviceStale,
     DeviceUnreachable,
@@ -330,6 +331,123 @@ class TestErrorMapping:
         # _run wraps BridgeError → McpError before re-raising.
         from mcp.shared.exceptions import McpError
         assert isinstance(exc_info.value, McpError)
+
+
+# ---------------------------------------------------------------------------
+# Auth error translation (R001-BB001) — DeviceAuthError actionable hints
+# ---------------------------------------------------------------------------
+
+
+class TestAuthErrorMapping:
+    """_bridge_error_to_mcp maps the six stable auth codes to next-step hints.
+
+    DeviceAuthError is a DeviceHttpError subclass — the auth branch must be
+    checked FIRST (isinstance order), else auth errors degrade to the generic
+    HTTP message with no authorization hint.
+    """
+
+    @pytest.mark.parametrize(
+        "code,hint_fragments",
+        [
+            ("authorization_required", ["authorize", "App"]),
+            ("token_expired", ["re-authorize", "App", "cleared"]),
+            ("token_revoked", ["re-authorize", "App", "cleared"]),
+            ("invalid_token", ["re-authorize", "App", "cleared"]),
+            ("authorization_denied", ["denied", "do not retry"]),
+            ("forbidden", ["denied", "do not retry"]),
+        ],
+    )
+    def test_six_auth_codes_map_to_actionable_hints(self, code, hint_fragments):
+        exc = DeviceAuthError(
+            status_code=401 if code != "forbidden" else 403,
+            body={"code": code},
+            code=code,
+        )
+        mcp_err = _bridge_error_to_mcp(exc)
+        assert mcp_err.error.code == -32602
+        msg = mcp_err.error.message.lower()
+        for frag in hint_fragments:
+            assert frag.lower() in msg, f"code={code}: missing hint {frag!r} in {msg!r}"
+        # device_id + original code are preserved.
+        assert code in mcp_err.error.message
+
+    def test_auth_error_message_has_no_plaintext_token(self):
+        exc = DeviceAuthError(
+            status_code=401,
+            body={"code": "invalid_token", "token": "SECRET-TOKEN-XYZ"},
+            code="invalid_token",
+        )
+        mcp_err = _bridge_error_to_mcp(exc)
+        assert "SECRET-TOKEN-XYZ" not in mcp_err.error.message
+
+    def test_auth_error_branch_precedes_http_branch(self):
+        """DeviceAuthError must NOT fall into the generic DeviceHttpError
+        message ('device HTTP error: status=...')."""
+        exc = DeviceAuthError(401, {"code": "authorization_required"}, "authorization_required")
+        msg = _bridge_error_to_mcp(exc).error.message
+        assert "authorization_required" in msg
+        assert "device http error" not in msg.lower()
+
+    @pytest.mark.asyncio
+    async def test_get_state_auth_error_raises_mcp_error(self, assembled):
+        """Tool handler path: DeviceAuthError from BridgeClient → McpError."""
+        srv, *_ = assembled
+        mock_client = assembled[2]
+        mock_client.read.side_effect = DeviceAuthError(
+            401, {"code": "authorization_required"}, "authorization_required"
+        )
+        h = srv.call_handler_for_test("get_state")
+        from mcp.shared.exceptions import McpError
+        with pytest.raises(McpError) as ei:
+            await h({"device_id": "dev1"})
+        assert "App" in ei.value.error.message  # actionable authorize hint
+
+    @pytest.mark.asyncio
+    async def test_list_capabilities_auth_error_raises_mcp_error(self, assembled):
+        """AC2: list_capabilities must NOT silently degrade an auth error to
+        an empty capability list — it surfaces as MCP isError."""
+        srv, *_ = assembled
+        mock_client = assembled[2]
+        mock_client.hello.side_effect = DeviceAuthError(
+            401, {"code": "token_expired"}, "token_expired"
+        )
+        h = srv.call_handler_for_test("list_capabilities")
+        from mcp.shared.exceptions import McpError
+        with pytest.raises(McpError) as ei:
+            await h({"device_id": "dev1"})
+        assert "token_expired" in ei.value.error.message
+        assert "re-authorize" in ei.value.error.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_list_capabilities_offline_still_degrades_to_empty(self, assembled):
+        """AC2 regression guard: offline stays a degrade (empty list), NOT an
+        MCP error — auth error handling must not change the offline path."""
+        srv, *_ = assembled
+        mock_client = assembled[2]
+        mock_client.hello.side_effect = DeviceUnreachable("nope")
+        h = srv.call_handler_for_test("list_capabilities")
+        result = await h({"device_id": "ghost"})
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_subscribe_events_auth_error_is_mcp_error_not_crash(self, assembled):
+        """AC3: SSE connect 401/403 → MCP isError, server dispatch stays alive."""
+        srv, *_ = assembled
+        mock_client = assembled[2]
+
+        def _gen(*a, **kw):
+            raise DeviceAuthError(403, {"code": "forbidden"}, "forbidden")
+            yield  # pragma: no cover — makes this a generator
+
+        mock_client.events.side_effect = lambda *a, **kw: _gen()
+        h = srv.call_handler_for_test("subscribe_events")
+        from mcp.shared.exceptions import McpError
+        with pytest.raises(McpError) as ei:
+            await h({"device_id": "dev1"})
+        assert "forbidden" in ei.value.error.message
+        # Dispatch still usable after the auth failure (server not crashed).
+        h2 = srv.call_handler_for_test("list_devices")
+        assert await h2({}) == []
 
 
 # ---------------------------------------------------------------------------

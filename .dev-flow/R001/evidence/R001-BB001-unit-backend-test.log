@@ -1,0 +1,63 @@
+---
+status: pass
+task_id: R001-BB001
+domain: backend
+layer: unit
+passed: 346
+skipped: 2
+failed: 0
+commands:
+  - command: "cd python && ${PYTHON_BIN:-python3} -m pytest tests/test_server.py tests/test_capability_mirror.py -q --no-header"
+    exit_code: 0
+    result: "100 passed in 1.06s"
+  - command: "cd python && ${PYTHON_BIN:-python3} -m pytest tests -q --no-header"
+    exit_code: 0
+    result: "346 passed, 2 skipped in 20.75s"
+---
+
+# R001-BB001 Backend Test Log
+
+Focused command (Hard Gate 1):
+
+```bash
+cd python && ${PYTHON_BIN:-python3} -m pytest tests/test_server.py tests/test_capability_mirror.py -q --no-header
+```
+
+Result:
+
+```text
+........................................................................ [ 72%]
+............................                                            [100%]
+100 passed in 1.06s
+```
+
+Full Python regression (Hard Gate 2):
+
+```bash
+cd python && ${PYTHON_BIN:-python3} -m pytest tests -q --no-header
+```
+
+Result:
+
+```text
+........................................................................ [ 41%]
+........................................................................ [ 62%]
+......................ss................                                [ 82%]
+............................................................            [100%]
+346 passed, 2 skipped in 20.75s
+```
+
+Key R001-BB001 coverage (18 new tests; TDD red→green, 15 failed pre-implementation):
+- `TestAuthErrorMapping.test_six_auth_codes_map_to_actionable_hints` (6 codes: authorization_required / token_expired / token_revoked / invalid_token / authorization_denied / forbidden)
+- `TestAuthErrorMapping.test_auth_error_message_has_no_plaintext_token`
+- `TestAuthErrorMapping.test_auth_error_branch_precedes_http_branch` (DeviceAuthError is a DeviceHttpError subclass — isinstance order)
+- `TestAuthErrorMapping.test_get_state_auth_error_raises_mcp_error` (tool handler path)
+- `TestAuthErrorMapping.test_list_capabilities_auth_error_raises_mcp_error` (AC2 — no silent degrade)
+- `TestAuthErrorMapping.test_list_capabilities_offline_still_degrades_to_empty` (offline path unchanged)
+- `TestAuthErrorMapping.test_subscribe_events_auth_error_is_mcp_error_not_crash` (AC3 — dispatch stays alive after 403)
+- `TestRefreshAuthError.test_refresh_auth_error_does_not_raise` (poll safety)
+- `TestRefreshAuthError.test_refresh_auth_error_keeps_schema_cache` (auth ≠ offline: no cache clear)
+- `TestRefreshAuthError.test_refresh_auth_error_no_had_cache_change_signal` (no spurious list_changed)
+- `TestRefreshAuthError.test_auth_error_queryable_per_device` (per-device state, cleared on success)
+- `TestRefreshAuthError.test_offline_error_not_recorded_as_auth_error`
+- `TestRefreshAuthError.test_offline_still_clears_cache_after_auth_error` (degrade unchanged)
