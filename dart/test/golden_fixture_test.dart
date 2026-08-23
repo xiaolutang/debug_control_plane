@@ -147,20 +147,7 @@ void main() {
     });
 
     test('unstable reasons in fixture are from the closed set', () {
-      final fixture = _loadJson('hello.json') as Map;
-      final reasons = <String>[];
-      void walk(Object? v) {
-        if (v is Map) {
-          v.values.forEach(walk);
-        } else if (v is List) {
-          v.forEach(walk);
-        } else if (v is String && v.startsWith(_markerPrefix)) {
-          reasons.add(v.substring(_markerPrefix.length));
-        }
-      }
-
-      walk(fixture);
-      for (final reason in reasons) {
+      for (final reason in _unstableReasons(_loadJson('hello.json'))) {
         expect(kUnstableReasons.contains(reason), isTrue,
             reason: 'reason "$reason" must be in the closed set');
       }
@@ -360,6 +347,44 @@ void main() {
     });
   });
 
+  group('auth fixtures (R001) presence and closed-set guard', () {
+    test('auth fixture files exist and carry _fixture_meta', () {
+      const authFixtures = <String>[
+        'hello-auth-required.json',
+        'hello-auth-authorized.json',
+        'error-401-authorization-required.json',
+        'error-401-token-expired.json',
+        'error-403-authorization-denied.json',
+        'auth-claim-approved.json',
+      ];
+      for (final name in authFixtures) {
+        final fixture = _loadJson(name) as Map;
+        expect(fixture.containsKey('_fixture_meta'), isTrue,
+            reason: '$name must carry _fixture_meta (fixture contract)');
+        expect(fixture['_fixture_meta'], isA<Map>());
+      }
+    });
+
+    test('auth fixture unstable reasons are from the closed set', () {
+      const authFixtures = <String>[
+        'hello-auth-required.json',
+        'hello-auth-authorized.json',
+      ];
+      for (final name in authFixtures) {
+        for (final reason in _unstableReasons(_loadJson(name))) {
+          expect(kUnstableReasons.contains(reason), isTrue,
+              reason: 'reason "$reason" in $name must be in the closed set');
+        }
+      }
+    });
+
+    test('auth claim fixture token is an obvious fake test value', () {
+      final fixture = _loadJson('auth-claim-approved.json') as Map;
+      expect(fixture['token'], 'test-token-not-real');
+      expect((fixture['tokenId'] as String).contains('not-real'), isTrue);
+    });
+  });
+
   group('normalizer parity contract (vs FixtureNormalize.kt)', () {
     test('skips underscore keys', () {
       final expected = jsonDecode('{"_fixture_meta":{"x":1},"ok":false}');
@@ -496,6 +521,23 @@ class _SampleCapability implements Capability {
 
   @override
   Map<String, Object?> state() => const <String, Object?>{};
+}
+
+/// Collects `$$unstable:` reasons from a fixture (any nesting depth).
+List<String> _unstableReasons(Object? fixture) {
+  final reasons = <String>[];
+  void walk(Object? v) {
+    if (v is Map) {
+      v.values.forEach(walk);
+    } else if (v is List) {
+      v.forEach(walk);
+    } else if (v is String && v.startsWith(_markerPrefix)) {
+      reasons.add(v.substring(_markerPrefix.length));
+    }
+  }
+
+  walk(fixture);
+  return reasons;
 }
 
 Object _loadJson(String name) =>

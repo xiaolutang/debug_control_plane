@@ -1,0 +1,118 @@
+---
+status: pass
+task_id: R001-BF008
+domain: flutter
+layer: unit
+passed: 101
+failed: 0
+commands:
+  - command: "cd dart && fvm flutter test"
+    exit_code: 0
+---
+
+00:00 +0: loading /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart
+00:00 +0: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: (setUpAll)
+00:00 +0: /Users/tangxiaolu/project/debug_control_plane/dart/test/debug_auth_test.dart: DebugAuth route classification marks GET /hello as hello bootstrap only
+00:00 +1: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: requiredObject / requiredString requiredObject accepts Map<String,Object?> as-is
+00:00 +2: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: requiredObject / requiredString requiredObject accepts Map<String,Object?> as-is
+00:00 +3: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +4: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +5: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +6: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +7: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +8: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +9: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +10: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +11: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +12: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +13: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +14: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +15: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +16: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +17: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +18: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +19: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +20: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +21: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +22: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +23: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject parses a JSON object body
+00:00 +24: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject parses a JSON object body
+00:00 +25: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject parses a JSON object body
+00:00 +26: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject parses a JSON object body
+00:00 +27: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject parses a JSON object body
+00:00 +28: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject parses a JSON object body
+00:00 +29: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject parses a JSON object body
+00:00 +30: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject parses a JSON object body
+00:00 +31: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject parses a JSON object body
+00:00 +32: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject parses a JSON object body
+00:00 +33: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject parses a JSON object body
+00:00 +34: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport bind/listen/close listen before bind is deferred; replayed once bind resolves
+00:00 +35: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport bind/listen/close listen before bind is deferred; replayed once bind resolves
+00:00 +36: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /state vs fixtures/state-*.json with capabilities matches golden (normalized)
+00:00 +37: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject throws RouteFailure 400 invalid_request on malformed JSON
+00:00 +38: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject throws RouteFailure 400 invalid_request on malformed JSON
+00:00 +39: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject throws RouteFailure 400 invalid_request on malformed JSON
+00:00 +40: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject throws RouteFailure 400 invalid_request on malformed JSON
+00:00 +41: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) first frame is byte-identical to sse-connected.bin
+00:00 +42: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) first frame is byte-identical to sse-connected.bin
+00:00 +43: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) first frame is byte-identical to sse-connected.bin
+00:00 +44: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport bind/listen/close GET routes flow through handler and produce JSON body
+00:00 +45: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject throws RouteFailure 400 invalid_request on JSON array body
+00:00 +46: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_test.dart: ControlPlane auth routes auth disabled keeps hello state and capability behavior
+00:00 +47: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +48: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +49: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +50: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +51: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +52: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +53: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +54: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +55: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +56: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +57: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +58: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +59: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +60: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +61: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +62: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +63: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +64: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +65: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +66: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +67: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: requestEndpoint parses Host without port defaults port to 80
+00:00 +68: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack null preflight preserves connected first frame
+00:00 +69: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: error contract vs fixtures/error-*.json 404 matches golden
+00:00 +70: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: localIPv4Addresses returns a sorted List<String> of addresses (may be empty)
+00:00 +71: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events streams ": connected" preamble + text/event-stream
+00:00 +72: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: error contract vs fixtures/error-*.json 400 matches golden (message variants allowed)
+00:00 +73: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +74: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +75: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +76: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +77: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +78: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +79: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +80: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +81: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +82: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +83: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +84: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack broadcast emits event: <type>\ndata: <json>\n\n to subscribers
+00:00 +85: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack broadcast is a no-op when no subscribers are connected
+00:00 +86: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport serverInfo serverInfo returns {serverHost, serverPort, localIps} from bound socket
+00:00 +87: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport serverInfo serverInfo without Host header falls back to 0.0.0.0
+00:00 +88: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport serverInfo serverInfo with Host header uses Host-derived host
+00:00 +89: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport serverInfo serverInfo with non-HttpRequest returns 0.0.0.0 host
+00:00 +90: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport close close is idempotent and clears subscribers
+00:00 +91: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: Transport protocol-agnostic replaceability a non-HttpSseTransport still drives plane.dispatch through its handler
+00:00 +92: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: (setUpAll)
+00:00 +92: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +93: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json authorized hello matches hello-auth-authorized.json
+00:00 +94: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: sensitive routes vs fixtures/error-401-*.json missing token on /state matches error-401-authorization-required
+00:00 +95: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: sensitive routes vs fixtures/error-401-*.json expired token on /state matches error-401-token-expired
+00:00 +96: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: auth bootstrap routes vs fixtures denied /auth/request matches error-403-authorization-denied.json
+00:00 +97: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: auth bootstrap routes vs fixtures approved /auth/claim matches auth-claim-approved.json
+00:00 +98: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: SSE /events unauthorized (R001-BF008.2) returns JSON 401 before any SSE frame and registers no subscriber
+00:00 +99: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: SSE /events unauthorized (R001-BF008.2) authorized /events keeps the SSE stream (bare first frame)
+00:00 +100: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: auth disabled keeps existing golden fixture behavior bare /hello adds no auth keys when authManager is null
+00:00 +101: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: (tearDownAll)
+00:00 +101: All tests passed!

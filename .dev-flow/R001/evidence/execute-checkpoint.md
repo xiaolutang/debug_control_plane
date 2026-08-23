@@ -1,12 +1,12 @@
 ---
 type: execute-checkpoint
 requirement_cycle: R001
-updated_at: 2026-08-20T11:29:55+00:00
+updated_at: 2026-08-21T01:26:39+00:00
 updated_by: update-checkpoint.sh
 total_tasks: 14
-completed: 4
+completed: 8
 active_task: none
-next_pending: R001-BF005
+next_pending: R001-BF008
 blocked_task: none
 blocked_reason: none
 runner_id: none
@@ -17,9 +17,9 @@ runner_id: none
 ## 调度状态
 
 - total_tasks: 14
-- completed: 4
+- completed: 8
 - active_task: none
-- next_pending: R001-BF005
+- next_pending: R001-BF008
 - blocked_task: none
 - blocked_reason: none
 - runner_id: none
@@ -31,16 +31,16 @@ runner_id: none
 | R001-BF001 | aaa707b | 2026-08-20T17:45:25+08:00 |
 | R001-BF002 | 1aa0bf4 | 2026-08-20T18:18:28+08:00 |
 | R001-BF003 | fa786ee | 2026-08-20T19:02:05+08:00 |
-| R001-BF004 | unknown | unknown |
+| R001-BF004 | ebc7150 | 2026-08-20T19:31:16+08:00 |
+| R001-BF005 | 34b7f9c | 2026-08-20T20:33:29+08:00 |
+| R001-BF006 | 5bb59bf | 2026-08-20T21:44:33+08:00 |
+| R001-BF007 | b7957f9 | 2026-08-21T09:26:21+08:00 |
+| R001-BF009 | eb4b9fd | 2026-08-20T21:08:46+08:00 |
 
 ## 待执行任务（按优先级）
 
-- R001-BF005（priority=5, deps=R001-BF003,R001-BF004, ready）
-- R001-BF009（priority=5, deps=R001-BF001,R001-BF002, ready）
-- R001-BF006（priority=4, deps=R001-BF003,R001-BF004,R001-BF005, blocked）
-- R001-BF007（priority=4, deps=R001-BF001,R001-BF002, ready）
-- R001-BF008（priority=4, deps=R001-BF002,R001-BF007, blocked）
-- R001-BB001（priority=4, deps=R001-BF009, blocked）
+- R001-BF008（priority=4, deps=R001-BF002,R001-BF007, ready）
+- R001-BB001（priority=4, deps=R001-BF009, ready）
 - R001-FF001（priority=4, deps=R001-BF001, ready）
 - R001-FF002（priority=4, deps=R001-FF001, blocked）
 - R001-FF003（priority=4, deps=R001-BF003,R001-BF004,R001-FF001,R001-FF002, blocked）

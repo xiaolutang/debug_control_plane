@@ -302,7 +302,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：鉴权是安全边界，必须先由单元测试锁定。
 
-## R001-BF007：dart core — auth protocol mirror `✅ 已实现`
+## R001-BF007：dart core — auth protocol mirror `✅ 已完成`
 
 - 文件：`dart/lib/src/control_plane.dart` + `dart/lib/src/http_sse_transport.dart`
 - 改动类型：修改
@@ -313,7 +313,7 @@ contextMdPaths:
 - risk_tags: [dart, protocol, auth]
 - smoke_required: true
 - mode: negotiated
-- status: implemented
+- status: completed
 - sourceCapabilities: [BF001, BF002, BF003]
 - sourceSlices: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-server-slice.md, .dev-flow/R001/analysis/2026-08-20--debug-plane-auth-app-slice.md]
 - sourceDesigns: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md]
@@ -343,7 +343,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：Dart package 是协议实现之一，不能只改 Kotlin。
 
-## R001-BF008：dart tests — auth golden alignment `⬜ 待处理`
+## R001-BF008：dart tests — auth golden alignment `✅ 已完成`
 
 - 文件：`dart/test/*auth*_test.dart` + `dart/test/golden_fixture_test.dart`
 - 改动类型：新建 / 修改
@@ -354,7 +354,7 @@ contextMdPaths:
 - risk_tags: [tests, dart, fixtures]
 - smoke_required: true
 - mode: direct
-- status: pending
+- status: completed
 - sourceCapabilities: [BF001, BF002]
 - sourceSlices: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-server-slice.md]
 - sourceDesigns: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md]
@@ -373,9 +373,9 @@ contextMdPaths:
 - decision_refs: [DEC-R001-003, DEC-R001-006, DEC-R001-007]
 - blocked_files: []
 - 具体改动点：
-  - R001-BF008.1 `⬜` 新增 auth fake manager。
-  - R001-BF008.2 `⬜` 覆盖 hello bootstrap 和 SSE unauthorized。
-  - R001-BF008.3 `⬜` 更新 golden fixture 测试读取新增 fixtures。
+  - R001-BF008.1 `✅` 新增 auth fake manager。
+  - R001-BF008.2 `✅` 覆盖 hello bootstrap 和 SSE unauthorized。
+  - R001-BF008.3 `✅` 更新 golden fixture 测试读取新增 fixtures。
 - 关键代码片段：
   ```dart
   expect(body['registeredCapabilities'], isNull);
