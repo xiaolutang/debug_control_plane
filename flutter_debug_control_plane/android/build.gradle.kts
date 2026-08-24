@@ -37,15 +37,20 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     sourceSets["main"].java.srcDirs("src/main/kotlin")
     sourceSets["test"].java.srcDirs("src/test/kotlin")
 
     testOptions {
         unitTests.isReturnDefaultValues = true
+    }
+}
+
+// AGP 9 host apps compile this script with KGP 2.1+, where the old
+// android.kotlinOptions DSL is a script-compilation ERROR — set the JVM
+// target via the Kotlin extension instead (works on KGP 2.0+).
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 

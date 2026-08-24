@@ -1,0 +1,26 @@
+status: pass
+exit_code: 0
+task_id: R002-FF002
+layer: integration
+domain: ios
+device: iPhone 16e simulator (iOS 18.5, 390x844@3)
+command: cd flutter_debug_control_plane/example && fvm flutter test integration_test/acceptance_integration_test.dart -d DAA2A14D-9BF2-4E3B-9EF2-A7E1136C631F
+passed: 5
+
+00:00 +0: loading /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/integration_test/acceptance_integration_test.dart
+Warning: Missing build name (CFBundleShortVersionString).
+Warning: Missing build number (CFBundleVersion).
+Action Required: You must set a build name and number in the pubspec.yaml file version field before submitting to the App Store.
+Running pod install...                                             528ms
+Running Xcode build...                                          
+Xcode build done.                                           16.6s
+00:00 +0: top viewport renders status section
+ff002-integration: wrote /tmp/ff002_integration/ios_device_01_top.png
+00:00 +1: all stable identifiers present on device
+00:01 +2: scroll reveals requests section
+ff002-integration: wrote /tmp/ff002_integration/ios_device_02_requests.png
+00:02 +3: scroll reveals controls and auth dialog anchors
+ff002-integration: wrote /tmp/ff002_integration/ios_device_03_controls.png
+00:04 +4: placeholder controls tappable without exceptions
+00:04 +5: (tearDownAll)
+00:04 +5: All tests passed!

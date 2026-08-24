@@ -1,0 +1,44 @@
+---
+type: test-log
+task_id: R002-FF002
+layer: unit
+domain: flutter
+run_at: 2026-08-24T10:57:17Z
+status: pass
+exit_code: 0
+deferred_reason: 
+---
+
+# Test Log: R002-FF002 (unit.flutter)
+
+## Config Source
+- file: .dev-flow/config.json
+- path: project_capabilities.tests.unit.flutter
+
+## Test Command Source
+- path: .dev-flow/R002/test-overrides/R002-FF002/unit-flutter.sh
+- command: bash .dev-flow/R002/test-overrides/R002-FF002/unit-flutter.sh
+
+## Setup
+- command: （跳过）
+- exit: N/A
+
+## Test
+- command: bash .dev-flow/R002/test-overrides/R002-FF002/unit-flutter.sh
+- exit: 0
+- passed: all
+- failed: 0
+
+## Teardown
+- command: （跳过）
+- exit: N/A
+
+## Raw Output (tail)
+```
+00:00 +0: loading /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart
+00:00 +0: AcceptanceApp skeleton renders Status, Requests and Controls sections
+00:00 +1: AcceptanceApp skeleton exposes every stable identifier
+00:00 +2: AcceptanceApp skeleton placeholder controls are tappable without exceptions
+00:00 +3: AcceptanceApp skeleton placeholder state text is internally consistent
+00:00 +4: All tests passed!
+```

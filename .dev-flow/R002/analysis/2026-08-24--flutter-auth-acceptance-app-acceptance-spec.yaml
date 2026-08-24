@@ -1,0 +1,35 @@
+# AcceptanceSpec — Flutter 鉴权验收 App
+# 技术栈中立（L2）：stable_identifiers 是逻辑标识，Flutter 落地载体由实现阶段映射为 Semantics.identifier。
+
+page: AcceptanceApp
+expected_max_depth: 4
+route: /
+
+stable_identifiers:
+  - acceptance.status.endpoint_text
+  - acceptance.status.auth_state_text
+  - acceptance.status.capability_count_text
+  - acceptance.requests.list
+  - acceptance.requests.last_result_text
+  - acceptance.controls.clear_token_button
+  - acceptance.controls.expire_token_button
+  - acceptance.auth_dialog.root
+  - acceptance.auth_dialog.title
+  - acceptance.auth_dialog.client_label
+  - acceptance.auth_dialog.approve_button
+  - acceptance.auth_dialog.deny_button
+
+visual_acceptance:
+  - Status、Requests、Controls 三个区域在手机竖屏下可滚动访问，文本不互相遮挡。
+  - 授权弹窗出现时 approve_button 和 deny_button 同时可见且不被键盘或系统栏遮挡。
+  - endpoint_text 使用可复制/可完整查看的紧凑文本，不截断端口号。
+  - requests.list 最近请求条目能区分 allowed、rejected、expired、denied 状态。
+
+interaction_assertions:
+  - App 启动成功后 state.planeRunning == true 且 acceptance.status.endpoint_text 可见。
+  - 未授权敏感请求到达后 acceptance.auth_dialog.root 可见且 state.authStatus == "pending"。
+  - 点击 acceptance.auth_dialog.approve_button 后 state.authStatus == "approved"。
+  - 点击 acceptance.auth_dialog.deny_button 后 state.authStatus == "denied"。
+  - 点击 acceptance.controls.clear_token_button 后 state.tokenPresent == false。
+  - 点击 acceptance.controls.expire_token_button 后下一次敏感请求产生 authResult == "token_expired"。
+  - 每次电脑端 capability 请求后 acceptance.requests.list 追加一条包含 route、statusCode、authResult 的记录。

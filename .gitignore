@@ -26,3 +26,6 @@ dist/
 # Gradle (R025-BF004-1: root aggregator build caches)
 .gradle/
 local.properties
+
+# Kotlin daemon session artifacts
+.kotlin/

@@ -1,0 +1,131 @@
+{
+  "schema_version": "1.0",
+  "manifest_revision": 3,
+  "manifest_digest": "030e1b3d7d7215c51ba98a4754d07817f328a84db3075492e12b364f811dc15b",
+  "topic": "flutter-auth-acceptance-app",
+  "requirement_cycle": "R002",
+  "analysis_protocol": "v1",
+  "protocol_application": "standard",
+  "analysis_state": "analyzed",
+  "blocked_reason": null,
+  "blocked_slice": null,
+  "slices": [
+    {
+      "id": "S01-acceptance-app",
+      "path": ".dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app.md",
+      "status": "completed",
+      "revision": 3,
+      "checkpoint": {
+        "completed_sections": [
+          "概述",
+          "一、交互链",
+          "二、逻辑树",
+          "三、功能编号与网络定位",
+          "四、结论",
+          "SCN-APP-ACCEPTANCE-HARNESS",
+          "FF002",
+          "FB001",
+          "BF005",
+          "BF006"
+        ]
+      },
+      "digest": "12b134a4ec528fa57b3bc2c850f5c74847cc9b3c0b97c39123420093720f9edc",
+      "evidence": {
+        "execution_id": "xlf-subagent:R002:analysis-slice:S01-acceptance-app:01",
+        "provider": "direct_subagent",
+        "isolation": "independent_context"
+      },
+      "deps": [],
+      "owners": [
+        "SCN-APP-ACCEPTANCE-HARNESS",
+        "FF002",
+        "FB001",
+        "BF005",
+        "BF006"
+      ],
+      "context_refs": [
+        ".dev-flow/architecture.md",
+        ".dev-flow/R001/analysis/manifest.json",
+        "flutter_debug_control_plane/README.md",
+        "python/debug_control_plane/mcp_plane/bridge_client.py"
+      ]
+    }
+  ],
+  "integration": {
+    "path": ".dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app-integration.md",
+    "digest": "dc1b56ee28ebc4ee20f3b23b9d9af48f8d6be98bb69162e9652214a5c7bffbab",
+    "summary": "R002 Flutter auth acceptance app analysis integrated as a single fixture-app slice for real App-hosted auth validation.",
+    "capabilities": [
+      "FF002",
+      "FB001",
+      "BF005",
+      "BF006"
+    ],
+    "split_required": false,
+    "open_issues": [
+      "Design must decide whether endpoint input is manual-only in v1 or also uses device discovery.",
+      "Design must keep true-device acceptance outside the main ci-check-all gate until stable."
+    ]
+  },
+  "consumer_refs": {
+    "design_seed": [
+      ".dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app-integration.md",
+      ".dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app.md"
+    ]
+  },
+  "artifact_slots": {
+    "design": [
+      ".dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app-design.md"
+    ],
+    "test": [
+      ".dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app-test.md"
+    ]
+  },
+  "analysis_review": {
+    "verdict": "PASS",
+    "manifest_revision": 3,
+    "manifest_digest": "030e1b3d7d7215c51ba98a4754d07817f328a84db3075492e12b364f811dc15b",
+    "release_eligible": true,
+    "gate_verdicts": {
+      "Index": "PASS",
+      "Slice": "PASS",
+      "Integration": "PASS"
+    },
+    "execution_evidence": {
+      "execution_id": "xlf-subagent:R002:analysis-review:03",
+      "provider": "direct_subagent",
+      "isolation": "independent_context",
+      "skill_loaded": false
+    },
+    "degraded": false,
+    "degraded_reason": null,
+    "report_path": ".dev-flow/R002/analysis/reviews/2026-08-24T18-18-00-PASS.md"
+  },
+  "review": {
+    "verdict": "PASS",
+    "manifest_revision": 3,
+    "manifest_digest": "030e1b3d7d7215c51ba98a4754d07817f328a84db3075492e12b364f811dc15b",
+    "release_eligible": true,
+    "gate_verdicts": {
+      "D1": "PASS",
+      "D2": "PASS",
+      "D3": "PASS",
+      "D4": "PASS",
+      "D5": "PASS",
+      "D6": "PASS",
+      "D7": "PASS",
+      "D8": "PASS",
+      "D9": "PASS"
+    },
+    "execution_evidence": {
+      "execution_id": "xlf-subagent:R002:design-review:03",
+      "provider": "direct_subagent",
+      "isolation": "independent_context",
+      "skill_loaded": false
+    },
+    "degraded": false,
+    "degraded_reason": null,
+    "report_path": ".dev-flow/R002/analysis/reviews/2026-08-24T18-24-00-design-PASS.md"
+  },
+  "bootstrap_legacy": false
+}

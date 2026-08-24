@@ -1,0 +1,168 @@
+{
+  "schema_version": "1.0",
+  "manifest_revision": 1,
+  "manifest_digest": "8547495e42aab361b9007a5ab0e4ea3e88c02eddf08a1324402d3f2e249adc4b",
+  "topic": "debug-plane-auth",
+  "requirement_cycle": "R001",
+  "analysis_protocol": "v1",
+  "protocol_application": "standard",
+  "analysis_state": "analyzed",
+  "blocked_reason": null,
+  "blocked_slice": null,
+  "slices": [
+    {
+      "id": "S01-server-auth",
+      "path": ".dev-flow/R001/analysis/2026-08-20--debug-plane-auth-server-slice.md",
+      "status": "completed",
+      "revision": 1,
+      "checkpoint": null,
+      "digest": "e23c4bcff56688ceee03b9f62530c43c19eb28cff7418eda76e3432b9ef7080e",
+      "evidence": {
+        "execution_id": "xlf-subagent:R001:analysis-slice:S01-server-auth:01",
+        "provider": "direct_subagent",
+        "isolation": "independent_context"
+      },
+      "deps": [],
+      "owners": [
+        "SCN-SERVER-AUTH-GATE",
+        "BF001",
+        "BF002"
+      ],
+      "context_refs": [
+        ".dev-flow/architecture.md",
+        "PROTOCOL.md"
+      ]
+    },
+    {
+      "id": "S02-app-auth",
+      "path": ".dev-flow/R001/analysis/2026-08-20--debug-plane-auth-app-slice.md",
+      "status": "completed",
+      "revision": 1,
+      "checkpoint": null,
+      "digest": "fbc23ad15c442a021f02d2aeec1f74b1d5b832b160fc4f8b972594a3593ca37f",
+      "evidence": {
+        "execution_id": "xlf-subagent:R001:analysis-slice:S02-app-auth:01",
+        "provider": "direct_subagent",
+        "isolation": "independent_context"
+      },
+      "deps": [
+        "S01-server-auth"
+      ],
+      "owners": [
+        "SCN-APP-AUTH-CONSENT",
+        "BF003",
+        "FF001"
+      ],
+      "context_refs": [
+        ".dev-flow/architecture.md",
+        "flutter_debug_control_plane/README.md"
+      ]
+    },
+    {
+      "id": "S03-python-auth",
+      "path": ".dev-flow/R001/analysis/2026-08-20--debug-plane-auth-python-slice.md",
+      "status": "completed",
+      "revision": 1,
+      "checkpoint": null,
+      "digest": "07e1b3d05456601730615ae0d7aaa6da2f85bd02caade578690e2fce6f5d297d",
+      "evidence": {
+        "execution_id": "xlf-subagent:R001:analysis-slice:S03-python-auth:01",
+        "provider": "direct_subagent",
+        "isolation": "independent_context"
+      },
+      "deps": [
+        "S01-server-auth"
+      ],
+      "owners": [
+        "SCN-PYTHON-AUTH-RETRY",
+        "BF004",
+        "BB001"
+      ],
+      "context_refs": [
+        ".dev-flow/architecture.md",
+        "python/debug_control_plane/mcp_plane/bridge_client.py"
+      ]
+    }
+  ],
+  "integration": {
+    "path": ".dev-flow/R001/analysis/2026-08-20--debug-plane-auth-integration.md",
+    "digest": "67c73ee1ba3e197243b65d0158ec361c21637e3d2cc8992770f0455be2fad081",
+    "summary": "R001 debug plane auth analysis integrated from server, app, and python slices.",
+    "capabilities": [
+      "BF001",
+      "BF002",
+      "BF003",
+      "BF004",
+      "BB001",
+      "FF001"
+    ],
+    "split_required": false,
+    "open_issues": [
+      "Design must define token claim/bootstrap flow without leaking token in query strings.",
+      "Design must decide whether RouteResult.error carries auth extra fields or keeps only code/message."
+    ]
+  },
+  "consumer_refs": {
+    "design_seed": [
+      ".dev-flow/R001/analysis/2026-08-20--debug-plane-auth-integration.md",
+      ".dev-flow/R001/analysis/2026-08-20--debug-plane-auth-server-slice.md",
+      ".dev-flow/R001/analysis/2026-08-20--debug-plane-auth-app-slice.md",
+      ".dev-flow/R001/analysis/2026-08-20--debug-plane-auth-python-slice.md"
+    ]
+  },
+  "artifact_slots": {
+    "design": [
+      ".dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md"
+    ],
+    "test": [
+      ".dev-flow/R001/analysis/2026-08-20--debug-plane-auth-test.md"
+    ]
+  },
+  "analysis_review": {
+    "verdict": "PASS",
+    "manifest_revision": 1,
+    "manifest_digest": "8547495e42aab361b9007a5ab0e4ea3e88c02eddf08a1324402d3f2e249adc4b",
+    "release_eligible": true,
+    "gate_verdicts": {
+      "Index": "PASS",
+      "Slice": "PASS",
+      "Integration": "PASS"
+    },
+    "execution_evidence": {
+      "execution_id": "xlf-subagent:R001:analysis-review:01",
+      "provider": "direct_subagent",
+      "isolation": "independent_context",
+      "skill_loaded": false
+    },
+    "degraded": false,
+    "degraded_reason": null,
+    "report_path": ".dev-flow/R001/analysis/reviews/2026-08-20T00-00-00-PASS.md"
+  },
+  "review": {
+    "verdict": "PASS",
+    "manifest_revision": 1,
+    "manifest_digest": "8547495e42aab361b9007a5ab0e4ea3e88c02eddf08a1324402d3f2e249adc4b",
+    "release_eligible": true,
+    "gate_verdicts": {
+      "D1": "PASS",
+      "D2": "PASS",
+      "D3": "PASS",
+      "D4": "PASS",
+      "D5": "PASS",
+      "D6": "PASS",
+      "D7": "PASS",
+      "D8": "PASS",
+      "D9": "PASS"
+    },
+    "execution_evidence": {
+      "execution_id": "xlf-subagent:R001:design-review:01",
+      "provider": "direct_subagent",
+      "isolation": "independent_context",
+      "skill_loaded": false
+    },
+    "degraded": false,
+    "degraded_reason": null,
+    "report_path": ".dev-flow/R001/analysis/reviews/2026-08-20T00-00-00-design-PASS.md"
+  },
+  "bootstrap_legacy": false
+}

@@ -1,0 +1,33 @@
+---
+type: test-log
+task_id: R002-FF002
+layer: integration
+domain: android
+run_at: 2026-08-24T14:40:00Z
+status: pass
+exit_code: 0
+device: GMC 7127M real device (Android 12, 720x1560@320dpi, RZCY128JJLV)
+command: cd flutter_debug_control_plane/example && fvm flutter test integration_test/acceptance_integration_test.dart -d RZCY128JJLV
+override: .dev-flow/R002/test-overrides/R002-FF002/integration-android.sh
+passed: 5
+---
+
+# Test Log: R002-FF002 (integration.android)
+
+00:00 +0: loading integration_test/acceptance_integration_test.dart
+Running Gradle task 'assembleDebug'... 9.7s
+✓ Built build/app/outputs/flutter-apk/app-debug.apk
+Installing build/app/outputs/flutter-apk/app-debug.apk... 4.8s
+00:00 +0: top viewport renders status section
+00:07 +1: all stable identifiers present on device
+00:08 +2: scroll reveals requests section
+00:10 +3: scroll reveals controls and auth dialog anchors
+00:12 +4: placeholder controls tappable without exceptions
+00:13 +5: (tearDownAll)
+00:14 +5: All tests passed!
+
+## 备注
+
+- 第 1-4 次尝试失败根因：设备锁屏（deviceLocked=1）导致 pumpAndSettle 永不 settle，4:35 per-test timeout。用户手动解锁后第 5 次通过。
+- 前置条件：`adb shell svc power stayon true` 保持亮屏；应用内截图写入 app code_cache（测试 teardown 后 app 卸载，截图改由 adb screencap 采集，见 ai_artifacts/screenshots/android_device_*.png）。
+- 应用内 toImageSync 截图路径（Android 沙箱）：/data/user/0/<pkg>/code_cache/ff002_integration/android_device_*.png。
