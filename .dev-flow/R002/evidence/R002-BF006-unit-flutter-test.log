@@ -1,0 +1,44 @@
+---
+type: test-log
+task_id: R002-BF006
+layer: unit
+domain: flutter
+run_at: 2026-08-24T10:43:12Z
+status: pass
+exit_code: 0
+deferred_reason: 
+---
+
+# Test Log: R002-BF006 (unit.flutter)
+
+## Config Source
+- file: .dev-flow/config.json
+- path: project_capabilities.tests.unit.flutter
+
+## Test Command Source
+- path: .dev-flow/R002/test-overrides/R002-BF006/unit-flutter.sh
+- command: bash .dev-flow/R002/test-overrides/R002-BF006/unit-flutter.sh
+
+## Setup
+- command: （跳过）
+- exit: N/A
+
+## Test
+- command: bash .dev-flow/R002/test-overrides/R002-BF006/unit-flutter.sh
+- exit: 0
+- passed: all
+- failed: 0
+
+## Teardown
+- command: （跳过）
+- exit: N/A
+
+## Raw Output (tail)
+```
+00:00 +0: loading /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart
+00:00 +0: AcceptancePlane starts Dart ControlPlane and registers fixed capabilities
+00:00 +1: AcceptancePlane auth request/status/claim enables Bearer access
+00:00 +2: AcceptancePlane denied, invalid and expired tokens return stable auth errors
+00:00 +3: AcceptancePlane auth request reuses pending request for the same client nonce
+00:00 +4: All tests passed!
+```
