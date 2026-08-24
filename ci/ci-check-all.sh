@@ -14,14 +14,15 @@
 #   [1] kotlin build + test        — ./gradlew build(root aggregator,76+ 测试)
 #   [2] dart test                  — dart/ 黄金 fixture 两端断言(72+ 测试)
 #   [3] flutter plugin test        — flutter_debug_control_plane/(26+ Dart
-#                                    测试;插件 android 23 测试归消费侧
-#                                    gradle 编排,见 README)
-#   [4] python pytest              — python/tests/(317+ 测试,含 BF003-2
+#                                    测试)
+#   [4] flutter android JVM test   — flutter_debug_control_plane/android
+#                                    standalone Gradle testDebugUnitTest
+#   [5] python pytest              — python/tests/(317+ 测试,含 BF003-2
 #                                    cross-lang 真实起 JVM 交叉验证)
-#   [5] zero-business-dep-check.sh — dart analyze + python AST 白名单 + ruff
+#   [6] zero-business-dep-check.sh — dart analyze + python AST 白名单 + ruff
 #                                    + [4/5]kotlin gradle 白名单(R025 扩展)
-#   [6] protocol-version-guard.sh  — protocolVersion 四点同值守卫
-#   [7] gradle-publish-check.sh    — JitPack 发版前置条件静态守卫
+#   [7] protocol-version-guard.sh  — protocolVersion 四点同值守卫
+#   [8] gradle-publish-check.sh    — JitPack 发版前置条件静态守卫
 #
 # 环境要求
 #   - JDK 17(kotlin jvmToolchain)
@@ -70,19 +71,22 @@ run_step "2-dart-test" bash -c 'cd dart && fvm flutter test'
 # --- [3] flutter 插件 Dart 桥接 test ----------------------------------------
 run_step "3-plugin-test" bash -c 'cd flutter_debug_control_plane && fvm flutter test'
 
-# --- [4] python pytest -------------------------------------------------------
-run_step "4-python-pytest" bash -c 'cd python && "$PYTHON_BIN" -m pytest tests -q --no-header'
+# --- [4] flutter 插件 Android JVM test --------------------------------------
+run_step "4-plugin-android-jvm-test" bash -c 'cd flutter_debug_control_plane/android && ../../kotlin/gradlew -p . testDebugUnitTest'
 
-# --- [5] 零业务依赖门(五件套)------------------------------------------------
-run_step "5-zero-business-dep" bash ci/zero-business-dep-check.sh
+# --- [5] python pytest -------------------------------------------------------
+run_step "5-python-pytest" bash -c 'cd python && "$PYTHON_BIN" -m pytest tests -q --no-header'
 
-# --- [6] protocolVersion 跨语言一致性 ---------------------------------------
-run_step "6-protocol-version" bash ci/protocol-version-guard.sh
+# --- [6] 零业务依赖门(五件套)------------------------------------------------
+run_step "6-zero-business-dep" bash ci/zero-business-dep-check.sh
 
-# --- [7] JitPack 发布前置条件 ------------------------------------------------
-run_step "7-gradle-publish-check" bash ci/gradle-publish-check.sh
+# --- [7] protocolVersion 跨语言一致性 ---------------------------------------
+run_step "7-protocol-version" bash ci/protocol-version-guard.sh
+
+# --- [8] JitPack 发布前置条件 ------------------------------------------------
+run_step "8-gradle-publish-check" bash ci/gradle-publish-check.sh
 
 echo ""
 echo "================================================================"
-echo "PASS: R025 CI 全量守卫(7 步全过)"
+echo "PASS: R025 CI 全量守卫(8 步全过)"
 echo "================================================================"

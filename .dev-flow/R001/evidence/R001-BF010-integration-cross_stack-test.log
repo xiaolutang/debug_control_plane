@@ -1,0 +1,31 @@
+---
+task_id: R001-BF010
+layer: integration
+domain: cross_stack
+status: pass
+commit_ready: true
+commands_total: 8
+commands_passed: 8
+commands_failed: 0
+commands_env_blocked: 0
+---
+
+# R001-BF010 Integration Cross-Stack Test Log
+
+All required commands completed successfully in the current host.
+
+| # | Command | Status | Exit | Evidence |
+|---|---|---:|---:|---|
+| 1 | `./gradlew build` | pass | 0 | `BUILD SUCCESSFUL`; Kotlin test XML totals 112 tests, 0 failures, 0 errors |
+| 2 | `cd dart && fvm flutter test` | pass | 0 | `All tests passed!`; 101 tests |
+| 3 | `cd flutter_debug_control_plane && fvm flutter test` | pass | 0 | `All tests passed!`; 33 tests |
+| 4 | `cd flutter_debug_control_plane/android && ../../kotlin/gradlew -p . testDebugUnitTest` | pass | 0 | `BUILD SUCCESSFUL`; Android plugin debug unit XML totals 48 tests, 0 failures, 0 errors |
+| 5 | `cd python && python3 -m pytest tests -q --no-header` | pass | 0 | `346 passed, 2 skipped` |
+| 6 | `PYTHON_BIN=python3 bash ci/zero-business-dep-check.sh` | pass | 0 | `PASS: control_plane repo 级零业务依赖门(五件套全过)` |
+| 7 | `PYTHON_BIN=python3 bash ci/protocol-version-guard.sh` | pass | 0 | `PASS: protocolVersion=1 (kotlin/dart/hello.json/discovery-python.json 四点一致)` |
+| 8 | `PYTHON_BIN=python3 bash ci/ci-check-all.sh` | pass | 0 | `PASS: R025 CI 全量守卫(8 步全过)` |
+
+## Notes
+
+- Initial sandboxed runs of Flutter/Gradle cache-touching commands failed due to host cache write restrictions, then passed with approved escalated execution.
+- The first `zero-business-dep-check.sh` real run exposed a Dart analyzer warning in `dart/test/control_plane_test.dart`; BF010 fixed that test fake call site and reran the relevant gates successfully.

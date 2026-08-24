@@ -760,7 +760,18 @@ void main() {
     });
 
     test('auth bootstrap routes use manager and beat capabilities', () async {
-      final auth = _RecordingAuthManager();
+      final auth = _RecordingAuthManager(
+        requestResult: const AuthRouteOk(
+          <String, Object?>{
+            'ok': true,
+            'requestId': 'req-1',
+            'status': 'pending',
+            'pairingCode': '123456',
+            'expiresAt': '2026-08-20T10:05:00Z',
+          },
+          statusCode: 202,
+        ),
+      );
       var shadowCalls = 0;
       final plane = ControlPlane(
         transport: _FakeTransport(),
