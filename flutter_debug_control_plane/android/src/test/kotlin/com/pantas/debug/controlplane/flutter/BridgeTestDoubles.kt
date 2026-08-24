@@ -35,6 +35,9 @@ class FakeMethodChannel : MethodChannel(
     /** Programmed Dart-side answer for a reverse invoke (by method name). */
     var dartAnswer: suspend (RecordedInvoke) -> Unit = { }
 
+    /** Optional synchronous failure from invokeMethod itself. */
+    var invokeFailure: Throwable? = null
+
     class RecordedInvoke(
         val method: String,
         val arguments: Map<String, Any?>,
@@ -57,6 +60,7 @@ class FakeMethodChannel : MethodChannel(
     }
 
     override fun invokeMethod(method: String, arguments: Any?, callback: MethodChannel.Result?) {
+        invokeFailure?.let { throw it }
         @Suppress("UNCHECKED_CAST")
         val args = (arguments as? Map<String, Any?>) ?: emptyMap()
         val recorder = ResultRecorder()

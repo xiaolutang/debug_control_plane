@@ -1,0 +1,21 @@
+---
+task_id: R001-FF003
+layer: unit
+domain: android
+status: pass
+command: ./gradlew -p flutter_debug_control_plane/android testDebugUnitTest
+passed: 48
+failed: 0
+---
+
+Targeted Android unit command:
+./gradlew -p flutter_debug_control_plane/android testDebugUnitTest
+
+Result:
+BUILD SUCCESSFUL.
+
+Full Android plugin verification:
+./gradlew -p flutter_debug_control_plane/android build
+
+Result:
+BUILD SUCCESSFUL.

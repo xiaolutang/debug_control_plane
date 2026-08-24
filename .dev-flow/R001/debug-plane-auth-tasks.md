@@ -463,7 +463,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：宿主 UI 需要语义 API，而不是直接拼 MethodChannel 字符串。
 
-## R001-FF003：Flutter Android plugin — native auth bridge `⬜ 待处理`
+## R001-FF003：Flutter Android plugin — native auth bridge `✅ 已完成`
 
 - 文件：`flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/DebugControlPlaneFlutterPlugin.kt` + `NativeControlPlaneBridge.kt`
 - 改动类型：修改
@@ -474,7 +474,7 @@ contextMdPaths:
 - risk_tags: [flutter, android, auth]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [BF003, FF001]
 - sourceSlices: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-app-slice.md]
 - sourceDesigns: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md]
@@ -483,6 +483,7 @@ contextMdPaths:
   - native plugin 能把 pending auth signal 转发到 Dart。
   - approve/deny/revoke/status 能更新 native auth manager。
   - engine detach 时 pending auth 不崩溃，已持久化 token 状态不丢。
+  - visual-verify 不适用：本任务不提供 UI，仅提供 Android plugin native auth bridge。
 - test_tasks:
   - type: unit
     layer: unit
@@ -493,9 +494,9 @@ contextMdPaths:
 - decision_refs: [DEC-R001-002, DEC-R001-007]
 - blocked_files: []
 - 具体改动点：
-  - R001-FF003.1 `⬜` 在 plugin method dispatcher 增加 auth methods。
-  - R001-FF003.2 `⬜` 增加 native auth pending bridge，和 capability pending 分离。
-  - R001-FF003.3 `⬜` 增加 token store 默认实现或可注入接口。
+  - R001-FF003.1 `✅` 在 plugin method dispatcher 增加 auth methods。
+  - R001-FF003.2 `✅` 增加 native auth pending bridge，和 capability pending 分离。
+  - R001-FF003.3 `✅` 增加 token store 默认实现或可注入接口。
 - 关键代码片段：
   ```kotlin
   fun requestAuthorization(req: DebugAuthRequest) {

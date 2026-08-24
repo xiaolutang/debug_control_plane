@@ -1,6 +1,7 @@
 package com.pantas.debug.controlplane.flutter
 
 import com.pantas.debug.controlplane.ControlPlane
+import com.pantas.debug.controlplane.DebugAuthManager
 import com.pantas.debug.controlplane.DebugEvent
 import com.pantas.debug.controlplane.HttpSseTransport
 import com.pantas.debug.controlplane.RouteContext
@@ -135,6 +136,31 @@ open class NativeControlPlaneBridge(
         ChannelProtocol.CAPABILITY_STATE_PULL,
         mapOf("capId" to capId),
     )
+
+    /**
+     * Fire-and-forget auth pending signal. Auth lifecycle is owned by the
+     * native auth manager, so this must not use the capability pending map,
+     * fill-in methods, or 30s capability reverse-invoke timeout.
+     */
+    fun requestAuthorization(args: Map<String, Any?>) {
+        val wireArgs = args.toFlutterWire()
+        try {
+            mainExecutor.execute {
+                try {
+                    channel.invokeMethod(ChannelProtocol.AUTH_REQUEST, wireArgs, object : MethodChannel.Result {
+                        override fun success(result: Any?) = Unit
+                        override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) = Unit
+                        override fun notImplemented() = Unit
+                    })
+                } catch (_: Throwable) {
+                    // Same detach-safety contract as executor rejection.
+                }
+            }
+        } catch (_: Throwable) {
+            // Detach/executor rejection must not corrupt pending auth state or
+            // crash the app. The manager still exposes status/claim outcomes.
+        }
+    }
 
     private suspend fun reverseInvoke(method: String, args: Map<String, Any?>): Map<String, Any?> {
         val reqId = nextReqId.getAndIncrement()
@@ -279,9 +305,10 @@ object PlaneCarrier {
     fun mount(
         transport: com.pantas.debug.controlplane.Transport,
         scope: CoroutineScope,
+        authManager: DebugAuthManager? = null,
         appMeta: (suspend () -> Map<String, Any?>)? = null,
     ): ControlPlane {
-        val plane = ControlPlane(transport, scope, appMeta)
+        val plane = ControlPlane(transport, scope, appMeta, authManager)
         this.plane = plane
         return plane
     }

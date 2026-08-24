@@ -38,6 +38,16 @@ class DebugControlPlaneFlutterPluginTest {
         val bridgeField = DebugControlPlaneFlutterPlugin::class.java.getDeclaredField("bridge")
         bridgeField.isAccessible = true
         bridgeField.set(plugin, NativeControlPlaneBridge(channel, FakeMethodChannel.scope))
+        val authStore = InMemoryPluginDebugAuthStore()
+        val authManager = PluginDebugAuthManager(bridgeField.get(plugin) as NativeControlPlaneBridge, authStore)
+        DebugControlPlaneFlutterPlugin::class.java.getDeclaredField("authStore").apply {
+            isAccessible = true
+            set(plugin, authStore)
+        }
+        DebugControlPlaneFlutterPlugin::class.java.getDeclaredField("authManager").apply {
+            isAccessible = true
+            set(plugin, authManager)
+        }
         val registryField = DebugControlPlaneFlutterPlugin::class.java.getDeclaredField("registry")
         registryField.isAccessible = true
         registryField.set(plugin, DartCapabilityRegistry(bridgeField.get(plugin) as NativeControlPlaneBridge))
@@ -211,5 +221,72 @@ class DebugControlPlaneFlutterPluginTest {
         val result = RecordingResult()
         plugin.onMethodCall(methodCall("bogus", emptyMap<String, Any?>()), result)
         assertTrue(result.notImplementedFlag)
+    }
+
+    @Test
+    fun `auth dispatcher approves denies revokes and reports status`() = runBlocking {
+        val authManager = DebugControlPlaneFlutterPlugin::class.java.getDeclaredField("authManager").let {
+            it.isAccessible = true
+            it.get(plugin) as PluginDebugAuthManager
+        }
+        authManager.requestAuthorization(
+            mapOf(
+                "clientNonce" to "nonce-1",
+                "clientLabel" to "devtool",
+                "requestedMethod" to "GET",
+                "requestedPath" to "/state",
+            ),
+        )
+        val requestId = (channel.invokes.single().arguments["requestId"] as String)
+
+        val approve = RecordingResult()
+        plugin.onMethodCall(
+            methodCall(
+                ChannelProtocol.AUTH_APPROVE,
+                mapOf("requestId" to requestId, "ttlSeconds" to 60, "clientLabel" to "host"),
+            ),
+            approve,
+        )
+        @Suppress("UNCHECKED_CAST")
+        val claim = approve.successValue as Map<String, Any?>
+        assertEquals("authorized", claim["status"])
+        assertNotNull(claim["token"])
+        assertNotNull(claim["tokenId"])
+
+        val status = RecordingResult()
+        plugin.onMethodCall(methodCall(ChannelProtocol.AUTH_STATUS, mapOf("requestId" to requestId)), status)
+        @Suppress("UNCHECKED_CAST")
+        val statusMap = status.successValue as Map<String, Any?>
+        assertEquals("approved", statusMap["status"])
+        assertNull("status must not leak token plaintext", statusMap["token"])
+
+        val revoke = RecordingResult()
+        plugin.onMethodCall(
+            methodCall(ChannelProtocol.AUTH_REVOKE, mapOf("tokenId" to claim["tokenId"])),
+            revoke,
+        )
+        assertNull(revoke.errorCode)
+
+        val deniedRequest = authManager.requestAuthorization(mapOf("clientNonce" to "nonce-2"))
+            as com.pantas.debug.controlplane.DebugAuthRouteResult.Ok
+        val deniedId = deniedRequest.body["requestId"] as String
+        val deny = RecordingResult()
+        plugin.onMethodCall(
+            methodCall(ChannelProtocol.AUTH_DENY, mapOf("requestId" to deniedId, "reason" to "cancelled")),
+            deny,
+        )
+        assertNull(deny.errorCode)
+        assertEquals("denied", authManager.status(deniedId)["status"])
+    }
+
+    @Test
+    fun `auth dispatcher validates missing request id and revoke target`() {
+        val approve = RecordingResult()
+        plugin.onMethodCall(methodCall(ChannelProtocol.AUTH_APPROVE, emptyMap()), approve)
+        assertEquals("invalid_request", approve.errorCode)
+
+        val revoke = RecordingResult()
+        plugin.onMethodCall(methodCall(ChannelProtocol.AUTH_REVOKE, emptyMap()), revoke)
+        assertEquals("invalid_request", revoke.errorCode)
     }
 }

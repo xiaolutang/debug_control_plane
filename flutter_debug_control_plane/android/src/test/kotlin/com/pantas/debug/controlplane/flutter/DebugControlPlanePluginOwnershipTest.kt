@@ -1,6 +1,8 @@
 package com.pantas.debug.controlplane.flutter
 
 import kotlinx.coroutines.runBlocking
+import com.pantas.debug.controlplane.RouteRequest
+import com.pantas.debug.controlplane.RouteResult
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -40,6 +42,13 @@ class DebugControlPlanePluginOwnershipTest {
         val bridge = NativeControlPlaneBridge(channel, FakeMethodChannel.scope)
         DebugControlPlaneFlutterPlugin::class.java.getDeclaredField("bridge").apply {
             isAccessible = true; set(plugin, bridge)
+        }
+        val authStore = InMemoryPluginDebugAuthStore()
+        DebugControlPlaneFlutterPlugin::class.java.getDeclaredField("authStore").apply {
+            isAccessible = true; set(plugin, authStore)
+        }
+        DebugControlPlaneFlutterPlugin::class.java.getDeclaredField("authManager").apply {
+            isAccessible = true; set(plugin, PluginDebugAuthManager(bridge, authStore))
         }
         DebugControlPlaneFlutterPlugin::class.java.getDeclaredField("registry").apply {
             isAccessible = true; set(plugin, DartCapabilityRegistry(bridge))
@@ -202,5 +211,27 @@ class DebugControlPlanePluginOwnershipTest {
         val cleanup = RecordingResult()
         plugin.onMethodCall(methodCall(ChannelProtocol.PLANE_STOP, emptyMap<String, Any?>()), cleanup)
         awaitReply(cleanup)
+    }
+
+    @Test
+    fun `carrier plane can be mounted with plugin auth manager`() = runBlocking {
+        PlaneCarrier.unmount()
+        val authChannel = FakeMethodChannel()
+        val authBridge = NativeControlPlaneBridge(authChannel, FakeMethodChannel.scope)
+        val authManager = PluginDebugAuthManager(authBridge, InMemoryPluginDebugAuthStore())
+        val transport = FakeTransport()
+        PlaneCarrier.mount(transport, FakeMethodChannel.scope, authManager)
+
+        val result = PlaneCarrier.plane!!.dispatch(
+            RouteRequest(
+                method = "POST",
+                segments = listOf("auth", "request"),
+                body = mapOf("clientNonce" to "nonce-carrier", "clientLabel" to "devtool"),
+            ),
+        )
+
+        assertTrue(result is RouteResult.Ok)
+        assertEquals(ChannelProtocol.AUTH_REQUEST, authChannel.invokes.single().method)
+        assertEquals("devtool", authChannel.invokes.single().arguments["clientLabel"])
     }
 }

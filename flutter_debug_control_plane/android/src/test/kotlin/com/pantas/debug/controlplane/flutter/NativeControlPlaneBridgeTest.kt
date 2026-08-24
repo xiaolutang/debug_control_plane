@@ -7,6 +7,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -153,6 +154,53 @@ class NativeControlPlaneBridgeTest {
         val state = bridge.pullState("gamepad")
         assertEquals(mapOf("connected" to true), state)
         assertEquals(ChannelProtocol.CAPABILITY_STATE_PULL, channel.invokes.single().method)
+    }
+
+    @Test
+    fun `auth request invokes Dart without capability pending entry`() {
+        val channel = FakeMethodChannel()
+        val bridge = newBridge(channel)
+
+        bridge.requestAuthorization(
+            mapOf(
+                "requestId" to "auth-1",
+                "pairingCode" to "123456",
+                "status" to "pending",
+                "clientLabel" to "devtool",
+                "method" to "GET",
+                "endpoint" to "/state",
+            ),
+        )
+
+        assertEquals(ChannelProtocol.AUTH_REQUEST, channel.invokes.single().method)
+        assertEquals("auth-1", channel.invokes.single().arguments["requestId"])
+        assertFalse(channel.invokes.single().arguments.containsKey("capId"))
+        assertTrue("auth pending must not share capability pending map", bridge.pending.isEmpty())
+    }
+
+    @Test
+    fun `auth request tolerates executor rejection`() {
+        val channel = FakeMethodChannel()
+        val rejecting = java.util.concurrent.Executor { throw java.util.concurrent.RejectedExecutionException("closed") }
+        val bridge = NativeControlPlaneBridge(channel, FakeMethodChannel.scope, rejecting)
+
+        bridge.requestAuthorization(mapOf("requestId" to "auth-2", "status" to "pending"))
+
+        assertTrue(channel.invokes.isEmpty())
+        assertTrue(bridge.pending.isEmpty())
+    }
+
+    @Test
+    fun `auth request tolerates invokeMethod throwing inside executor command`() {
+        val channel = FakeMethodChannel().apply {
+            invokeFailure = IllegalStateException("detached")
+        }
+        val bridge = newBridge(channel)
+
+        bridge.requestAuthorization(mapOf("requestId" to "auth-3", "status" to "pending"))
+
+        assertTrue(channel.invokes.isEmpty())
+        assertTrue(bridge.pending.isEmpty())
     }
 
     // ---- R026 e2e fix: reverse invoke must hop to the main executor ---------

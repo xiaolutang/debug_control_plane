@@ -41,8 +41,23 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
     private var channel: MethodChannel? = null
     private var bridge: NativeControlPlaneBridge? = null
     private var registry: DartCapabilityRegistry? = null
+    private var authStore: PluginDebugAuthStore = processAuthStore
+    private var authManager: PluginDebugAuthManager? = null
     private var scope: CoroutineScope? = null
     private var ownsPlane = false
+
+    companion object {
+        private val processAuthStore: PluginDebugAuthStore = InMemoryPluginDebugAuthStore()
+    }
+
+    /** Host/test injection point. The default process store is used otherwise. */
+    fun setAuthStoreForHost(store: PluginDebugAuthStore) {
+        authStore = store
+        val pluginBridge = bridge
+        if (pluginBridge != null) {
+            authManager = PluginDebugAuthManager(pluginBridge, authStore)
+        }
+    }
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         val methodChannel = MethodChannel(binding.binaryMessenger, ChannelProtocol.METHOD_CHANNEL)
@@ -61,6 +76,7 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
         channel = methodChannel
         scope = pluginScope
         bridge = pluginBridge
+        authManager = PluginDebugAuthManager(pluginBridge, authStore)
         registry = DartCapabilityRegistry(pluginBridge)
     }
 
@@ -69,6 +85,7 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
         channel = null
         registry = null
         bridge = null
+        authManager = null
         if (ownsPlane) {
             PlaneCarrier.unmount()
             ownsPlane = false
@@ -80,8 +97,9 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         val pluginBridge = bridge
         val pluginRegistry = registry
+        val pluginAuth = authManager
         val pluginScope = scope
-        if (pluginBridge == null || pluginRegistry == null || pluginScope == null) {
+        if (pluginBridge == null || pluginRegistry == null || pluginAuth == null || pluginScope == null) {
             result.error("not_attached", "plugin detached", null)
             return
         }
@@ -239,6 +257,55 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
                 }
             }
 
+            ChannelProtocol.AUTH_APPROVE -> {
+                val requestId = call.argument<String>("requestId")
+                if (requestId == null) {
+                    result.error("invalid_request", "missing requestId", null)
+                    return
+                }
+                try {
+                    result.success(
+                        pluginAuth.approve(
+                            requestId,
+                            call.argument<Int>("ttlSeconds"),
+                            call.argument<String>("clientLabel"),
+                        ),
+                    )
+                } catch (e: IllegalArgumentException) {
+                    result.error("invalid_request", e.message, null)
+                }
+            }
+
+            ChannelProtocol.AUTH_DENY -> {
+                val requestId = call.argument<String>("requestId")
+                if (requestId == null) {
+                    result.error("invalid_request", "missing requestId", null)
+                    return
+                }
+                try {
+                    pluginAuth.deny(requestId, call.argument<String>("reason"))
+                    result.success(null)
+                } catch (e: IllegalArgumentException) {
+                    result.error("invalid_request", e.message, null)
+                }
+            }
+
+            ChannelProtocol.AUTH_REVOKE -> {
+                try {
+                    pluginAuth.revoke(
+                        call.argument<String>("tokenId"),
+                        call.argument<Boolean>("all") ?: false,
+                    )
+                    result.success(null)
+                } catch (e: IllegalArgumentException) {
+                    result.error("invalid_request", e.message, null)
+                }
+            }
+
+            ChannelProtocol.AUTH_STATUS -> {
+                result.success(pluginAuth.status(call.argument<String>("requestId")))
+            }
+
             else -> result.notImplemented()
         }
     }
@@ -265,7 +332,7 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
         // passed through to the transport (C4): port=0 keeps the OS-pick
         // semantics, an explicit port pins the bind.
         val transport = HttpSseTransport(pluginScope, port)
-        val plane = PlaneCarrier.mount(transport, pluginScope) { appMeta ?: emptyMap() }
+        val plane = PlaneCarrier.mount(transport, pluginScope, authManager) { appMeta ?: emptyMap() }
         ownsPlane = true
         return plane
     }

@@ -136,17 +136,23 @@ class DartCapabilityRegistryTest {
                 CapabilityDecl(resources = emptyList(), commands = emptyList()),
             ),
         )
+        val flow = invoker.flows.getValue("gamepad")
+        kotlinx.coroutines.withTimeout(2000) {
+            while (flow.subscriptionCount.value == 0) kotlinx.coroutines.delay(10)
+        }
 
         // events.emit path: plugin feeds the per-cap flow; the plane's
         // collection job re-emits onto the bus with a fresh sequence.
-        invoker.eventFlow("gamepad").tryEmit(
+        flow.tryEmit(
             com.pantas.debug.controlplane.DebugEvent(
                 type = "pressed",
                 sequence = 42L, // Dart-side value — must be discarded (§3.1)
                 payload = mapOf("key" to "A"),
             ),
         )
-        kotlinx.coroutines.delay(100)
+        kotlinx.coroutines.withTimeout(2000) {
+            while (transport.broadcasts.isEmpty()) kotlinx.coroutines.delay(10)
+        }
 
         assertEquals(1, transport.broadcasts.size)
         assertEquals("pressed", transport.broadcasts[0].type)
