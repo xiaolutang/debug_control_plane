@@ -39,6 +39,11 @@ class ChannelProtocolAlignmentTest {
         "EVENTS_EMIT" -> "kMethodEventsEmit"
         "CAPABILITY_STATE_UPDATE" -> "kMethodCapabilityStateUpdate"
         "CAPABILITY_INVOKE_RESULT" -> "kMethodCapabilityInvokeResult"
+        "AUTH_REQUEST" -> "kMethodAuthRequest"
+        "AUTH_APPROVE" -> "kMethodAuthApprove"
+        "AUTH_DENY" -> "kMethodAuthDeny"
+        "AUTH_REVOKE" -> "kMethodAuthRevoke"
+        "AUTH_STATUS" -> "kMethodAuthStatus"
         "CAPABILITY_INVOKE" -> "kMethodCapabilityInvoke"
         "CAPABILITY_STATE_PULL" -> "kMethodCapabilityStatePull"
         "CAPABILITY_STATE_RESULT" -> "kMethodCapabilityStateResult"
@@ -66,11 +71,16 @@ class ChannelProtocolAlignmentTest {
         expectDartContains(ChannelProtocol.EVENTS_EMIT, "EVENTS_EMIT")
         expectDartContains(ChannelProtocol.CAPABILITY_STATE_UPDATE, "CAPABILITY_STATE_UPDATE")
         expectDartContains(ChannelProtocol.CAPABILITY_INVOKE_RESULT, "CAPABILITY_INVOKE_RESULT")
+        expectDartContains(ChannelProtocol.AUTH_APPROVE, "AUTH_APPROVE")
+        expectDartContains(ChannelProtocol.AUTH_DENY, "AUTH_DENY")
+        expectDartContains(ChannelProtocol.AUTH_REVOKE, "AUTH_REVOKE")
+        expectDartContains(ChannelProtocol.AUTH_STATUS, "AUTH_STATUS")
     }
 
     @Test
     fun `reverse invokes aligned`() {
         expectDartContains(ChannelProtocol.CAPABILITY_INVOKE, "CAPABILITY_INVOKE")
+        expectDartContains(ChannelProtocol.AUTH_REQUEST, "AUTH_REQUEST")
         expectDartContains(ChannelProtocol.CAPABILITY_STATE_PULL, "CAPABILITY_STATE_PULL")
         expectDartContains(ChannelProtocol.CAPABILITY_STATE_RESULT, "CAPABILITY_STATE_RESULT")
     }

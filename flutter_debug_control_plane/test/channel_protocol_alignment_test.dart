@@ -43,10 +43,15 @@ void main() {
     expectKtContains(kMethodEventsEmit, 'EVENTS_EMIT');
     expectKtContains(kMethodCapabilityStateUpdate, 'CAPABILITY_STATE_UPDATE');
     expectKtContains(kMethodCapabilityInvokeResult, 'CAPABILITY_INVOKE_RESULT');
+    expectKtContains(kMethodAuthApprove, 'AUTH_APPROVE');
+    expectKtContains(kMethodAuthDeny, 'AUTH_DENY');
+    expectKtContains(kMethodAuthRevoke, 'AUTH_REVOKE');
+    expectKtContains(kMethodAuthStatus, 'AUTH_STATUS');
   });
 
   test('reverse invokes (native -> Dart) aligned', () {
     expectKtContains(kMethodCapabilityInvoke, 'CAPABILITY_INVOKE');
+    expectKtContains(kMethodAuthRequest, 'AUTH_REQUEST');
     expectKtContains(kMethodCapabilityStatePull, 'CAPABILITY_STATE_PULL');
     expectKtContains(kMethodCapabilityStateResult, 'CAPABILITY_STATE_RESULT');
   });

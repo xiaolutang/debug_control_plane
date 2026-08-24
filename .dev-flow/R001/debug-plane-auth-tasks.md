@@ -383,7 +383,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：Dart 侧是跨语言协议守卫的重要消费者。
 
-## R001-FF001：ChannelProtocol — auth method constants `⬜ 待处理`
+## R001-FF001：ChannelProtocol — auth method constants `✅ 已实现`
 
 - 文件：`flutter_debug_control_plane/lib/src/channel_protocol.dart` + `flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/ChannelProtocol.kt`
 - 改动类型：修改
@@ -394,7 +394,7 @@ contextMdPaths:
 - risk_tags: [flutter, channel, alignment]
 - smoke_required: true
 - mode: direct
-- status: pending
+- status: implemented
 - sourceCapabilities: [FF001]
 - sourceSlices: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-app-slice.md]
 - sourceDesigns: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md]
@@ -413,8 +413,8 @@ contextMdPaths:
 - decision_refs: [DEC-R001-002]
 - blocked_files: []
 - 具体改动点：
-  - R001-FF001.1 `⬜` 在 Dart/Kotlin 常量文件添加 auth method strings。
-  - R001-FF001.2 `⬜` 扩展 alignment tests。
+  - R001-FF001.1 `✅` 在 Dart/Kotlin 常量文件添加 auth method strings。
+  - R001-FF001.2 `✅` 扩展 alignment tests。
 - 关键代码片段：
   ```dart
   const kMethodAuthRequest = 'auth.request';

@@ -5,8 +5,8 @@
 ///（两端 diff 必须零差异，见 FF001-1 test）。
 ///
 /// Channel 组合（design §3.2.2）：
-/// - [kMethodChannel]：命令双向（Dart→native 正向 7 个方法 + native→Dart
-///   反向 2 个 invoke）。
+/// - [kMethodChannel]：命令双向（Dart→native 正向 11 个方法 + native→Dart
+///   反向 3 个 invoke）。
 /// - [kEventChannel]：native→Dart 事件广播，**默认不订阅**（YAGNI——Dart
 ///   是事件生产者非消费者；契约预留，onListen 时才订阅 native eventBus）。
 
@@ -17,7 +17,7 @@ const String kMethodChannel = 'debug_control_plane/method';
 const String kEventChannel = 'debug_control_plane/event';
 
 // ---------------------------------------------------------------------------
-// Dart → native 正向方法（7 个）
+// Dart → native 正向方法（11 个）
 // ---------------------------------------------------------------------------
 
 /// 启动 native ControlPlane。args: `{address, port, appMeta?}`。
@@ -55,6 +55,18 @@ const String kMethodCapabilityStateUpdate = 'capability.state.update';
 /// `{reqId, result | error: {statusCode, code, message}}`，reply: `null`。
 const String kMethodCapabilityInvokeResult = 'capability.invoke.result';
 
+/// 同意调试授权请求。args: auth approve payload，reply: token/status。
+const String kMethodAuthApprove = 'auth.approve';
+
+/// 拒绝调试授权请求。args: auth deny payload，reply: status。
+const String kMethodAuthDeny = 'auth.deny';
+
+/// 撤销已授权 token。args: auth revoke payload，reply: status。
+const String kMethodAuthRevoke = 'auth.revoke';
+
+/// 查询调试授权状态。args: auth status payload，reply: auth status。
+const String kMethodAuthStatus = 'auth.status';
+
 // ---------------------------------------------------------------------------
 // native → Dart 反向 invoke（MethodChannel 反向 invokeMethod）
 // ---------------------------------------------------------------------------
@@ -67,6 +79,10 @@ const String kMethodCapabilityInvokeResult = 'capability.invoke.result';
 /// 字符串二次匹配。Dart 处理完回填 [kMethodCapabilityInvokeResult]。
 /// 超时：native 侧 30s withTimeout 未回填 → 500 `internal_error`（B4）。
 const String kMethodCapabilityInvoke = 'capability.invoke';
+
+/// native 请求 Dart/宿主展示授权确认 UI。args:
+/// `{reqId, requestId, clientLabel?, endpoint?, method?, createdAt}`。
+const String kMethodAuthRequest = 'auth.request';
 
 /// native 主动拉 state（rare；默认走 Dart 主动 push 缓存）。args:
 /// `{reqId, capId}`，Dart 回填 `capability.state.result`。

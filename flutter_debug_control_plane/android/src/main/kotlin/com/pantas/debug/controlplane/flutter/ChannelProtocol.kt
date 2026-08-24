@@ -20,7 +20,7 @@ object ChannelProtocol {
     const val EVENT_CHANNEL = "debug_control_plane/event"
 
     // -----------------------------------------------------------------------
-    // Dart -> native forward methods (7)
+    // Dart -> native forward methods (11)
     // -----------------------------------------------------------------------
 
     /** Start the native plane. args `{address, port, appMeta?}` -> `{uri}`. */
@@ -58,6 +58,18 @@ object ChannelProtocol {
      */
     const val CAPABILITY_INVOKE_RESULT = "capability.invoke.result"
 
+    /** Approve a pending debug authorization request. */
+    const val AUTH_APPROVE = "auth.approve"
+
+    /** Deny a pending debug authorization request. */
+    const val AUTH_DENY = "auth.deny"
+
+    /** Revoke an authorized debug token. */
+    const val AUTH_REVOKE = "auth.revoke"
+
+    /** Query current debug authorization status. */
+    const val AUTH_STATUS = "auth.status"
+
     // -----------------------------------------------------------------------
     // native -> Dart reverse invokes
     // -----------------------------------------------------------------------
@@ -69,6 +81,9 @@ object ChannelProtocol {
      * (no second path-string match). Timeout 30s -> 500 internal_error (B4).
      */
     const val CAPABILITY_INVOKE = "capability.invoke"
+
+    /** Ask Dart/host UI to handle a pending debug authorization request. */
+    const val AUTH_REQUEST = "auth.request"
 
     /** Rare native-side state pull. args `{reqId, capId}`. */
     const val CAPABILITY_STATE_PULL = "capability.state.pull"

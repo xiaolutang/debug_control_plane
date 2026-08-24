@@ -1,0 +1,80 @@
+---
+status: pass
+task_id: R001-FF001
+domain: flutter
+layer: unit
+passed: 26
+failed: 0
+commands:
+  - command: "cd flutter_debug_control_plane && fvm dart format --set-exit-if-changed lib/src/channel_protocol.dart test/channel_protocol_alignment_test.dart"
+    exit_code: 0
+  - command: "cd flutter_debug_control_plane && fvm flutter test test/channel_protocol_alignment_test.dart"
+    exit_code: 0
+    passed: 5
+  - command: "cd flutter_debug_control_plane && fvm flutter test"
+    exit_code: 0
+    passed: 26
+  - command: "./gradlew -p flutter_debug_control_plane/android testDebugUnitTest --tests com.pantas.debug.controlplane.flutter.ChannelProtocolAlignmentTest"
+    exit_code: 0
+    passed: 5
+  - command: "./gradlew -p flutter_debug_control_plane/android testDebugUnitTest"
+    exit_code: 0
+    passed: 37
+---
+
+# R001-FF001 Flutter Unit Test Log
+
+## Targeted Dart Alignment Test
+
+```bash
+cd flutter_debug_control_plane && fvm flutter test test/channel_protocol_alignment_test.dart
+```
+
+Result:
+
+```text
+00:00 +5: All tests passed!
+```
+
+## Flutter Plugin Full Dart Tests
+
+```bash
+cd flutter_debug_control_plane && fvm flutter test
+```
+
+Result:
+
+```text
+00:00 +26: All tests passed!
+```
+
+## Android JVM Alignment Tests
+
+```bash
+./gradlew -p flutter_debug_control_plane/android testDebugUnitTest --tests com.pantas.debug.controlplane.flutter.ChannelProtocolAlignmentTest
+```
+
+Result:
+
+```text
+BUILD SUCCESSFUL
+ChannelProtocolAlignmentTest: 5 tests, 0 failures, 0 errors
+```
+
+## Android JVM Full Unit Tests
+
+```bash
+./gradlew -p flutter_debug_control_plane/android testDebugUnitTest
+```
+
+Result:
+
+```text
+BUILD SUCCESSFUL
+37 tests, 0 failures, 0 errors
+```
+
+## Notes
+
+- Dart formatting required elevated access because FVM updates cache files outside the repository; formatting itself changed no files.
+- Gradle required elevated access for `~/.gradle` wrapper/cache access.
