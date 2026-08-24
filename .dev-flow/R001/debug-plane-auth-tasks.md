@@ -589,7 +589,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：Agent 需要知道“去 App 授权”，而不是误以为设备离线。
 
-## R001-BF010：CI integration — full auth regression gate `⬜ 待处理`
+## R001-BF010：CI integration — full auth regression gate `✅ 已完成`
 
 - 文件：`ci/ci-check-all.sh` + 相关测试入口
 - 改动类型：修改
@@ -600,7 +600,7 @@ contextMdPaths:
 - risk_tags: [ci, integration, regression]
 - smoke_required: true
 - mode: direct
-- status: pending
+- status: completed
 - sourceCapabilities: [BF001, BF002, BF003, BF004, BB001, FF001]
 - sourceSlices: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-server-slice.md, .dev-flow/R001/analysis/2026-08-20--debug-plane-auth-app-slice.md, .dev-flow/R001/analysis/2026-08-20--debug-plane-auth-python-slice.md]
 - sourceDesigns: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md]
@@ -621,9 +621,9 @@ contextMdPaths:
 - decision_refs: [DEC-R001-001, DEC-R001-002, DEC-R001-003, DEC-R001-004, DEC-R001-005, DEC-R001-006, DEC-R001-007]
 - blocked_files: []
 - 具体改动点：
-  - R001-BF010.1 `⬜` 确认新增测试已被现有 CI 入口覆盖。
-  - R001-BF010.2 `⬜` 如发现遗漏，仅补 CI 调用路径，不改变测试语义。
-  - R001-BF010.3 `⬜` 记录最终验证命令和结果。
+  - R001-BF010.1 `✅` 确认新增测试已被现有 CI 入口覆盖。
+  - R001-BF010.2 `✅` 如发现遗漏，仅补 CI 调用路径，不改变测试语义。
+  - R001-BF010.3 `✅` 记录最终验证命令和结果。
 - 关键代码片段：
   ```bash
   bash ci/ci-check-all.sh
