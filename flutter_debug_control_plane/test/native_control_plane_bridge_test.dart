@@ -19,7 +19,8 @@ void main() {
       final bridge = NativeControlPlaneBridge();
       await bridge.register(BridgeCapability(_FakeCap('gamepad')));
 
-      final call = sent.firstWhere((c) => c.method == kMethodCapabilityRegister);
+      final call =
+          sent.firstWhere((c) => c.method == kMethodCapabilityRegister);
       final args = (call.arguments as Map).cast<String, Object?>();
       expect(args['capId'], 'gamepad');
 
@@ -109,8 +110,10 @@ void main() {
       BindingHelper.captureOutgoing(messenger, sent.add);
 
       final bridge = NativeControlPlaneBridge();
-      await bridge.emitEvent('gamepad',
-          const DebugEvent(type: 'pressed', sequence: 99, payload: {'key': 'A'}));
+      await bridge.emitEvent(
+          'gamepad',
+          const DebugEvent(
+              type: 'pressed', sequence: 99, payload: {'key': 'A'}));
 
       final call = sent.singleWhere((c) => c.method == kMethodEventsEmit);
       final args = (call.arguments as Map).cast<String, Object?>();
@@ -123,8 +126,7 @@ void main() {
       await bridge.dispose();
     });
 
-    test('register collects cap.events once and forwards each frame',
-        () async {
+    test('register collects cap.events once and forwards each frame', () async {
       final messenger =
           TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
       final sent = <MethodCall>[];
@@ -137,12 +139,13 @@ void main() {
       cap.emitEvent('pressed', {'key': 'A'});
       await Future<void>.delayed(Duration.zero);
 
-      final emits =
-          sent.where((c) => c.method == kMethodEventsEmit).toList();
+      final emits = sent.where((c) => c.method == kMethodEventsEmit).toList();
       expect(emits, hasLength(1));
       final args = (emits.single.arguments as Map).cast<String, Object?>();
-      expect(args['event'],
-          {'type': 'pressed', 'payload': {'key': 'A'}});
+      expect(args['event'], {
+        'type': 'pressed',
+        'payload': {'key': 'A'}
+      });
       await bridge.dispose();
     });
   });
@@ -159,7 +162,8 @@ void main() {
       final bridge = NativeControlPlaneBridge()..attach();
       await bridge.register(BridgeCapability(cap));
 
-      await BindingHelper.deliverNativeCall(messenger, kMethodCapabilityInvoke, {
+      await BindingHelper.deliverNativeCall(
+          messenger, kMethodCapabilityInvoke, {
         'reqId': 7,
         'capId': 'gamepad',
         'routeKind': kRouteKindResource,
@@ -193,7 +197,8 @@ void main() {
       final bridge = NativeControlPlaneBridge()..attach();
       await bridge.register(BridgeCapability(cap));
 
-      await BindingHelper.deliverNativeCall(messenger, kMethodCapabilityInvoke, {
+      await BindingHelper.deliverNativeCall(
+          messenger, kMethodCapabilityInvoke, {
         'reqId': 8,
         'capId': 'gamepad',
         'routeKind': kRouteKindCommand,
@@ -228,7 +233,8 @@ void main() {
       final bridge = NativeControlPlaneBridge()..attach();
       await bridge.register(BridgeCapability(cap));
 
-      await BindingHelper.deliverNativeCall(messenger, kMethodCapabilityInvoke, {
+      await BindingHelper.deliverNativeCall(
+          messenger, kMethodCapabilityInvoke, {
         'reqId': 9,
         'capId': 'bad',
         'routeKind': kRouteKindResource,
@@ -258,7 +264,8 @@ void main() {
       final bridge = NativeControlPlaneBridge()..attach();
       await bridge.register(BridgeCapability(_FakeCap('gamepad')));
 
-      await BindingHelper.deliverNativeCall(messenger, kMethodCapabilityInvoke, {
+      await BindingHelper.deliverNativeCall(
+          messenger, kMethodCapabilityInvoke, {
         'reqId': 10,
         'capId': 'gamepad',
         'routeKind': kRouteKindResource,
@@ -286,7 +293,8 @@ void main() {
 
       final bridge = NativeControlPlaneBridge()..attach();
 
-      await BindingHelper.deliverNativeCall(messenger, kMethodCapabilityInvoke, {
+      await BindingHelper.deliverNativeCall(
+          messenger, kMethodCapabilityInvoke, {
         'reqId': 12,
         'capId': 'ghost',
         'routeKind': kRouteKindResource,
@@ -314,7 +322,8 @@ void main() {
       final bridge = NativeControlPlaneBridge()..attach();
       await bridge.register(BridgeCapability(_FakeCap('gamepad')));
 
-      await BindingHelper.deliverNativeCall(messenger, kMethodCapabilityInvoke, {
+      await BindingHelper.deliverNativeCall(
+          messenger, kMethodCapabilityInvoke, {
         'reqId': 13,
         'capId': 'gamepad',
         'routeKind': 'websocket',
@@ -360,8 +369,7 @@ void main() {
   });
 
   group('attach contract', () {
-    test('second attach throws StateError; dispose re-allows attach',
-        () async {
+    test('second attach throws StateError; dispose re-allows attach', () async {
       final messenger =
           TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
       BindingHelper.captureOutgoing(messenger, (_) {});
@@ -383,7 +391,8 @@ void main() {
       // No attach() -> setMethodCallHandler was never installed, so the
       // engine drops the native invoke; assert no fill-in crosses back.
       final bridge = NativeControlPlaneBridge();
-      await BindingHelper.deliverNativeCall(messenger, kMethodCapabilityInvoke, {
+      await BindingHelper.deliverNativeCall(
+          messenger, kMethodCapabilityInvoke, {
         'reqId': 14,
         'capId': 'gamepad',
         'routeKind': kRouteKindResource,
@@ -395,6 +404,262 @@ void main() {
       expect(
         sent.where((c) => c.method == kMethodCapabilityInvokeResult),
         isEmpty,
+      );
+      await bridge.dispose();
+    });
+  });
+
+  group('authorization bridge', () {
+    test('auth.request reaches auth handler without capability result fill',
+        () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(messenger, sent.add);
+
+      DebugAuthRequest? received;
+      final bridge = NativeControlPlaneBridge()..attach();
+      bridge.setAuthorizationHandler((request) async {
+        received = request;
+      });
+
+      await BindingHelper.deliverNativeCall(messenger, kMethodAuthRequest, {
+        'reqId': 21,
+        'requestId': 'auth-1',
+        'clientLabel': 'devtool',
+        'endpoint': '/mcp',
+        'method': 'POST',
+        'createdAt': '2026-08-24T08:20:00Z',
+      });
+
+      expect(received?.requestId, 'auth-1');
+      expect(received?.reqId, 21);
+      expect(received?.clientLabel, 'devtool');
+      expect(received?.endpoint, '/mcp');
+      expect(received?.method, 'POST');
+      expect(received?.createdAt, DateTime.parse('2026-08-24T08:20:00Z'));
+      expect(
+        sent.where((c) => c.method == kMethodCapabilityInvokeResult),
+        isEmpty,
+      );
+      await bridge.dispose();
+    });
+
+    test('clearing auth handler makes later auth.request a no-op', () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(messenger, sent.add);
+
+      var calls = 0;
+      final bridge = NativeControlPlaneBridge()..attach();
+      bridge.setAuthorizationHandler((_) async {
+        calls += 1;
+      });
+      bridge.setAuthorizationHandler(null);
+
+      await BindingHelper.deliverNativeCall(messenger, kMethodAuthRequest, {
+        'requestId': 'auth-2',
+      });
+
+      expect(calls, 0);
+      expect(
+        sent.where((c) => c.method == kMethodCapabilityInvokeResult),
+        isEmpty,
+      );
+      await bridge.dispose();
+    });
+
+    test('auth handler failures are contained', () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(messenger, sent.add);
+
+      final bridge = NativeControlPlaneBridge()..attach();
+      bridge.setAuthorizationHandler((_) async {
+        throw StateError('host UI failed');
+      });
+
+      await BindingHelper.deliverNativeCall(messenger, kMethodAuthRequest, {
+        'requestId': 'auth-3',
+      });
+
+      expect(
+        sent.where((c) => c.method == kMethodCapabilityInvokeResult),
+        isEmpty,
+      );
+      await bridge.dispose();
+    });
+
+    test('malformed auth.request is ignored with no capability fill', () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(messenger, sent.add);
+
+      var calls = 0;
+      final bridge = NativeControlPlaneBridge()..attach();
+      bridge.setAuthorizationHandler((_) async {
+        calls += 1;
+      });
+
+      await BindingHelper.deliverNativeCall(messenger, kMethodAuthRequest, {
+        'clientLabel': 'missing request id',
+      });
+
+      expect(calls, 0);
+      expect(
+        sent.where((c) => c.method == kMethodCapabilityInvokeResult),
+        isEmpty,
+      );
+      await bridge.dispose();
+    });
+
+    test('DTOs parse optional fields and keep status token-free', () {
+      final request = DebugAuthRequest.fromChannel({
+        'requestId': 'auth-4',
+        'createdAt': 1787559600000,
+      });
+      expect(request.requestId, 'auth-4');
+      expect(request.reqId, isNull);
+      expect(request.clientLabel, isNull);
+      expect(
+          request.createdAt,
+          DateTime.fromMillisecondsSinceEpoch(
+            1787559600000,
+            isUtc: true,
+          ));
+
+      expect(
+        () => DebugAuthRequest.fromChannel({'reqId': 22}),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      final status = DebugAuthStatus.fromChannel({
+        'status': 'authorized',
+        'requestId': 'auth-5',
+        'expiresAt': '2026-08-24T09:20:00Z',
+        'clientLabel': 'devtool',
+        'token': 'must-not-be-exposed',
+      });
+      expect(status.status, 'authorized');
+      expect(status.requestId, 'auth-5');
+      expect(status.expiresAt, DateTime.parse('2026-08-24T09:20:00Z'));
+      expect(status.clientLabel, 'devtool');
+      expect(status, isNot(isA<DebugAuthClaim>()));
+
+      final claim = DebugAuthClaim.fromChannel({
+        'token': 'plain-token',
+        'tokenId': 'tok-1',
+        'expiresAt': '2026-08-24T10:20:00Z',
+        'status': 'authorized',
+      });
+      expect(claim.token, 'plain-token');
+      expect(claim.tokenId, 'tok-1');
+      expect(claim.expiresAt, DateTime.parse('2026-08-24T10:20:00Z'));
+      expect(claim.status, 'authorized');
+    });
+
+    test('approve sends payload and maps non-null/null claims', () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(
+        messenger,
+        sent.add,
+        reply: (call) {
+          if (call.method == kMethodAuthApprove) {
+            return {
+              'token': 'plain-token',
+              'tokenId': 'tok-1',
+              'expiresAt': '2026-08-24T10:20:00Z',
+              'status': 'authorized',
+            };
+          }
+          return null;
+        },
+      );
+
+      final bridge = NativeControlPlaneBridge();
+      final claim = await bridge.approveAuthorization(
+        'auth-6',
+        ttl: const Duration(minutes: 5),
+        clientLabel: 'devtool',
+      );
+
+      final approve = sent.singleWhere((c) => c.method == kMethodAuthApprove);
+      expect(approve.arguments, {
+        'requestId': 'auth-6',
+        'ttlSeconds': 300,
+        'clientLabel': 'devtool',
+      });
+      expect(claim?.token, 'plain-token');
+      expect(claim?.tokenId, 'tok-1');
+
+      BindingHelper.captureOutgoing(messenger, sent.add);
+      expect(await bridge.approveAuthorization('auth-7'), isNull);
+      await bridge.dispose();
+    });
+
+    test('deny revoke and status use auth methods with typed status reply',
+        () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(
+        messenger,
+        sent.add,
+        reply: (call) {
+          if (call.method == kMethodAuthStatus) {
+            return {
+              'status': 'pending',
+              'requestId': 'auth-8',
+              'expiresAt': '2026-08-24T09:20:00Z',
+              'clientLabel': 'devtool',
+            };
+          }
+          return null;
+        },
+      );
+
+      final bridge = NativeControlPlaneBridge();
+      await bridge.denyAuthorization('auth-8', reason: 'cancelled');
+      await bridge.revokeAuthorization(tokenId: 'tok-2');
+      await bridge.revokeAuthorization(all: true);
+      final status = await bridge.authorizationStatus(requestId: 'auth-8');
+
+      expect(
+        sent.singleWhere((c) => c.method == kMethodAuthDeny).arguments,
+        {'requestId': 'auth-8', 'reason': 'cancelled'},
+      );
+      expect(
+        sent
+            .firstWhere((c) =>
+                c.method == kMethodAuthRevoke &&
+                (c.arguments as Map)['tokenId'] == 'tok-2')
+            .arguments,
+        {'tokenId': 'tok-2'},
+      );
+      expect(
+        sent
+            .firstWhere((c) =>
+                c.method == kMethodAuthRevoke &&
+                (c.arguments as Map)['all'] == true)
+            .arguments,
+        {'all': true},
+      );
+      expect(
+        sent.singleWhere((c) => c.method == kMethodAuthStatus).arguments,
+        {'requestId': 'auth-8'},
+      );
+      expect(status.status, 'pending');
+      expect(status.requestId, 'auth-8');
+      expect(status.expiresAt, DateTime.parse('2026-08-24T09:20:00Z'));
+
+      expect(
+        () => bridge.revokeAuthorization(),
+        throwsA(isA<ArgumentError>()),
       );
       await bridge.dispose();
     });
@@ -457,13 +722,14 @@ class BindingHelper {
   /// (default reply null). Replaces the mock handler on each call.
   static void captureOutgoing(
     TestDefaultBinaryMessenger messenger,
-    void Function(MethodCall) sink,
-  ) {
+    void Function(MethodCall) sink, {
+    FutureOr<Object?> Function(MethodCall call)? reply,
+  }) {
     messenger.setMockMethodCallHandler(
       const MethodChannel(kMethodChannel),
       (call) async {
         sink(call);
-        return null;
+        return reply?.call(call);
       },
     );
   }
@@ -474,8 +740,8 @@ class BindingHelper {
     String method,
     Map<String, Object?> args,
   ) async {
-    final data = const StandardMethodCodec()
-        .encodeMethodCall(MethodCall(method, args));
+    final data =
+        const StandardMethodCodec().encodeMethodCall(MethodCall(method, args));
     await messenger.handlePlatformMessage(
       kMethodChannel,
       data,

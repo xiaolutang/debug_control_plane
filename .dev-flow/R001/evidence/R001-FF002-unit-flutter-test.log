@@ -1,0 +1,21 @@
+---
+task_id: R001-FF002
+layer: unit
+domain: flutter
+status: pass
+command: cd flutter_debug_control_plane && fvm flutter test
+passed: 33
+failed: 0
+---
+
+Targeted command:
+cd flutter_debug_control_plane && fvm flutter test test/native_control_plane_bridge_test.dart
+
+Result:
+24 tests passed.
+
+Full Flutter package command:
+cd flutter_debug_control_plane && fvm flutter test
+
+Result:
+33 tests passed.

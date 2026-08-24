@@ -6,6 +6,91 @@ import 'package:flutter/services.dart';
 import 'bridge_capability.dart';
 import 'channel_protocol.dart';
 
+/// Called when native reports a pending debug-plane authorization request.
+typedef DebugAuthRequestHandler = Future<void> Function(
+    DebugAuthRequest request);
+
+/// Native -> Dart pending authorization request.
+class DebugAuthRequest {
+  const DebugAuthRequest({
+    required this.requestId,
+    this.reqId,
+    this.clientLabel,
+    this.endpoint,
+    this.method,
+    this.createdAt,
+  });
+
+  factory DebugAuthRequest.fromChannel(Object? raw) {
+    final args = _requiredMap(raw, 'DebugAuthRequest');
+    return DebugAuthRequest(
+      requestId: _requiredString(args, 'requestId'),
+      reqId: _optionalInt(args['reqId']),
+      clientLabel: _optionalString(args['clientLabel']),
+      endpoint: _optionalString(args['endpoint']),
+      method: _optionalString(args['method']),
+      createdAt: _optionalDateTime(args['createdAt']),
+    );
+  }
+
+  final String requestId;
+  final int? reqId;
+  final String? clientLabel;
+  final String? endpoint;
+  final String? method;
+  final DateTime? createdAt;
+}
+
+/// Authorization status exposed to Flutter hosts.
+class DebugAuthStatus {
+  const DebugAuthStatus({
+    required this.status,
+    this.requestId,
+    this.expiresAt,
+    this.clientLabel,
+  });
+
+  factory DebugAuthStatus.fromChannel(Object? raw) {
+    final args = _requiredMap(raw, 'DebugAuthStatus');
+    return DebugAuthStatus(
+      status: _requiredString(args, 'status'),
+      requestId: _optionalString(args['requestId']),
+      expiresAt: _optionalDateTime(args['expiresAt']),
+      clientLabel: _optionalString(args['clientLabel']),
+    );
+  }
+
+  final String status;
+  final String? requestId;
+  final DateTime? expiresAt;
+  final String? clientLabel;
+}
+
+/// Token claim data returned by an authorization approval.
+class DebugAuthClaim {
+  const DebugAuthClaim({
+    this.token,
+    this.tokenId,
+    this.expiresAt,
+    this.status,
+  });
+
+  factory DebugAuthClaim.fromChannel(Object? raw) {
+    final args = _requiredMap(raw, 'DebugAuthClaim');
+    return DebugAuthClaim(
+      token: _optionalString(args['token']),
+      tokenId: _optionalString(args['tokenId']),
+      expiresAt: _optionalDateTime(args['expiresAt']),
+      status: _optionalString(args['status']),
+    );
+  }
+
+  final String? token;
+  final String? tokenId;
+  final DateTime? expiresAt;
+  final String? status;
+}
+
 /// FF001-3: Dart 侧 native ControlPlane 桥接（Android）。
 ///
 /// 一个 app 一个 server（server 实体在 native，由 FF002-2 Service 载体
@@ -40,6 +125,7 @@ class NativeControlPlaneBridge {
 
   final Set<String> _registeredIds = <String>{};
   bool _attached = false;
+  DebugAuthRequestHandler? _authRequestHandler;
 
   /// All registered capability ids, in registration order.
   Set<String> get registeredIds => Set<String>.unmodifiable(_registeredIds);
@@ -62,6 +148,7 @@ class NativeControlPlaneBridge {
   Future<void> dispose() async {
     _channel.setMethodCallHandler(null);
     _attached = false;
+    _authRequestHandler = null;
     await _cancelEventPumps(_caps.keys.toList());
     _caps.clear();
     _registeredIds.clear();
@@ -147,7 +234,8 @@ class NativeControlPlaneBridge {
 
   /// Unregister the capability with [id] (`capability.unregister`).
   Future<void> unregister(String id) async {
-    await _channel.invokeMethod<void>(kMethodCapabilityUnregister, {'capId': id});
+    await _channel
+        .invokeMethod<void>(kMethodCapabilityUnregister, {'capId': id});
     _caps.remove(id);
     _registeredIds.remove(id);
     await _cancelEventPumps([id]);
@@ -177,6 +265,57 @@ class NativeControlPlaneBridge {
   }
 
   // ---------------------------------------------------------------------------
+  // Authorization (forward + native pending callback)
+  // ---------------------------------------------------------------------------
+
+  /// Register or clear the native -> Dart pending authorization handler.
+  void setAuthorizationHandler(DebugAuthRequestHandler? handler) {
+    _authRequestHandler = handler;
+  }
+
+  /// Approve a pending authorization request.
+  Future<DebugAuthClaim?> approveAuthorization(
+    String requestId, {
+    Duration? ttl,
+    String? clientLabel,
+  }) async {
+    final raw = await _channel.invokeMethod<dynamic>(kMethodAuthApprove, {
+      'requestId': requestId,
+      if (ttl != null) 'ttlSeconds': ttl.inSeconds,
+      if (clientLabel != null) 'clientLabel': clientLabel,
+    });
+    return raw == null ? null : DebugAuthClaim.fromChannel(raw);
+  }
+
+  /// Deny a pending authorization request.
+  Future<void> denyAuthorization(String requestId, {String? reason}) async {
+    await _channel.invokeMethod<void>(kMethodAuthDeny, {
+      'requestId': requestId,
+      if (reason != null) 'reason': reason,
+    });
+  }
+
+  /// Revoke a single token or all tokens.
+  Future<void> revokeAuthorization({String? tokenId, bool all = false}) async {
+    if (tokenId == null && !all) {
+      throw ArgumentError(
+          'Either tokenId must be provided or all must be true.');
+    }
+    await _channel.invokeMethod<void>(kMethodAuthRevoke, {
+      if (tokenId != null) 'tokenId': tokenId,
+      if (all) 'all': true,
+    });
+  }
+
+  /// Read the current authorization status.
+  Future<DebugAuthStatus> authorizationStatus({String? requestId}) async {
+    final raw = await _channel.invokeMethod<dynamic>(kMethodAuthStatus, {
+      if (requestId != null) 'requestId': requestId,
+    });
+    return DebugAuthStatus.fromChannel(raw);
+  }
+
+  // ---------------------------------------------------------------------------
   // Reverse invoke handling (native → Dart)
   // ---------------------------------------------------------------------------
 
@@ -186,13 +325,29 @@ class NativeControlPlaneBridge {
         return _handleCapabilityInvoke(call);
       case kMethodCapabilityStatePull:
         return _handleCapabilityStatePull(call);
+      case kMethodAuthRequest:
+        return _handleAuthRequest(call);
       default:
         throw MissingPluginException(call.method);
     }
   }
 
+  Future<void> _handleAuthRequest(MethodCall call) async {
+    final handler = _authRequestHandler;
+    if (handler == null) {
+      return;
+    }
+    try {
+      await handler(DebugAuthRequest.fromChannel(call.arguments));
+    } catch (_) {
+      // Auth pending is intentionally independent from capability.invoke fill-in
+      // semantics; native owns pending expiry and status transitions.
+    }
+  }
+
   Future<void> _handleCapabilityInvoke(MethodCall call) async {
-    final args = (call.arguments as Map<Object?, Object?>).cast<String, Object?>();
+    final args =
+        (call.arguments as Map<Object?, Object?>).cast<String, Object?>();
     final reqId = args['reqId'] as int;
     final capId = args['capId'] as String;
     final routeKind = args['routeKind'] as String;
@@ -209,24 +364,31 @@ class NativeControlPlaneBridge {
         throw RouteFailure(404, 'not_registered',
             'Capability not registered on the Dart side: $capId');
       }
-      final ctx = RouteContext(pathParams: pathParams, body: body, request: null);
+      final ctx =
+          RouteContext(pathParams: pathParams, body: body, request: null);
       final Future<Map<String, Object?>> Function(RouteContext) handler;
       if (routeKind == kRouteKindResource) {
         handler = _handlerAt(cap.resources, routeIndex, capId).handler;
       } else if (routeKind == kRouteKindCommand) {
         handler = _handlerAt(cap.commands, routeIndex, capId).handler;
       } else {
-        throw RouteFailure(500, 'internal_error',
-            'Unknown routeKind: $routeKind');
+        throw RouteFailure(
+            500, 'internal_error', 'Unknown routeKind: $routeKind');
       }
       final result = await handler(ctx);
       await _fillInvokeResult(reqId, result: result);
     } on RouteFailure catch (error) {
-      await _fillInvokeResult(reqId,
-          error: (statusCode: error.statusCode, code: error.code, message: error.message));
+      await _fillInvokeResult(reqId, error: (
+        statusCode: error.statusCode,
+        code: error.code,
+        message: error.message
+      ));
     } catch (error) {
-      await _fillInvokeResult(reqId,
-          error: (statusCode: 500, code: 'internal_error', message: error.toString()));
+      await _fillInvokeResult(reqId, error: (
+        statusCode: 500,
+        code: 'internal_error',
+        message: error.toString()
+      ));
     }
   }
 
@@ -252,7 +414,8 @@ class NativeControlPlaneBridge {
   }
 
   Future<void> _handleCapabilityStatePull(MethodCall call) async {
-    final args = (call.arguments as Map<Object?, Object?>).cast<String, Object?>();
+    final args =
+        (call.arguments as Map<Object?, Object?>).cast<String, Object?>();
     final reqId = args['reqId'] as int;
     final capId = args['capId'] as String;
     final state = _caps[capId]?.state() ?? const <String, Object?>{};
@@ -311,4 +474,36 @@ class _RegisteredCapability {
   final List<Resource> resources;
   final List<Command> commands;
   final Map<String, Object?> Function() state;
+}
+
+Map<String, Object?> _requiredMap(Object? raw, String label) {
+  if (raw is! Map) {
+    throw ArgumentError('$label payload must be a map.');
+  }
+  return raw.cast<String, Object?>();
+}
+
+String _requiredString(Map<String, Object?> args, String key) {
+  final value = args[key];
+  if (value is String && value.isNotEmpty) {
+    return value;
+  }
+  throw ArgumentError('Missing required string field: $key.');
+}
+
+String? _optionalString(Object? value) => value is String ? value : null;
+
+int? _optionalInt(Object? value) => value is int ? value : null;
+
+DateTime? _optionalDateTime(Object? value) {
+  if (value is DateTime) {
+    return value;
+  }
+  if (value is int) {
+    return DateTime.fromMillisecondsSinceEpoch(value, isUtc: true);
+  }
+  if (value is String) {
+    return DateTime.tryParse(value);
+  }
+  return null;
 }

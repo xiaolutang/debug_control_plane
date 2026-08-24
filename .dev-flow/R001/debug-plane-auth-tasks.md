@@ -394,7 +394,7 @@ contextMdPaths:
 - risk_tags: [flutter, channel, alignment]
 - smoke_required: true
 - mode: direct
-- status: implemented
+- status: completed
 - sourceCapabilities: [FF001]
 - sourceSlices: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-app-slice.md]
 - sourceDesigns: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md]
@@ -422,7 +422,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：Flutter auth bridge 必须先有稳定 channel 协议。
 
-## R001-FF002：Flutter Dart API — host auth bridge `⬜ 待处理`
+## R001-FF002：Flutter Dart API — host auth bridge `✅ 已完成`
 
 - 文件：`flutter_debug_control_plane/lib/src/native_control_plane_bridge.dart`
 - 改动类型：修改
@@ -433,7 +433,7 @@ contextMdPaths:
 - risk_tags: [flutter, dart, auth]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [FF001, BF003]
 - sourceSlices: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-app-slice.md]
 - sourceDesigns: [.dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md]
@@ -442,6 +442,7 @@ contextMdPaths:
   - Dart API 暴露 auth pending handler 和 approve/deny/revoke/status 方法。
   - auth pending 池不复用 capability invoke 30s timeout 池。
   - 不提供默认 UI，因此 AcceptanceSpec 豁免保持成立。
+  - visual-verify 不适用：本任务不提供 UI，仅提供 Flutter Dart host auth bridge API。
 - test_tasks:
   - type: unit
     layer: unit
@@ -452,9 +453,9 @@ contextMdPaths:
 - decision_refs: [DEC-R001-002]
 - blocked_files: []
 - 具体改动点：
-  - R001-FF002.1 `⬜` 定义 `DebugAuthRequest`/`DebugAuthStatus` Dart DTO。
-  - R001-FF002.2 `⬜` 增加 `setAuthorizationHandler` 或等价 API。
-  - R001-FF002.3 `⬜` 增加 approve/deny/revoke/status MethodChannel 调用。
+  - R001-FF002.1 `✅` 定义 `DebugAuthRequest`/`DebugAuthStatus` Dart DTO。
+  - R001-FF002.2 `✅` 增加 `setAuthorizationHandler` 或等价 API。
+  - R001-FF002.3 `✅` 增加 approve/deny/revoke/status MethodChannel 调用。
 - 关键代码片段：
   ```dart
   typedef DebugAuthRequestHandler = Future<void> Function(DebugAuthRequest request);
