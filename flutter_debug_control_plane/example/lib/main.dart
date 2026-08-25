@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'src/acceptance_controller.dart';
+import 'src/acceptance_plane.dart' show AcceptanceRequestLogEntry;
+import 'src/auth_dialog.dart';
+
 void main() => runApp(const AcceptanceApp());
 
 const List<String> acceptanceStableIdentifiers = <String>[
@@ -17,8 +21,14 @@ const List<String> acceptanceStableIdentifiers = <String>[
   'acceptance.auth_dialog.deny_button',
 ];
 
+/// Placeholder endpoint shown before the plane is running.
+const String kAcceptanceEndpointPlaceholder = 'http://127.0.0.1:0';
+
 class AcceptanceApp extends StatelessWidget {
-  const AcceptanceApp({super.key});
+  const AcceptanceApp({super.key, this.controller});
+
+  /// Optional injected controller; when null the app creates and starts one.
+  final AcceptanceController? controller;
 
   @override
   Widget build(BuildContext context) {
@@ -32,42 +42,114 @@ class AcceptanceApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const AcceptanceHomePage(),
+      home: controller == null
+          ? const _AcceptanceHomeHost()
+          : _AcceptanceHomeHost(controller: controller),
     );
   }
 }
 
-class AcceptanceHomePage extends StatelessWidget {
-  const AcceptanceHomePage({super.key});
+/// Creates a controller, starts the plane and hosts the home page.
+class _AcceptanceHomeHost extends StatefulWidget {
+  const _AcceptanceHomeHost({this.controller});
 
-  static const String _endpoint = 'http://127.0.0.1:0';
-  static const String _authState = 'authorization_required';
-  static const int _capabilityCount = 4;
+  final AcceptanceController? controller;
+
+  @override
+  State<_AcceptanceHomeHost> createState() => _AcceptanceHomeHostState();
+}
+
+class _AcceptanceHomeHostState extends State<_AcceptanceHomeHost> {
+  AcceptanceController? _ownedController;
+  bool _started = false;
+  bool _dialogShowing = false;
+
+  AcceptanceController get _controller =>
+      widget.controller ?? _ownedController!;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.controller == null) {
+      _ownedController = AcceptanceController();
+    }
+    _controller.addListener(_onControllerChanged);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onControllerChanged);
+    _ownedController?.dispose();
+    super.dispose();
+  }
+
+  /// Shows the pending auth dialog whenever authState == pending
+  /// (interaction assertion: dialog visible ⇔ authStatus == "pending").
+  void _onControllerChanged() {
+    final pending = _controller.authState == AcceptanceAuthState.pending;
+    if (pending &&
+        !_dialogShowing &&
+        mounted &&
+        ModalRoute.of(context)?.isCurrent != false) {
+      _dialogShowing = true;
+      showAuthDialog(
+        context,
+        clientLabel: _controller.pendingClientLabel,
+        requestId: _controller.pendingRequestId,
+        onApprove: _controller.approvePending,
+        onDeny: _controller.denyPending,
+      ).whenComplete(() => _dialogShowing = false);
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_started) {
+      _started = true;
+      _controller.start();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    return AcceptanceHomePage(controller: _controller);
+  }
+}
 
+class AcceptanceHomePage extends StatelessWidget {
+  const AcceptanceHomePage({super.key, required this.controller});
+
+  final AcceptanceController controller;
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: colors.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text('Debug Plane Acceptance'),
         centerTitle: false,
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          children: const <Widget>[
-            _StatusSection(
-              endpoint: _endpoint,
-              authState: _authState,
-              capabilityCount: _capabilityCount,
-            ),
-            SizedBox(height: 12),
-            _RequestsSection(),
-            SizedBox(height: 12),
-            _ControlsSection(),
-          ],
+        child: ListenableBuilder(
+          listenable: controller,
+          builder: (context, _) {
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              children: <Widget>[
+                _StatusSection(
+                  endpoint: controller.endpoint?.toString() ??
+                      kAcceptanceEndpointPlaceholder,
+                  authState: controller.authState.name,
+                  capabilityCount: controller.capabilityCount,
+                ),
+                const SizedBox(height: 12),
+                _RequestsSection(controller: controller),
+                const SizedBox(height: 12),
+                _ControlsSection(controller: controller),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -99,10 +181,10 @@ class _StatusSection extends StatelessWidget {
               child: SelectableText(
                 endpoint,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontFeatures: const <FontFeature>[
-                    FontFeature.tabularFigures(),
-                  ],
-                ),
+                      fontFeatures: const <FontFeature>[
+                        FontFeature.tabularFigures(),
+                      ],
+                    ),
               ),
             ),
           ),
@@ -129,23 +211,28 @@ class _StatusSection extends StatelessWidget {
 }
 
 class _RequestsSection extends StatelessWidget {
-  const _RequestsSection();
+  const _RequestsSection({required this.controller});
+
+  final AcceptanceController controller;
 
   @override
   Widget build(BuildContext context) {
+    final entries = controller.requestLog;
     return _Section(
       title: 'Requests',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const <Widget>[
+        children: <Widget>[
           _StableAnchor(
             identifier: 'acceptance.requests.last_result_text',
-            child: Text('No requests yet'),
+            child: Text(controller.lastResultText),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           _StableAnchor(
             identifier: 'acceptance.requests.list',
-            child: _RequestListPlaceholder(),
+            child: entries.isEmpty
+                ? const _RequestListEmpty()
+                : _RequestList(entries: entries),
           ),
         ],
       ),
@@ -153,8 +240,59 @@ class _RequestsSection extends StatelessWidget {
   }
 }
 
+class _RequestListEmpty extends StatelessWidget {
+  const _RequestListEmpty();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 56),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: const Text('allowed / rejected / expired / denied'),
+    );
+  }
+}
+
+class _RequestList extends StatelessWidget {
+  const _RequestList({required this.entries});
+
+  final List<AcceptanceRequestLogEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          for (final entry in entries)
+            Text(
+              '${entry.method} ${entry.route} '
+              '${entry.statusCode} ${entry.authResult}',
+              key: ValueKey<int>(entry.sequence),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ControlsSection extends StatelessWidget {
-  const _ControlsSection();
+  const _ControlsSection({required this.controller});
+
+  final AcceptanceController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +300,7 @@ class _ControlsSection extends StatelessWidget {
       title: 'Controls',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: const <Widget>[
+        children: <Widget>[
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -171,70 +309,17 @@ class _ControlsSection extends StatelessWidget {
                 identifier: 'acceptance.controls.clear_token_button',
                 icon: Icons.delete_outline,
                 label: 'Clear token',
+                onPressed: controller.clearToken,
               ),
               _ControlButton(
                 identifier: 'acceptance.controls.expire_token_button',
                 icon: Icons.schedule,
                 label: 'Expire token',
+                onPressed: controller.expireToken,
               ),
             ],
           ),
-          SizedBox(height: 12),
-          _AuthDialogAnchor(),
         ],
-      ),
-    );
-  }
-}
-
-class _AuthDialogAnchor extends StatelessWidget {
-  const _AuthDialogAnchor();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return _StableAnchor(
-      identifier: 'acceptance.auth_dialog.root',
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(color: colors.outlineVariant),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const <Widget>[
-            _StableAnchor(
-              identifier: 'acceptance.auth_dialog.title',
-              child: Text(
-                'Authorization request',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-            SizedBox(height: 8),
-            _StableAnchor(
-              identifier: 'acceptance.auth_dialog.client_label',
-              child: Text('Waiting for client'),
-            ),
-            SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: <Widget>[
-                _DialogButton(
-                  identifier: 'acceptance.auth_dialog.approve_button',
-                  icon: Icons.check_circle_outline,
-                  label: 'Approve',
-                ),
-                _DialogButton(
-                  identifier: 'acceptance.auth_dialog.deny_button',
-                  icon: Icons.block,
-                  label: 'Deny',
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -305,66 +390,25 @@ class _MetricRow extends StatelessWidget {
   }
 }
 
-class _RequestListPlaceholder extends StatelessWidget {
-  const _RequestListPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 56),
-      decoration: BoxDecoration(
-        color: colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: const Text('allowed / rejected / expired / denied'),
-    );
-  }
-}
-
 class _ControlButton extends StatelessWidget {
   const _ControlButton({
     required this.identifier,
     required this.icon,
     required this.label,
+    required this.onPressed,
   });
 
   final String identifier;
   final IconData icon;
   final String label;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     return _StableAnchor(
       identifier: identifier,
       child: OutlinedButton.icon(
-        onPressed: () {},
-        icon: Icon(icon),
-        label: Text(label),
-      ),
-    );
-  }
-}
-
-class _DialogButton extends StatelessWidget {
-  const _DialogButton({
-    required this.identifier,
-    required this.icon,
-    required this.label,
-  });
-
-  final String identifier;
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return _StableAnchor(
-      identifier: identifier,
-      child: FilledButton.tonalIcon(
-        onPressed: () {},
+        onPressed: onPressed,
         icon: Icon(icon),
         label: Text(label),
       ),

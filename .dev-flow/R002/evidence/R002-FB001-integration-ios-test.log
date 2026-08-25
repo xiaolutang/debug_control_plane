@@ -1,0 +1,28 @@
+---
+type: test-log
+task_id: R002-FB001
+layer: integration
+domain: ios
+run_at: 2026-08-25T02:59:00Z
+status: pass
+exit_code: 0
+device: iPhone 16e simulator (iOS 18.5, 390x844@3)
+command: cd flutter_debug_control_plane/example && fvm flutter test integration_test/acceptance_integration_test.dart -d DAA2A14D-9BF2-4E3B-9EF2-A7E1136C631F
+passed: 6
+---
+
+# Test Log: R002-FB001 (integration.ios)
+
+00:00 +0: top viewport renders status section
+00:00 +1: page stable identifiers present on device
+00:00 +2: auth dialog anchors appear on pending request
+ff002-integration: wrote /tmp/ff002_integration/ff002_integration/ios_device_04_dialog.png
+00:04 +3: scroll reveals requests section
+00:04 +4: scroll reveals controls section
+00:05 +5: controls tappable without exceptions
+00:05 +6: All tests passed!
+
+## 备注
+
+- integration_test 夹具随 FB001 适配：auth_dialog 五标识从页面占位断言改为真实 pending 弹窗断言（controller.start + requestAuthorization 触发），approve 后弹窗关闭 findsNothing。
+- 弹窗截图 fb001_ios_pending_dialog.png 经 vision 分析：标题/clientLabel/requestId/Approve/Deny 双按钮齐全、无截断。

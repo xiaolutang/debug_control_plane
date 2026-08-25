@@ -1,0 +1,34 @@
+---
+type: test-log
+task_id: R002-FB001
+layer: integration
+domain: android
+run_at: 2026-08-25T02:55:00Z
+status: pass
+exit_code: 0
+device: 23116PN5BC real device (Android 16, 1080x2400, bc6763eb)
+command: cd flutter_debug_control_plane/example && fvm flutter test integration_test/acceptance_integration_test.dart -d bc6763eb
+override: .dev-flow/R002/test-overrides/R002-FF002/integration-android.sh
+passed: 6
+---
+
+# Test Log: R002-FB001 (integration.android)
+
+00:00 +0: loading integration_test/acceptance_integration_test.dart
+Running Gradle task 'assembleDebug'... (cached)
+Installing build/app/outputs/flutter-apk/app-debug.apk...
+00:00 +0: top viewport renders status section
+00:04 +1: page stable identifiers present on device (7 resident anchors)
+00:05 +2: auth dialog anchors appear on pending request (5 dialog anchors + pending state)
+00:08 +3: scroll reveals requests section
+00:10 +4: scroll reveals controls section
+00:12 +5: controls tappable without exceptions
+00:14 +6: (tearDownAll)
+00:15 +6: All tests passed!
+
+## 备注
+
+- 测试文件为 FB001 适配版：12 标识拆分为 7 个页面常驻标识 + 5 个弹窗标识（pending 时可见）；新增 'auth dialog anchors appear on pending request' 用例经真实 plane 的 `/auth/request`（clientLabel=integration-test）驱动 pending 弹窗，断言五标识 findsOneWidget、状态区 auth_state_text 显示 pending、approve 后弹窗关闭（root findsNothing）。
+- 弹窗截图采集：flutter test teardown 会卸载 app 导致 code_cache 清空，采用后台跑测试 + 轮询 `run-as <pkg> ls code_cache/ff002_integration/`，检测到 android_device_04_dialog.png 出现即 `run-as <pkg> cat` 拉取（112509 字节，1080x2400）。
+- 截图归档：`ai_artifacts/screenshots/fb001_android_pending_dialog.png`（vision 验证：标题/clientLabel/requestId/Approve+Deny 齐全无截断，背景 Status 区 endpoint=http://127.0.0.1:36661、auth=pending）。
+- 前置条件：设备已解锁 + `svc power stayon true`（FF002 阶段已确认锁屏会使 pumpAndSettle 永不 settle）。
