@@ -93,7 +93,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：先建立 Flutter App 宿主载体，后续任务在该载体上接入 Dart plane、auth UI 与真实 endpoint 验收。
 
-## R002-FB001：example auth UI — 授权弹窗与状态控制 `⬜ 待处理`
+## R002-FB001：example auth UI — 授权弹窗与状态控制 `✅ 已完成`
 
 - 文件：`flutter_debug_control_plane/example/lib/src/acceptance_controller.dart` + `flutter_debug_control_plane/example/lib/src/auth_dialog.dart`
 - 改动类型：新建
@@ -104,7 +104,7 @@ contextMdPaths:
 - risk_tags: [auth, ui, state]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: done
 - sourceCapabilities: [FB001, BF006]
 - sourceSlices: [S01-acceptance-app]
 - sourceDesigns: [.dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app-design.md]
@@ -125,9 +125,9 @@ contextMdPaths:
 - decision_refs: [DEC-R002-004]
 - blocked_files: []
 - 具体改动点：
-  - R002-FB001.1 `⬜` 定义 `AcceptanceAuthState`、`AcceptancePlaneStatus`、`AcceptanceRequestLogEntry`。
-  - R002-FB001.2 `⬜` 实现 approve/deny/clear/expire 操作与日志追加。
-  - R002-FB001.3 `⬜` 授权弹窗绑定 `clientLabel/requestId` 和 approve/deny callbacks。
+  - R002-FB001.1 `✅` 定义 `AcceptanceAuthState`、`AcceptancePlaneStatus`（复用 BF006 `AcceptanceRequestLogEntry`）。
+  - R002-FB001.2 `✅` 实现 approve/deny/clear/expire 操作与日志追加。
+  - R002-FB001.3 `✅` 授权弹窗绑定 `clientLabel/requestId` 和 approve/deny callbacks。
 - 关键代码片段：
   ```dart
   enum AcceptanceAuthStatus { idle, pending, approved, denied, expired, cleared }
