@@ -174,7 +174,11 @@ class AcceptanceController extends ChangeNotifier {
       };
 
   void _applyLog(AcceptanceRequestLogEntry entry) {
-    _requestLog.add(entry);
+    // Re-stamp the sequence with the controller-global counter: in native
+    // mode two log channels (native bridge + plane capability HTTP) each
+    // carry their own channel-scoped counter and both start at 0, which
+    // produced duplicate ValueKeys in the request list (R002-FF003 fix).
+    _requestLog.add(entry.copyWith(sequence: _requestLog.length));
     switch (entry.authResult) {
       case 'pending':
         if (entry.route == '/auth/request') {

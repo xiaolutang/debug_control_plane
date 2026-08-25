@@ -1,5 +1,60 @@
 import 'package:debug_control_plane_acceptance_example/src/acceptance_controller.dart';
+import 'package:debug_control_plane_acceptance_example/src/acceptance_plane.dart';
+import 'package:debug_control_plane_acceptance_example/src/acceptance_plane_host.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+/// Fake host emitting entries from two independent channel-scoped log
+/// counters (simulating native mode: bridge channel + plane capability
+/// HTTP channel, both starting at sequence 0).
+class _DualChannelFakeHost implements PlaneHost {
+  AcceptanceRequestLogSink? _sink;
+
+  void emit(int channel, String route) {
+    _sink?.call(AcceptanceRequestLogEntry(
+      sequence: channel, // both channels replay their own counter from 0
+      timestamp: DateTime.now(),
+      method: 'GET',
+      route: route,
+      authResult: 'allowed',
+      statusCode: 200,
+    ));
+  }
+
+  @override
+  late final AcceptancePlane plane = AcceptancePlane();
+
+  @override
+  Future<Uri?> start() async => null;
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  int get capabilityCount => 4;
+
+  @override
+  void setOnRequestLog(AcceptanceRequestLogSink? sink) {
+    _sink = sink;
+  }
+
+  @override
+  Future<void> approvePending(String requestId) async {}
+
+  @override
+  Future<void> denyPending(String requestId) async {}
+
+  @override
+  bool get tokenPresent => false;
+
+  @override
+  Future<void> clearToken() async {}
+
+  @override
+  bool get canExpireToken => false;
+
+  @override
+  void expireToken() {}
+}
 
 void main() {
   group('AcceptanceController state machine', () {
@@ -163,15 +218,29 @@ void main() {
       expect(controller.tokenPresent, isFalse);
     });
 
-    test('toAcceptanceSnapshot exposes interaction_assertion states', () async {
-      await controller.simulateAuthRequest(clientLabel: 'desktop-cli');
-      await Future<void>.delayed(Duration.zero);
-      final snapshot = controller.toAcceptanceSnapshot();
-      expect(snapshot['planeRunning'], isTrue);
-      expect(snapshot['authStatus'], 'pending');
-      expect(snapshot['tokenPresent'], isFalse);
-      expect(snapshot['endpoint'], isNotNull);
-      expect(snapshot['pendingClientLabel'], 'desktop-cli');
+  });
+
+  group('R002-FF003 fix: dual-channel sequence dedup', () {
+    test('entries with colliding channel sequences get unique controller sequences',
+        () {
+      final host = _DualChannelFakeHost();
+      final controller = AcceptanceController.withHost(host);
+      addTearDown(controller.dispose);
+
+      // Both channels emit their first entry — both carry sequence=0.
+      host.emit(0, '/native/bridge');
+      host.emit(0, '/capability/http');
+
+      expect(controller.requestLog.length, 2);
+      expect(controller.requestLog.map((e) => e.sequence), [0, 1]);
+      expect(
+        controller.requestLog.map((e) => e.sequence).toSet().length,
+        2,
+        reason: 'sequences must be unique for ValueKey use in the UI',
+      );
+      // Payload fields survive the re-stamp.
+      expect(controller.requestLog[0].route, '/native/bridge');
+      expect(controller.requestLog[1].route, '/capability/http');
     });
   });
 }

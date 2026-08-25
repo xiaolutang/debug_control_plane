@@ -473,6 +473,25 @@ class AcceptanceRequestLogEntry {
   final String? clientLabel;
   final String? message;
 
+  /// Returns a copy with [sequence] overridden.
+  ///
+  /// Used by the controller to re-stamp the controller-global sequence on
+  /// entries arriving from independent channel-scoped counters (native mode
+  /// has two active log channels; R002-FF003 real-device fix).
+  AcceptanceRequestLogEntry copyWith({int? sequence}) =>
+      AcceptanceRequestLogEntry(
+        sequence: sequence ?? this.sequence,
+        timestamp: timestamp,
+        method: method,
+        route: route,
+        authResult: authResult,
+        statusCode: statusCode,
+        capability: capability,
+        requestId: requestId,
+        clientLabel: clientLabel,
+        message: message,
+      );
+
   Map<String, Object?> toJson() => <String, Object?>{
         'sequence': sequence,
         'timestamp': timestamp.toUtc().toIso8601String(),
