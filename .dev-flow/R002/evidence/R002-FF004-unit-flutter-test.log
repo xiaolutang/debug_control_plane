@@ -1,0 +1,79 @@
+---
+type: test-log
+task_id: R002-FF004
+layer: unit
+domain: flutter
+run_at: 2026-08-25T05:40:10Z
+status: pass
+exit_code: 0
+deferred_reason: 
+---
+
+# Test Log: R002-FF004 (unit.flutter)
+
+## Config Source
+- file: .dev-flow/config.json
+- path: project_capabilities.tests.unit.flutter
+
+## Test Command Source
+- path: .dev-flow/R002/test-overrides/R002-FF004/unit-flutter.sh
+- command: bash .dev-flow/R002/test-overrides/R002-FF004/unit-flutter.sh
+
+## Setup
+- command: （跳过）
+- exit: N/A
+
+## Test
+- command: bash .dev-flow/R002/test-overrides/R002-FF004/unit-flutter.sh
+- exit: 0
+- passed: all
+- failed: 0
+
+## Teardown
+- command: （跳过）
+- exit: N/A
+
+## Raw Output (tail)
+```
+00:00 +0: loading /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart
+00:00 +0: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart: AcceptancePlane starts Dart ControlPlane and registers fixed capabilities
+00:00 +1: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart: AcceptancePlane starts Dart ControlPlane and registers fixed capabilities
+00:00 +2: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_controller_test.dart: AcceptanceController state machine 2. unauthorized request drives pending with requestId/clientLabel
+00:00 +3: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart: AcceptancePlane auth request/status/claim enables Bearer access
+00:00 +4: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart: AcceptancePlane auth request/status/claim enables Bearer access
+00:00 +5: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart: AcceptancePlane auth request/status/claim enables Bearer access
+00:00 +6: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart: AcceptancePlane auth request/status/claim enables Bearer access
+00:00 +7: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart: AcceptancePlane auth request/status/claim enables Bearer access
+00:00 +8: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart: AcceptancePlane auth request/status/claim enables Bearer access
+00:00 +9: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart: AcceptancePlane auth request/status/claim enables Bearer access
+00:00 +10: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart: AcceptancePlane auth request/status/claim enables Bearer access
+00:00 +11: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart: AcceptancePlane auth request/status/claim enables Bearer access
+00:00 +12: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart: AcceptancePlane auth request/status/claim enables Bearer access
+00:00 +13: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart: AcceptancePlane auth request/status/claim enables Bearer access
+00:00 +14: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_plane_test.dart: AcceptancePlane auth request/status/claim enables Bearer access
+00:00 +15: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton renders Status, Requests and Controls sections
+00:00 +16: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton renders Status, Requests and Controls sections
+00:00 +17: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton renders Status, Requests and Controls sections
+00:00 +18: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton renders Status, Requests and Controls sections
+00:00 +19: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton renders Status, Requests and Controls sections
+00:00 +20: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton renders Status, Requests and Controls sections
+00:00 +21: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton renders Status, Requests and Controls sections
+00:00 +22: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton renders Status, Requests and Controls sections
+00:00 +23: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton renders Status, Requests and Controls sections
+00:00 +24: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton renders Status, Requests and Controls sections
+00:00 +25: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton renders Status, Requests and Controls sections
+00:00 +26: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton renders Status, Requests and Controls sections
+00:00 +27: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/android_native_plane_test.dart: 10. 12 stable identifiers render in native mode widget tree
+00:00 +28: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/android_native_plane_test.dart: 10. 12 stable identifiers render in native mode widget tree
+00:00 +29: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton all 12 stable identifiers present once pending dialog shows
+00:00 +30: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton all 12 stable identifiers present once pending dialog shows
+00:00 +31: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton all 12 stable identifiers present once pending dialog shows
+00:00 +32: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton idle placeholder state text is internally consistent
+00:00 +33: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton pending shows auth dialog; approve closes and sets approved
+00:00 +34: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton deny closes dialog and sets denied
+00:00 +35: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: AcceptanceApp skeleton controls tap without exceptions and update state
+00:00 +36: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: R002-FF004 fixed capability widget coverage requests.list renders entries with route, statusCode and authResult
+00:00 +37: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: R002-FF004 fixed capability widget coverage last_result_text follows the latest authResult
+00:01 +38: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/acceptance_app_test.dart: R002-FF004 fixed capability widget coverage capability_count_text shows the fixed 4-capability registration
+00:01 +39: All tests passed!
+```

@@ -1,0 +1,37 @@
+---
+type: test-log
+task_id: R002-FF004
+layer: integration
+domain: ios
+run_at: 2026-08-25T05:40:00Z
+status: pass
+exit_code: 0
+device: iPhone 16e simulator (iOS 18.5, 390x844@3, DAA2A14D-9BF2-4E3B-9EF2-A7E1136C631F)
+command: cd flutter_debug_control_plane/example && fvm flutter test integration_test/auth_acceptance_test.dart -d DAA2A14D-9BF2-4E3B-9EF2-A7E1136C631F
+passed: 3
+---
+
+# Test Log: R002-FF004 (integration.ios — 手动验收入口)
+
+00:00 +0: setup guard: manual acceptance entry requires an iOS simulator target
+00:00 +1: full chain: launch → real /auth/request → pending dialog → approve → token → sensitive request → logged
+ff004-acceptance: wrote /tmp/ff004_acceptance/ff004_01_launch.png
+ff004-acceptance: wrote /tmp/ff004_acceptance/ff004_02_pending.png
+ff004-acceptance: wrote /tmp/ff004_acceptance/ff004_03_allowed.png
+ff004-acceptance: wrote /tmp/ff004_acceptance/ff004_04_expired.png
+ff004-acceptance: wrote /tmp/ff004_acceptance/ff004_05_cleared.png
+00:03 +2: deny path: real /auth/request → deny → denied + no claim
+ff004-acceptance: wrote /tmp/ff004_acceptance/ff004_06_denied.png
+00:04 +3: (tearDownAll)
+00:04 +3: All tests passed!
+
+## 备注
+
+- 首跑 full chain 曾因敏感请求未带 JSON content-type 返回 400（transport
+  层要求 JSON body），补 `contentType=json + '{}'` 后通过；非测试目标缺陷。
+- 截图已归档 ai_artifacts/screenshots/ff004_01..06*.png；pending 弹窗与
+  allowed 态截图目检：标题/clientLabel/Approve/Deny 齐全，token claimed、
+  secure-action 200 allowed、capability 5 registered、请求日志含
+  pending/claimed/allowed，与 AcceptanceSpec 断言一致。
+- 链路覆盖 AcceptanceSpec interaction_assertions #1-#7（真实 HTTP 打到
+  endpoint，非 simulate*捷径；#7 由 requestLog 断言验证）。

@@ -216,4 +216,94 @@ void main() {
       controller.dispose();
     });
   });
+
+  // ---------------------------------------------------------------------
+  // R002-FF004 gap coverage: fixed-capability widget-level rendering and
+  // controller state-machine edge cases not covered above.
+  // ---------------------------------------------------------------------
+  group('R002-FF004 fixed capability widget coverage', () {
+    testWidgets(
+        'requests.list renders entries with route, statusCode and authResult',
+        (WidgetTester tester) async {
+      final controller = AcceptanceController();
+      await tester.pumpWidget(AcceptanceApp(controller: controller));
+      await tester.pump();
+
+      await runReal(
+        tester,
+        () => controller.simulateAuthRequest(clientLabel: 'desktop-cli'),
+      );
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey<String>('acceptance.requests.list')),
+      );
+      await tester.pump();
+
+      // Pending auth request appended with route + statusCode + authResult.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('acceptance.requests.list')),
+          matching: find.textContaining('/auth/request'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('acceptance.requests.list')),
+          matching: find.textContaining('202 pending'),
+        ),
+        findsOneWidget,
+      );
+
+      await runReal(tester, controller.stop);
+      controller.dispose();
+    });
+
+    testWidgets('last_result_text follows the latest authResult',
+        (WidgetTester tester) async {
+      final controller = AcceptanceController();
+      await tester.pumpWidget(AcceptanceApp(controller: controller));
+      await tester.pump();
+
+      // The plane auto-start logs /plane/start (plane_started) first.
+      expect(find.text('plane_started'), findsOneWidget);
+
+      await runReal(
+        tester,
+        () => controller.simulateAuthRequest(clientLabel: 'desktop-cli'),
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(
+              const ValueKey<String>('acceptance.requests.last_result_text')),
+          matching: find.text('pending'),
+        ),
+        findsOneWidget,
+      );
+
+      await runReal(tester, controller.stop);
+      controller.dispose();
+    });
+
+    testWidgets(
+        'capability_count_text shows the fixed 4-capability registration',
+        (WidgetTester tester) async {
+      final controller = AcceptanceController();
+      await tester.pumpWidget(AcceptanceApp(controller: controller));
+      await tester.pump();
+
+      expect(controller.capabilityCount, 4);
+      expect(
+        find.descendant(
+          of: find.byKey(
+              const ValueKey<String>('acceptance.status.capability_count_text')),
+          matching: find.text('4 registered'),
+        ),
+        findsOneWidget,
+      );
+
+      await runReal(tester, controller.stop);
+      controller.dispose();
+    });
+  });
 }

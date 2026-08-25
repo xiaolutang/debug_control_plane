@@ -130,6 +130,39 @@ void main() {
       expect(controller.capabilityCount, 4);
     });
 
+    // R002-FF004 edge cases: no-op decisions and state re-entry.
+    test('approve/deny without a pending request are no-ops', () async {
+      expect(controller.pendingRequestId, isNull);
+      await controller.approvePending();
+      await controller.denyPending();
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.authState, AcceptanceAuthState.idle);
+      expect(controller.requestLog.where((e) => e.route == '/auth/status'),
+          isEmpty);
+    });
+
+    test('deny then a new request re-enters pending', () async {
+      await controller.simulateAuthRequest(clientLabel: 'first');
+      await Future<void>.delayed(Duration.zero);
+      await controller.denyPending();
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.authState, AcceptanceAuthState.denied);
+      expect(controller.pendingRequestId, isNull);
+
+      await controller.simulateAuthRequest(clientLabel: 'second');
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.authState, AcceptanceAuthState.pending);
+      expect(controller.pendingClientLabel, 'second');
+    });
+
+    test('clearToken without an issued token still reports cleared',
+        () async {
+      expect(controller.tokenPresent, isFalse);
+      await controller.clearToken();
+      expect(controller.authState, AcceptanceAuthState.cleared);
+      expect(controller.tokenPresent, isFalse);
+    });
+
     test('toAcceptanceSnapshot exposes interaction_assertion states', () async {
       await controller.simulateAuthRequest(clientLabel: 'desktop-cli');
       await Future<void>.delayed(Duration.zero);
