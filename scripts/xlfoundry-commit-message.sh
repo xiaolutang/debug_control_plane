@@ -1,0 +1,1 @@
+/Users/tangxiaolu/project/ai_rules/scripts/xlfoundry-commit-message.sh

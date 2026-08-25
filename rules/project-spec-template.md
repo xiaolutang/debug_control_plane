@@ -1,0 +1,1 @@
+/Users/tangxiaolu/project/ai_rules/rules/project-spec-template.md

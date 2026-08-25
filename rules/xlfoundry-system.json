@@ -1,0 +1,465 @@
+{
+  "system_version": "5.15.0",
+  "last_updated": "2026-08-02",
+  "skills": {
+    "xlfoundry-plan": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-init-cli-doc": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-plan-review": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-execute": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-code-review": {
+      "file": "SKILL.md",
+      "status": "deprecated",
+      "note": "R069 中合并入 xlfoundry-evaluate"
+    },
+    "xlfoundry-audit": {
+      "file": "SKILL.md",
+      "status": "deprecated",
+      "note": "R069 中合并入 xlfoundry-evaluate"
+    },
+    "xlfoundry-risk": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-implementer": {
+      "file": "SUBAGENT.md"
+    },
+    "xlfoundry-archive": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-brainstorm": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-analysis": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-analysis-review": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-design": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-design-review": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-evaluate": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-contract-negotiate": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-simplify": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-migrate": {
+      "file": "SKILL.md",
+      "status": "deprecated",
+      "note": "feature_list.json 已移除，迁移工具不再需要"
+    },
+    "xlfoundry-backlog": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-patch": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-code-map": {
+      "file": "SKILL.md"
+    },
+    "xlfoundry-visual-verify": {
+      "file": "SKILL.md"
+    }
+  },
+  "changelog": [
+    {
+      "version": "5.15.0",
+      "date": "2026-08-02",
+      "requirement_cycle": "R104",
+      "changes": [
+        "analysis/analysis-review/design/design-review/plan/plan-review/execute/contract-negotiate/simplify/archive 10 个 SKILL 按 R077 双预算收敛（路由主干 + 一层 references + shared contract），下沉 manifest/selector/task-package/review-evidence 详规",
+        "loading-protocol 引入 manifest-first selector（formal 1.8 / R104 bootstrap / legacy 1.7 / malformed 四分支），manifest 为状态/发现 SSOT，component frontmatter 仅兼容镜像",
+        "TaskPackage 升 1.8（1.7 严格超集）：新增 analysisSourceMdPaths/designMdPaths/testMdPaths/contextMdPaths + inherited analysisMdPaths + manifest identity 三件套 + bootstrapLegacy",
+        "review subagent 只审不写，调用方验证后持久化 release evidence；analysis/reviews/ 由结果 handler 独占",
+        "DEC-R104-001..011 登记：workflow/data/runtime/boundary/quality/traceability/structure/compatibility/bootstrap/package/verification 11 维决策",
+        "从 R103 archived 终版 5.14.0 计算 next minor，系统版本升级到 5.15.0，不引入 per-skill version"
+      ]
+    },
+    {
+      "version": "5.14.0",
+      "date": "2026-07-29",
+      "requirement_cycle": "R103",
+      "changes": [
+        "新增 xlfoundry-code-map skill 注册，提供项目级代码地图 init/update/check 能力",
+        "从 R102 archived 终版 5.13.0 计算 next minor，系统版本升级到 5.14.0",
+        "code-map 能力保持 system_version 统一版本管理，不引入 per-skill version 或额外 metadata"
+      ]
+    },
+    {
+      "version": "5.13.0",
+      "date": "2026-07-24",
+      "requirement_cycle": "R102",
+      "changes": [
+        "execute 七阶段从 preflight 到 commit_gate 采集 phase 状态与耗时，并记录 skipped、failed、retry 和 superseded 语义",
+        "新增 task 与 RC timing 诊断，按 P0-P5 输出阶段明细、聚合、慢阶段、缺失任务和 warning",
+        "stage-timing ledger 成为 timing 唯一事实源，由共享引擎统一锁、原子替换、幂等重放与报告读取",
+        "timing CLI 统一校验 canonical project root containment，tasks、checkpoint 与 ledger 事实文件必须为非 symlink",
+        "bootstrap 先校验 timing runtime 且不自计时，runtime 完整后由正式 preflight 开始阶段采集"
+      ]
+    },
+    {
+      "version": "5.12.0",
+      "date": "2026-07-14",
+      "requirement_cycle": "R094",
+      "changes": [
+        "execute 默认模型改为 user-invoked execute：用户显式调用当前轮，xlfoundry 不探测或管理宿主 goal",
+        "hook/runner 从默认执行与默认 runtime 安装链路退场，Stop hook、xlfoundry-run.sh 与 hook state 文件仅保留 legacy optional 迁移语义",
+        "rc_queue 改为 suggest-only：只报告 ready/planned 候选 RC，不自动切换 active_rc，不在当前轮自动执行候选 RC",
+        "checkpoint、run-tests、evaluate、commit gate 与 SubagentExecutionEvidence 继续作为显式质量门和项目事实源"
+      ]
+    },
+    {
+      "version": "5.12.0",
+      "date": "2026-07-11",
+      "requirement_cycle": "R091",
+      "changes": [
+        "将 xlfoundry-analysis-review / xlfoundry-design-review / xlfoundry-plan-review 纳入 review-role Agent wrapper 注册闭环",
+        "新增 scripts/xlfoundry-review-preflight.sh，用于 review 启动前检查 review-role wrapper，且不并入 execute hard gate",
+        "install-agents dry-run 发现清单从 5 个 execution-role wrappers 扩展为 8 个 wrappers",
+        "review skill 文档明确 Skill loaded 不等于 subagent/Agent 启动；无隔离能力时必须标记 isolation: degraded_main_session 与 degraded_review: true",
+        "architecture.md 与 feature-map.md 同步 review-role / execution-role 分组和 Codex 兼容降级语义"
+      ]
+    },
+    {
+      "version": "5.11.0",
+      "date": "2026-07-10",
+      "requirement_cycle": "R090",
+      "changes": [
+        "将 xlfoundry-contract-negotiate 正式纳入 execution-role agent wrapper 注册闭环",
+        "preflight 与 headless --agents 注入扩展为 contract-negotiate/implementer/simplify/evaluate/visual-verify 五角色",
+        "Stop hook 路 1 auto state 引入 scope_kind: owner_process 与 owner_id 归属门，避免同目录相邻终端互相污染",
+        "旧 scope_kind: session_id auto state 视为 legacy/unsafe passthrough，不再把 Claude transcript session_id 当终端身份",
+        "execute 文档、architecture.md、feature-map.md 同步 Mode 1 协商链路与 owner-scoped Stop hook 语义"
+      ]
+    },
+    {
+      "version": "5.8.0",
+      "date": "2026-06-26",
+      "requirement_cycle": "R084",
+      "changes": [
+        "新增 xlfoundry-visual-verify skill（运行时视觉验收执行者，三层识别：视觉/结构/状态）",
+        "visual-verify 由 execute 编排，仅 domain=ui 任务触发，与 evaluate 并列（视觉验收 vs 逻辑验收）",
+        "visual-verify 产出 ai_artifacts/ + reports/ 目录文件",
+        "architecture.md skill 数 19→20，管线拓扑新增 visual-verify 节点",
+        "feature-map.md 能力关系图新增「运行时视觉验收」节点",
+        "loading-protocol 新增 visual-verify 文件所有权 + Layer 加载声明",
+        "skill-acceptance-checklist 新增 visual-verify 检查项"
+      ]
+    },
+    {
+      "version": "5.7.0",
+      "date": "2026-06-16",
+      "requirement_cycle": "R082",
+      "changes": [
+        "新增 xlfoundry-analysis-review skill（A1-A7 硬性 + B1-B4 评分双层框架）",
+        "design SKILL.md 扩展为 8 节模板（方案总览+类图 graph TD+模块依赖图）",
+        "design_test 文档类型 6 节模板（新增第 4 节集成测试方案）",
+        "design-review D3 新增测试覆盖度+集成测试方案审查；D9 三文档→多文档交叉一致性",
+        "design-review subagent 输入扩展测试设计文档（review-backend/review-frontend）",
+        "plan 从 design_test 第 4 节提取 integration 任务（domain=integration）",
+        "execute 执行顺序新增 integration 定位；analysisMdPaths 新增 integration 筛选规则",
+        "三个 review skill 产物模板前加 blockquote 声明不落盘",
+        "architecture.md 禁止模式新增 review skill 不得写入磁盘",
+        "loading-protocol 多文档发现扩展（{topic}-test.md）+ config.json design_diagram_colors 四色方案",
+        "plan-review A6 补 -test.md 文档发现；A8 三文档→多文档一致性"
+      ]
+    },
+    {
+      "version": "5.6.1",
+      "date": "2026-05-23",
+      "requirement_cycle": "R080",
+      "changes": [
+        "archive Step 1 保存 archiving_rc 变量，后续步骤全部使用 archiving_rc 避免 patch 恢复后误操作",
+        "archive 产物模板 config.json 条件描述：普通 RC→active_rc=null，补丁 RC→active_rc=suspended_rc",
+        "plan 编号修正（17→19）"
+      ]
+    },
+    {
+      "version": "5.6.0",
+      "date": "2026-05-23",
+      "requirement_cycle": "R080",
+      "changes": [
+        "patch suspended_for_patch 重命名为 suspended_rc，值统一为原 RC ID",
+        "archive 补丁恢复：归档补丁 RC 时若有 suspended_rc 则恢复 active_rc",
+        "loading-protocol 自动衔接规则增加补丁恢复分支",
+        "plan 模板增加 priority（1-5）、status（pending）字段，增加执行态字段说明（execute 维护）",
+        "plan-review A5 改为检查 design.md 中的依赖说明（不再要求 plan 模板有 dependencies 字段）",
+        "risk owner 从 xlfoundry-audit 改为 xlfoundry-evaluate",
+        "系统版本 bump 5.5.0 → 5.6.0"
+      ]
+    },
+    {
+      "version": "5.5.0",
+      "date": "2026-05-23",
+      "requirement_cycle": "R080",
+      "changes": [
+        "plan 产物位置统一到 RC 根目录（R{active_rc}/*-tasks.md），analysis 目录只放 analysis/design 文档",
+        "plan-review A1/A2 从 stories/success_picture 改为检查 acceptance_criteria/test_tasks",
+        "execute/implementer 全部 success_criteria 残留替换为 acceptance_criteria",
+        "删除废弃的 xlfoundry-audit.md slash command 文件",
+        "patch 挂起语义修复：改用 suspended_for_patch 标记，不直接设 null",
+        "contract-negotiate provider 优先级同步为 tasks.md workflow > config.json default_workflow",
+        "skill-acceptance-checklist 旧流程 gate 改为 Mode 1/Mode 2 双模式，stories/success_picture 引用改为 acceptance_criteria/test_tasks",
+        "系统版本 bump 5.4.0 → 5.5.0"
+      ]
+    },
+    {
+      "version": "5.4.0",
+      "date": "2026-05-23",
+      "requirement_cycle": "R080",
+      "changes": [
+        "plan 任务模板增加结构化字段（task_id/domain/task_layer/depends_on/risk_tags/acceptance_criteria/test_tasks 等）+ 文件级 frontmatter",
+        "loading-protocol 新增字段命名规范节：磁盘文件 snake_case，任务包 JSON camelCase，execute 负责转换",
+        "analysis 产物模板增加 frontmatter（type/status/requirement_cycle/topic/date）",
+        "design 产物模板增加 frontmatter 字段（type/status/requirement_cycle/source_analysis/architecture_md_updates）",
+        "evaluate Mode 2 success_criteria 统一为 acceptance_criteria，Step 2 修复穷尽 vs 终止冲突",
+        "execute 修复 workflow.evaluate_provider → default_workflow.evaluate_provider，任务包 JSON 增加字段来源注释",
+        "patch 前置条件修复：支持 active_rc=null 和 active_rc=原RC 两种场景",
+        "archive Step 6 增加验证失败处理路径，Step 7 衔接说明明确 execute 驱动模式",
+        "loading-protocol 自动衔接规则改为 execute 驱动（archive 只输出建议），patch 流程补充前置条件检查",
+        "run-xlfoundry-skill.mjs 删除废弃的 code-review 和 audit 命令入口",
+        "系统版本 bump 5.3.0 → 5.4.0"
+      ]
+    },
+    {
+      "version": "5.3.0",
+      "date": "2026-05-23",
+      "requirement_cycle": "R080",
+      "changes": [
+        "全部 11 个 skill 按 4 点框架重写（你是谁 → 核心方法论 → 原则 → 产物模板）",
+        "新增两种工作模式：Mode 1 协商验收（contract-negotiate→implementer→evaluate）、Mode 2 直接验收（implementer→evaluate）",
+        "execute/implementer/evaluate 联动支持两种模式，commit gate 按模式区分",
+        "新增前后端分离执行顺序：先后端（BF/BB）再前端（FF/FB），同端内按依赖层级排序",
+        "architecture.md 所有权明确：implementer 为唯一更新者，analysis 识别变更点，design 标注 architecture_md_updates",
+        "archive 新增 Step 6 architecture.md 一致性验证",
+        "analysis 新增原则：分析现有架构约束，识别需变更的点",
+        "design 新增原则：在架构约束内设计，标注 architecture_md_updates",
+        "4 个 references/ 目录内联删除（contract-negotiate 3 文件、plan-review 3 文件、risk 2 文件、simplify 1 文件）",
+        "系统版本 bump 5.2.0 → 5.3.0"
+      ]
+    },
+    {
+      "version": "5.2.1",
+      "date": "2026-05-22",
+      "requirement_cycle": "R079",
+      "changes": [
+        "taskPackageVersion 1.5 → 1.6：analysisMdPath（单路径）→ analysisMdPaths（数组），支持多文档加载",
+        "analysis-design 产出从单文档变为 1-3 份文档（需求分析 + {topic}-backend.md + {topic}-frontend.md）",
+        "implementer 加载边界更新：通过 analysisMdPaths 读取指定文件，按命名模式发现关联文档",
+        "feature-list-schema analysis_refs 新增多文档语义：1 ref = 1 topic = 自动关联同主题文档组",
+        "architecture.md 新增关键决策：analysis-design 产出拆分，taskPackageVersion 升级"
+      ]
+    },
+    {
+      "version": "5.2.0",
+      "date": "2026-05-21",
+      "requirement_cycle": "R076",
+      "changes": [
+        "新增 xlfoundry-design-review skill（8 维度方案设计审查）",
+        "analysis-template.md Decision Items 新增 Blast Radius 列 + architecture_md_updates frontmatter 字段",
+        "analysis-design Step 5 从'确认后更新 architecture.md'改为'标注待更新内容'",
+        "architecture.md 更新职责从 analysis-design 转移到 implementer（代码和架构同步提交）",
+        "task-package 新增 architectureMdPath + analysisMdPath，废弃 sourceAnalysisFiles",
+        "execute Step 5 architecture.md 从全局禁止改为条件允许",
+        "implementer 新增前置 architecture.md 主动更新步骤（基于 architecture_md_updates 标注）",
+        "evaluate architecture_md_consistency gate 改为检查更新是否在标注范围内",
+        "simplify 新增 Agent 6 设计一致性收敛（Agent 数量 5→6）",
+        "config.json 新增 feature_map_colors 字段，archive 功能图按任务类型着色",
+        "移除 log-service MCP 依赖（plan-review/risk/evaluate 删除 record_review 调用）",
+        "系统版本 bump 5.1.0 → 5.2.0"
+      ]
+    },
+    {
+      "version": "5.1.0",
+      "date": "2026-05-21",
+      "requirement_cycle": "R075",
+      "changes": [
+        "全局 feature_list.json 重命名为 config.json（v3.0 schema）",
+        "新增 rc_queue 字段支持多 RC 自动衔接",
+        "brainstorm/analysis-design active_rc=null 时预创建 R{NNN}/（消除临时区）",
+        "新增 feature-map.md 独立全局功能图（Mermaid 模块依赖 + 能力关系）",
+        "execute 扩展为双层循环（外层 RC 级 + 内层任务级）",
+        "archive 新增 feature-map.md 维护 + RC 队列衔接检查",
+        "migrate 新增 v1.5→v3.0 迁移步骤（4 Phase）",
+        "系统版本 bump 5.0.0 → 5.1.0"
+      ]
+    },
+    {
+      "version": "5.0.0",
+      "date": "2026-05-21",
+      "requirement_cycle": "R074",
+      "changes": [
+        "全局 feature_list.json 简化为 v3.0 指针（version/active_rc/default_workflow）",
+        "RC 级 feature_list.json 自包含 workflow/features/capability/summary",
+        "归档 4 步简化为 2 步（写 summary.md + 清 active_rc 指针）",
+        "summary.md 合并 project-map.md，成为唯一全局历史文件",
+        "删除双读策略和顶层 evidence/contracts 目录",
+        "loading-protocol 重写为两步加载（读指针 → 读 RC 级文件）",
+        "migrate 新增 v2.0→v3.0 迁移步骤（15 步）",
+        "11 个 skill + implementer SUBAGENT.md 加载路径统一适配 v3.0"
+      ]
+    },
+    {
+      "version": "4.2.0",
+      "date": "2026-05-21",
+      "requirement_cycle": "R073",
+      "changes": [
+        "废弃 api_contracts.md：从 14 个 skill 文件中移除引用，跨域接口统一收归 Sprint Contract",
+        "目录重构：引入 R{NNN}/ 需求包级目录（analysis/evidence/contracts/summary.md）",
+        "归档简化：archive 从 9 步简化为 4 步，零文件迁移",
+        "新增 project-map.md：归档时自动维护项目级功能全景图（模块清单+能力清单+Mermaid+索引）",
+        "feature_list.json schema v2.0：active_requirement_cycles 数组、features[].rc_id、双读策略",
+        "并行 RC 支持：analysis-design 读取其他活跃 RC 的功能网络和能力模型",
+        "execute 全局验证：Step 6.5 全部任务完成后逐项验证 capability_coverage",
+        "补全 architecture.md：模块清单+管线拓扑+文件所有权+目录结构+架构约束（94 行）"
+      ]
+    },
+    {
+      "version": "4.1.1",
+      "date": "2026-05-21",
+      "requirement_cycle": "R072",
+      "changes": [
+        "统一安装脚本：install-claude-commands.mjs → install-skills.mjs，支持 Claude/Codex/Gemini 三平台 + 自动发现 + dry-run",
+        "注册 xlfoundry-migrate 到系统注册表（文件系统有 SKILL.md 但注册表缺失）"
+      ]
+    },
+    {
+      "version": "4.1.0",
+      "date": "2026-05-21",
+      "requirement_cycle": "R072",
+      "changes": [
+        "拆分 xlfoundry-brainstorm 为 brainstorm（轻量探索）+ analysis-design（结构化分析+方案设计）",
+        "plan 瘦身：移除需求澄清、决策扫描、架构提取、产物生成，只保留任务编排",
+        "新增根级 capability_coverage/open_issues/out_of_scope_notes schema",
+        "新增任务级 analysis_refs/decision_refs/capability_refs/journey_acceptance 字段",
+        "新增 BF/BB/FF/FB 前缀体系，替代旧 B/F/S",
+        "extract record-review-protocol 共享协议，消除 plan-review/risk/evaluate 重复",
+        "extract analysis-design 文档模板到 references/analysis-template.md",
+        "注册 xlfoundry-simplify 到系统注册表"
+      ]
+    },
+    {
+      "version": "4.0.0",
+      "date": "2026-05-17",
+      "requirement_cycle": "R070",
+      "changes": [
+        "破坏性变更：移除 per-skill version 字段，统一使用 system_version",
+        "保留 status/note 字段：标记 deprecated skill（code-review、audit）",
+        "从 v4.0.0 起标志着统一版本管理范式，与历史 per-skill 版本切割"
+      ]
+    },
+    {
+      "version": "2.6.0",
+      "date": "2026-05-16",
+      "requirement_cycle": "B069",
+      "changes": [
+        "新增 xlfoundry-evaluate 1.0.0：验收评估 skill，支持任务级验收标准检查与结构化报告",
+        "新增 xlfoundry-contract-negotiate 1.0.0：契约协商 skill，支持实现者与评估者的验收标准协商",
+        "plan 3.2.0 → 3.3.0：集成 contract-negotiate 协商环节",
+        "implementer 3.1.1 → 3.2.0：集成 evaluate 验收预检"
+      ]
+    },
+    {
+      "version": "2.5.0",
+      "date": "2026-04-27",
+      "requirement_cycle": "R009",
+      "changes": [
+        "新增 xlfoundry-brainstorm 1.0.0：结构化头脑风暴 skill，支持三种交互模式、决策记录（YAML frontmatter）、requirement_cycle 自动绑定、收敛机制",
+        "archive 1.0.0 → 1.1.0：新增 Step 5.5 归档决策记录（按 requirement_cycle 匹配，含 decided 和 superseded）",
+        "plan 3.1.0 → 3.2.0：新增 Step 2.0 未关联决策扫描（关联/拒绝/部分关联/架构影响门控）、Step 6 决策一致性检查",
+        "plan-review 2.1.0 → 2.2.0：新增 decisions/ 输入来源（仅 decided + 当前 requirement_cycle）、决策冲突检测（dimension=seam, severity=high → conditional_pass）",
+        "loading-protocol.md 更新：新增 brainstorm/archive/plan-review 的 decisions/ 加载说明",
+        "archive-model.md 更新：新增 decisions/ 子目录和查阅顺序",
+        "architecture.md 更新：新增 R009 brainstorm 拓扑和决策记录生命周期表"
+      ]
+    },
+    {
+      "version": "2.5.0",
+      "date": "2026-04-26",
+      "requirement_cycle": "R008",
+      "changes": [
+        "execute 3.1.0 → 3.2.0：结构化摘要新增 provider 字段、语义一致性规则新增 provider 校验、evidence 写入新增 provider",
+        "implementer 3.1.0 → 3.1.1：证据最小集新增 code_review_provider/audit_provider",
+        "plan-review/code-review/audit/risk 2.0.0 → 2.1.0：record_review provider 从 workflow 配置值改为调用方传入的 actual_provider",
+        "provider-routing.md 新增回填规则：caller 传入 provider，subagent 记录",
+        "quality-gates.md Commit Gate 新增 provider 一致性校验",
+        "stop-hook.sh 新增 provider 一致性校验安全网（旧 evidence warning 兼容）",
+        "alignment_checklist.md provider 行统一为四个审核者同口径"
+      ]
+    },
+    {
+      "version": "2.4.0",
+      "date": "2026-04-25",
+      "requirement_cycle": "R007",
+      "changes": [
+        "implementer 3.0.0 → 3.1.0：TDD 红绿循环强化、SUBAGENT.md 瘦身 252→144行、references 拆分（runtime-verification/smoke-guide）",
+        "execute 3.0.0 → 3.1.0：任务级 subagent 隔离、SKILL.md 瘦身 583→189行、references 拆分（provider-routing/audit-backoff/external-result-protocol）",
+        "新增 Stop hook 安全网：stop-hook.sh + setup-auto.sh + quality-gates 防跳过规则",
+        "架构新增 R007 任务级隔离拓扑：dispatcher/implementer/evidence/hook/commit 五角色责任边界"
+      ]
+    },
+    {
+      "version": "2.3.0",
+      "date": "2026-04-24",
+      "requirement_cycle": "R006",
+      "changes": [
+        "plan-review 1.3.0 → 2.0.0：改为 subagent 模式，入口路由上提到调用方",
+        "code-review 1.3.0 → 2.0.0：改为 subagent 模式，入口路由上提到调用方",
+        "audit 1.8.0 → 2.0.0：改为 subagent 模式，入口路由上提到调用方",
+        "risk 1.4.0 → 2.0.0：改为 subagent 模式，入口路由上提到调用方"
+      ]
+    },
+    {
+      "version": "2.2.0",
+      "date": "2026-04-23",
+      "requirement_cycle": "R005",
+      "changes": [
+        "record_review 参数增强：新增 skill_version、input_context 字段",
+        "plan-review 1.2.0 → 1.3.0：新增 skill_version + input_context(null) + metadata 必填说明",
+        "code-review 1.2.0 → 1.3.0：新增 skill_version + input_context(task_description, acceptance_criteria) + metadata 必填说明",
+        "audit 1.7.0 → 1.8.0：新增 skill_version + input_context(task_description, acceptance_criteria) + metadata 必填说明",
+        "risk 1.3.0 → 1.4.0：新增 skill_version + input_context(task_description, acceptance_criteria) + metadata 必填说明，去掉 overall_assessment（与 result 冗余）"
+      ]
+    },
+    {
+      "version": "2.0.0",
+      "date": "2026-04-22",
+      "requirement_cycle": "R003",
+      "changes": [
+        "R003 版本初始化：系统版本从 1.x 升级到 2.0.0",
+        "新增 review analytics 能力：reviews API + MCP 工具 + 4 个 skill 集成 record_review",
+        "plan-review 1.0.0 → 1.1.0：集成 record_review（Step 7）",
+        "code-review 1.0.0 → 1.1.0：集成 record_review（Step 6）",
+        "audit 1.5.0 → 1.6.0：集成 record_review（Step 8）",
+        "risk 1.1.0 → 1.2.0：集成 record_review（Step 8）"
+      ]
+    },
+    {
+      "version": "2.1.0",
+      "date": "2026-04-22",
+      "requirement_cycle": "R003",
+      "changes": [
+        "reviews 表 Schema 升级 v2：新增 requirement_title、task_name 列",
+        "新增 optimizations 表 + API + MCP 工具（record_optimization / query_optimizations / query_unconsumed_reviews）",
+        "plan-review 1.1.0 → 1.2.0：新增 requirement_title + plan_task_count",
+        "code-review 1.1.0 → 1.2.0：新增 requirement_title + task_name + metadata enrich",
+        "audit 1.6.0 → 1.7.0：新增 requirement_title + task_name + metadata enrich",
+        "risk 1.2.0 → 1.3.0：新增 requirement_title + task_name + metadata enrich"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,174 @@
+{
+  "version": "3.0",
+  "project": "debug_control_plane",
+  "active_rc": "R002",
+  "default_workflow": null,
+  "project_capabilities": {
+    "schema_version": 2,
+    "stack": {
+      "backend": "python",
+      "frontend": "flutter",
+      "flutter": "stable",
+      "android": "native",
+      "ios": "none"
+    },
+    "tests": {
+      "unit": {
+        "backend": {
+          "command": "cd python && ${PYTHON_BIN:-python3} -m pytest tests -q --no-header",
+          "setup": "python -m pip install -e './python[test]'",
+          "teardown": ""
+        },
+        "frontend": null,
+        "flutter": {
+          "command": "cd flutter_debug_control_plane && fvm flutter test",
+          "setup": "",
+          "teardown": ""
+        },
+        "android": {
+          "command": "./gradlew build",
+          "setup": "",
+          "teardown": ""
+        },
+        "ios": null
+      },
+      "integration": {
+        "backend": {
+          "command": "cd python && ${PYTHON_BIN:-python3} -m pytest tests -q --no-header",
+          "setup": "python -m pip install -e './python[test]'",
+          "teardown": ""
+        },
+        "frontend": null,
+        "cross_stack": {
+          "command": "bash ci/ci-check-all.sh",
+          "setup": "",
+          "teardown": "",
+          "requires": []
+        },
+        "flutter": null,
+        "android": null,
+        "ios": null
+      },
+      "e2e": {
+        "full": null
+      }
+    },
+    "build": {
+      "backend": "python -m build",
+      "frontend": "",
+      "flutter": "cd flutter_debug_control_plane && fvm flutter test",
+      "android": "./gradlew build",
+      "ios": ""
+    },
+    "lint": {
+      "backend": "cd python && ${PYTHON_BIN:-python3} -m ruff check .",
+      "frontend": "",
+      "flutter": "cd dart && fvm flutter analyze --no-fatal-infos",
+      "android": "bash ci/zero-business-dep-check.sh",
+      "ios": ""
+    },
+    "capabilities": {
+      "has_db": false,
+      "needs_docker": false,
+      "device_required": [
+        "android"
+      ],
+      "ci_only_layers": null,
+      "needs_manual_init": false
+    }
+  },
+  "archived_requirement_cycles": [],
+  "rc_queue": [
+    {
+      "id": "R001",
+      "requirement_cycle": "R001",
+      "status": "completed",
+      "name": "debug-plane-auth",
+      "topic": "debug-plane-auth",
+      "analysis_topic": "debug-plane-auth",
+      "version": "1.0",
+      "workflow": {
+        "evaluate_provider": "direct_subagent",
+        "mode": "auto"
+      },
+      "source": {
+        "tasks": ".dev-flow/R001/debug-plane-auth-tasks.md",
+        "analysis_manifest": ".dev-flow/R001/analysis/manifest.json",
+        "design": ".dev-flow/R001/analysis/2026-08-20--debug-plane-auth-design.md",
+        "test": ".dev-flow/R001/analysis/2026-08-20--debug-plane-auth-test.md"
+      },
+      "review_evidence": {
+        "type": "plan_review",
+        "verdict": "PASS",
+        "report_path": ".dev-flow/R001/analysis/reviews/2026-08-20T00-00-00-plan-PASS.md",
+        "manifest_revision": 1,
+        "manifest_digest": "8547495e42aab361b9007a5ab0e4ea3e88c02eddf08a1324402d3f2e249adc4b",
+        "execution_evidence": {
+          "isolation": "independent_context",
+          "provider": "direct_subagent",
+          "subagent_role": "xlfoundry-plan-review",
+          "execution_id": "xlf-subagent:R001:plan-review:02",
+          "degraded_review": false,
+          "degraded_reason": null
+        }
+      }
+    },
+    {
+      "id": "R002",
+      "requirement_cycle": "R002",
+      "status": "active",
+      "name": "flutter-auth-acceptance-app",
+      "topic": "flutter-auth-acceptance-app",
+      "analysis_topic": "flutter-auth-acceptance-app",
+      "version": "1.0",
+      "depends_on": [
+        "R001"
+      ],
+      "workflow": {
+        "evaluate_provider": "direct_subagent",
+        "mode": "auto"
+      },
+      "source": {
+        "tasks": ".dev-flow/R002/flutter-auth-acceptance-app-tasks.md",
+        "analysis_manifest": ".dev-flow/R002/analysis/manifest.json",
+        "design": ".dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app-design.md",
+        "test": ".dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app-test.md"
+      },
+      "review_evidence": {
+        "type": "plan_review",
+        "verdict": "PASS",
+        "report_path": ".dev-flow/R002/analysis/reviews/2026-08-24T18-40-00-plan-PASS.md",
+        "manifest_revision": 3,
+        "manifest_digest": "030e1b3d7d7215c51ba98a4754d07817f328a84db3075492e12b364f811dc15b",
+        "execution_evidence": {
+          "isolation": "independent_context",
+          "provider": "direct_subagent",
+          "subagent_role": "xlfoundry-plan-review",
+          "execution_id": "xlf-subagent:R002:plan-review:02",
+          "degraded_review": false,
+          "degraded_reason": null
+        }
+      }
+    }
+  ],
+  "release_management": {
+    "rc_naming": {
+      "prefix": "R",
+      "digits": 3
+    },
+    "project_version": "0.3.0",
+    "version_bump": "minor",
+    "releases": {
+      "0.3.0": {
+        "status": "in-progress",
+        "rc_ids": [
+          "R002"
+        ],
+        "completed_rcs": [
+          "R002"
+        ],
+        "released_at": null
+      }
+    }
+  }
+}

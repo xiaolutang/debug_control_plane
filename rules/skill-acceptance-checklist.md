@@ -1,0 +1,1 @@
+/Users/tangxiaolu/project/ai_rules/rules/skill-acceptance-checklist.md
