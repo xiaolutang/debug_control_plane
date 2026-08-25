@@ -75,10 +75,26 @@ class AcceptanceController extends ChangeNotifier {
   String get lastResultText =>
       _requestLog.isEmpty ? 'No requests yet' : _requestLog.last.authResult;
 
+  Future<void>? _startingFuture;
+
   /// Starts the debug plane. On success updates [endpoint] and sets
   /// planeStatus=running; on failure sets planeStatus=failed without throwing.
-  Future<void> start() async {
-    if (planeStatus == AcceptancePlaneStatus.running) return;
+  ///
+  /// Re-entrant safe (R002-FF003 fix): while a start is in flight a second
+  /// call joins the in-flight future instead of issuing a second
+  /// host.start() — the native bridge attach is one-shot and would throw
+  /// `already attached` on double start.
+  Future<void> start() {
+    if (planeStatus == AcceptancePlaneStatus.running) {
+      return Future<void>.value();
+    }
+    final inFlight = _startingFuture;
+    if (inFlight != null) return inFlight;
+    _startingFuture = _doStart();
+    return _startingFuture!;
+  }
+
+  Future<void> _doStart() async {
     planeStatus = AcceptancePlaneStatus.starting;
     notifyListeners();
     try {
@@ -96,6 +112,7 @@ class AcceptanceController extends ChangeNotifier {
         message: error.toString(),
       ));
     }
+    _startingFuture = null;
     notifyListeners();
   }
 

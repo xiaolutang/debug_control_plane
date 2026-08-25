@@ -30,14 +30,11 @@ Business apps → plane (`debug_control_plane`).
 - Python: [`PyPI`](https://pypi.org/project/debug-control-plane/) (`debug-control-plane`) + git tag; dev mode uses `pip install -e .`
 - Python：[`PyPI`](https://pypi.org/project/debug-control-plane/)（`debug-control-plane`）+ git tag；开发模式用 `pip install -e .`
 
-**Version alignment / 版本对齐**: `0.2.0` is the latest fully aligned set
-for kotlin (JitPack) / dart (pub.dev) / flutter plugin (pub.dev). Kotlin core
-`0.2.1` is a JitPack-only patch for Android native consumers and remains
-protocol-compatible (`protocolVersion=1`) with Dart/Flutter `0.2.0`.
-**版本对齐**：`0.2.0` 是 kotlin（JitPack）/ dart（pub.dev）/ flutter 插件
-（pub.dev）三端最新完整对齐组合。Kotlin core `0.2.1` 是面向 Android 原生
-消费者的 JitPack-only patch，与 Dart/Flutter `0.2.0` 保持协议兼容
-（`protocolVersion=1`）。
+**Version alignment / 版本对齐**: `0.3.0` is the latest fully aligned set
+for kotlin (JitPack) / dart (pub.dev) / flutter plugin (pub.dev). Use the same
+version across all three packages for a verified-compatible combination.
+**版本对齐**：`0.3.0` 是 kotlin（JitPack）/ dart（pub.dev）/ flutter 插件
+（pub.dev）三端最新完整对齐组合。消费端请三端使用同一版本号，即已验证兼容组合。
 
 Licensed under the MIT License — see [LICENSE](LICENSE).
 采用 MIT 许可证授权——见 [LICENSE](LICENSE)。
@@ -51,11 +48,9 @@ Licensed under the MIT License — see [LICENSE](LICENSE).
 
 ## Version / 版本
 
-Kotlin core `0.2.1` — current JitPack release. Dart/Flutter latest aligned
-pub.dev releases remain `0.2.0`. API unstable (expect breaking changes without
+Current aligned release: `0.3.0`. API unstable (expect breaking changes without
 a major bump until the first stable release).
-Kotlin core `0.2.1` —— 当前 JitPack 版本。Dart/Flutter 最新 pub.dev 对齐版本
-仍为 `0.2.0`。API 不稳定（在首个稳定版之前，次版本号变更也可能含破坏性改动）。
+当前对齐版本：`0.3.0`。API 不稳定（在首个稳定版之前，次版本号变更也可能含破坏性改动）。
 
 ## Origin / 来源
 

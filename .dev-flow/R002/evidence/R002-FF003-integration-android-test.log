@@ -3,18 +3,37 @@ type: test-log
 task_id: R002-FF003
 layer: integration
 domain: android
-run_at: 2026-08-25T04:50:00Z
-status: deferred
-deferred_reason: device_required
-device: 23116PN5BC (bc6763eb, Android 16) — 未连接（adb devices 为空）
-command: cd flutter_debug_control_plane/example && fvm flutter test integration_test -d bc6763eb
+run_at: 2026-08-25T08:34:00Z
+status: pass
+exit_code: 0
+device: 23116PN5BC real device (Android 16, bc6763eb)
+command: cd flutter_debug_control_plane/example && fvm flutter test integration_test/acceptance_integration_test.dart -d bc6763eb
+passed: 8
 ---
 
-# Test Log: R002-FF003 (integration.android) — deferred
+# Test Log: R002-FF003 (integration.android)
 
-## 状态：未执行（设备不可用）
+00:00 +0: loading integration_test/acceptance_integration_test.dart
+Running Gradle task 'assembleDebug'...
+Built build/app/outputs/flutter-apk/app-debug.apk
+Installing build/app/outputs/flutter-apk/app-debug.apk...
+00:00 +0: top viewport renders status section
+00:00 +1: page stable identifiers present on device
+00:01 +2: auth dialog anchors appear on pending request
+00:02 +3: scroll reveals requests section
+00:02 +4: scroll reveals controls section
+00:03 +5: controls tappable without exceptions
+00:03 +6: android native plane (R002-FF003) native plane starts with reachable endpoint
+ff003-integration: hello status=200
+00:04 +7: android native plane (R002-FF003) auth request drives pending dialog; approve yields claim + token
+00:05 +8: All tests passed!
 
-- 执行尝试：`adb devices` 为空；`fvm flutter devices` 仅见 iOS simulator / macOS / Chrome。真机 bc6763eb（23116PN5BC）已断开连接。
-- 回退依据：Sprint Contract R002-FF003 Q5 既定回退路径（"设备不可用时回退 deferred 回 BF008"）；evidence R002-FF003.md "Integration (Android 真机)" 节如实记录未执行。
-- 集成测试代码已落地并待执行：`acceptance_integration_test.dart` 的 `android native plane (R002-FF003)` 分组（native plane 真实启动 + /hello 真实 HTTP 200 + 未授权敏感请求 401 → pending 弹窗 5 标识 → approve → claimed 日志 + tokenPresent）。
-- 补验路径（R002-BF008）：设备重新连接后执行上述 command（前置：解锁 + `adb shell svc power stayon true`），预期 6+2 用例全过并采集真机截图（visual baseline 像素级补采）。
+## 修复与复验说明
+
+- 安装权限：执行过程中 HyperOS 多次返回 `INSTALL_FAILED_USER_RESTRICTED`；直接 `adb install -r` 成功后，Flutter 单文件集成测试可正常安装并运行。
+- 修复 1：通用 UI 截图/标识用例在 Android 上不再隐式 auto-start native plane，避免污染后续 native 分组的 capability registry。
+- 修复 2：`AndroidNativePlane.stop()` 先逐个 `capability.unregister`，再 `plane.stop`/`dispose`，避免同一测试进程第二个 native 用例注册 `debug.echo` 时 duplicate。
+- 修复 3：native auth 用例对齐真实流程：`POST /auth/request` 产生 pending 弹窗，点击 Approve 后 `POST /auth/claim` 取得 token，再用 Bearer 调 `POST /debug/secure-action` 返回 200。
+- 修复 4：native POST helper 使用固定 `Content-Length` JSON body，匹配 Kotlin `HttpSseTransport` 的 NanoHTTPD body 读取实现。
+
+补充：`cd flutter_debug_control_plane/example && fvm flutter test integration_test -d bc6763eb` 全目录复跑仍被设备系统安装权限拦截，3 个 integration 文件均停在 loading/installation 阶段，未进入测试本体；见 R002-BF008 e2e 补充记录。

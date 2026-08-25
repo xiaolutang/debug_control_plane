@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0 - 2026-08-25
+
+- Release alignment: Dart core, Kotlin core, and `flutter_debug_control_plane`
+  share the `0.3.0` verified-compatible version line.
+
 ## 0.2.0 - 2026-08-18
 
 - Version alignment: the whole debug_control_plane ecosystem now shares one

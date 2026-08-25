@@ -74,8 +74,8 @@ void main() {
       const StandardMethodCodec(),
       messenger,
     );
-    host = AndroidNativePlane(
-        bridge: NativeControlPlaneBridge(channel: channel));
+    host =
+        AndroidNativePlane(bridge: NativeControlPlaneBridge(channel: channel));
     messenger.answers['plane.start'] = <String, Object?>{
       'uri': 'http://192.168.1.23:45678'
     };
@@ -166,8 +166,8 @@ void main() {
     expect(controller.tokenPresent, isTrue);
     expect(controller.authState, AcceptanceAuthState.approved);
     expect(
-      controller.requestLog.any(
-          (e) => e.authResult == 'claimed' && e.statusCode == 200),
+      controller.requestLog
+          .any((e) => e.authResult == 'claimed' && e.statusCode == 200),
       isTrue,
     );
   });
@@ -186,8 +186,8 @@ void main() {
         'auth-test-3');
     expect(controller.authState, AcceptanceAuthState.denied);
     expect(
-      controller.requestLog.any(
-          (e) => e.authResult == 'denied' && e.statusCode == 403),
+      controller.requestLog
+          .any((e) => e.authResult == 'denied' && e.statusCode == 403),
       isTrue,
     );
   });
@@ -215,8 +215,8 @@ void main() {
     expect(controller.tokenPresent, isFalse);
     expect(controller.authState, AcceptanceAuthState.cleared);
     expect(
-      controller.requestLog.any(
-          (e) => e.authResult == 'cleared' && e.route == '/auth/token'),
+      controller.requestLog
+          .any((e) => e.authResult == 'cleared' && e.route == '/auth/token'),
       isTrue,
     );
   });
@@ -245,11 +245,21 @@ void main() {
     );
   });
 
-  test('9. stop() emits plane.stop and disposes the channel handler',
-      () async {
+  test('9. stop() emits plane.stop and disposes the channel handler', () async {
     await controller.start();
     await controller.stop();
 
+    final unregisters = messenger.callsWhere('capability.unregister');
+    expect(unregisters, hasLength(4));
+    expect(
+      unregisters.map((c) => c.arguments['capId']),
+      unorderedEquals(<String>[
+        'debug.echo',
+        'debug.deviceInfo',
+        'debug.secureAction',
+        'debug.errorCase',
+      ]),
+    );
     expect(messenger.callsWhere('plane.stop'), hasLength(1));
     expect(controller.planeStatus, AcceptancePlaneStatus.stopped);
     expect(controller.endpoint, isNull);
@@ -278,8 +288,11 @@ void main() {
     }
 
     // Dialog identifiers appear once a native pending callback arrives.
-    await tester.runAsync(() => messenger.deliver('auth.request',
-        <String, Object?>{'requestId': 'auth-ui-1', 'clientLabel': 'desktop-cli'}));
+    await tester.runAsync(() => messenger.deliver(
+            'auth.request', <String, Object?>{
+          'requestId': 'auth-ui-1',
+          'clientLabel': 'desktop-cli'
+        }));
     await tester.pump();
     await tester.pump();
 
@@ -309,8 +322,7 @@ void main() {
     expect(button.onPressed, isNull);
   });
 
-  test('12. Dart mode regression: default controller keeps canExpireToken',
-      () {
+  test('12. Dart mode regression: default controller keeps canExpireToken', () {
     final dartController = AcceptanceController();
     expect(dartController.canExpireToken, isTrue);
     expect(dartController.capabilityCount, 4);

@@ -38,10 +38,15 @@ const List<String> acceptanceStableIdentifiers = <String>[
 const String kAcceptanceEndpointPlaceholder = 'http://127.0.0.1:0';
 
 class AcceptanceApp extends StatelessWidget {
-  const AcceptanceApp({super.key, this.controller});
+  const AcceptanceApp({super.key, this.controller, this.autoStart = true});
 
   /// Optional injected controller; when null the app creates and starts one.
   final AcceptanceController? controller;
+
+  /// Whether the home host auto-starts the plane on first dependency change.
+  /// Tests that drive start() themselves pass false to avoid a double start
+  /// (the native bridge attach is one-shot — R002-FF003).
+  final bool autoStart;
 
   @override
   Widget build(BuildContext context) {
@@ -56,17 +61,19 @@ class AcceptanceApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: controller == null
-          ? const _AcceptanceHomeHost()
-          : _AcceptanceHomeHost(controller: controller),
+          ? _AcceptanceHomeHost(autoStart: autoStart)
+          : _AcceptanceHomeHost(controller: controller, autoStart: autoStart),
     );
   }
 }
 
 /// Creates a controller, starts the plane and hosts the home page.
 class _AcceptanceHomeHost extends StatefulWidget {
-  const _AcceptanceHomeHost({this.controller});
+  const _AcceptanceHomeHost({this.controller, this.autoStart = true});
 
   final AcceptanceController? controller;
+
+  final bool autoStart;
 
   @override
   State<_AcceptanceHomeHost> createState() => _AcceptanceHomeHostState();
@@ -118,7 +125,7 @@ class _AcceptanceHomeHostState extends State<_AcceptanceHomeHost> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_started) {
+    if (!_started && widget.autoStart) {
       _started = true;
       _controller.start();
     }
@@ -194,10 +201,10 @@ class _StatusSection extends StatelessWidget {
               child: SelectableText(
                 endpoint,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontFeatures: const <FontFeature>[
-                        FontFeature.tabularFigures(),
-                      ],
-                    ),
+                  fontFeatures: const <FontFeature>[
+                    FontFeature.tabularFigures(),
+                  ],
+                ),
               ),
             ),
           ),

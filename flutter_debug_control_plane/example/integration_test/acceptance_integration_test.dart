@@ -1,4 +1,4 @@
-import 'dart:convert' show utf8;
+import 'dart:convert' show jsonDecode, jsonEncode, utf8;
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -29,12 +29,12 @@ Future<void> main() async {
   final Directory outputRoot = Platform.isIOS
       ? Directory('/tmp/ff002_integration')
       : Directory.systemTemp;
-  final String prefix = '${outputRoot.path}/ff002_integration/${platform}_$model';
+  final String prefix =
+      '${outputRoot.path}/ff002_integration/${platform}_$model';
   Directory('${outputRoot.path}/ff002_integration').createSync(recursive: true);
 
   testWidgets('top viewport renders status section', (tester) async {
-    await tester.pumpWidget(const AcceptanceApp());
-    await tester.pumpAndSettle();
+    await _pumpDartAcceptanceApp(tester);
 
     expect(find.text('Status'), findsOneWidget);
     expect(
@@ -46,11 +46,11 @@ Future<void> main() async {
 
   // 12 标识 = 页面 7 个常驻 + 弹窗 5 个 pending 时可见：分两段断言。
   testWidgets('page stable identifiers present on device', (tester) async {
-    await tester.pumpWidget(const AcceptanceApp());
-    await tester.pumpAndSettle();
+    await _pumpDartAcceptanceApp(tester);
 
     for (final identifier in acceptanceStableIdentifiers
         .where((id) => !id.startsWith('acceptance.auth_dialog.'))) {
+      await _scrollUntilBuilt(tester, ValueKey<String>(identifier));
       expect(
         find.byKey(ValueKey<String>(identifier)),
         findsOneWidget,
@@ -61,9 +61,8 @@ Future<void> main() async {
 
   // pending 弹窗五标识：经真实 plane 的 /auth/request 触发后可见。
   testWidgets('auth dialog anchors appear on pending request', (tester) async {
-    final AcceptanceController controller = AcceptanceController();
-    await tester.pumpWidget(AcceptanceApp(controller: controller));
-    await tester.pumpAndSettle();
+    final AcceptanceController controller =
+        await _pumpDartAcceptanceApp(tester);
 
     await tester.runAsync(() async {
       await controller.start();
@@ -84,8 +83,8 @@ Future<void> main() async {
     // auth_state_text 与弹窗内容各显示一次 pending（两处合法），用 descendant 收紧到状态区。
     expect(
       find.descendant(
-        of: find.byKey(
-            const ValueKey<String>('acceptance.status.auth_state_text')),
+        of: find
+            .byKey(const ValueKey<String>('acceptance.status.auth_state_text')),
         matching: find.text('pending'),
       ),
       findsOneWidget,
@@ -93,19 +92,17 @@ Future<void> main() async {
     await _capture(tester, binding, '${prefix}_04_dialog.png');
 
     // approve 关闭弹窗：五标识随 dialog 生命周期消失。
-    await tester.tap(
-        find.byKey(const ValueKey<String>('acceptance.auth_dialog.approve_button')));
+    await tester.tap(find.byKey(
+        const ValueKey<String>('acceptance.auth_dialog.approve_button')));
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey<String>('acceptance.auth_dialog.root')),
       findsNothing,
     );
-    controller.dispose();
   });
 
   testWidgets('scroll reveals requests section', (tester) async {
-    await tester.pumpWidget(const AcceptanceApp());
-    await tester.pumpAndSettle();
+    await _pumpDartAcceptanceApp(tester);
 
     await tester.drag(find.byType(ListView), const Offset(0, -320));
     await tester.pumpAndSettle();
@@ -117,35 +114,43 @@ Future<void> main() async {
   });
 
   testWidgets('scroll reveals controls section', (tester) async {
-    await tester.pumpWidget(const AcceptanceApp());
-    await tester.pumpAndSettle();
+    await _pumpDartAcceptanceApp(tester);
 
     await tester.drag(find.byType(ListView), const Offset(0, -1200));
     await tester.pumpAndSettle();
     expect(
-      find.byKey(const ValueKey<String>('acceptance.controls.clear_token_button')),
+      find.byKey(
+          const ValueKey<String>('acceptance.controls.clear_token_button')),
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey<String>('acceptance.controls.expire_token_button')),
+      find.byKey(
+          const ValueKey<String>('acceptance.controls.expire_token_button')),
       findsOneWidget,
     );
     await _capture(tester, binding, '${prefix}_03_controls.png');
   });
 
   testWidgets('controls tappable without exceptions', (tester) async {
-    await tester.pumpWidget(const AcceptanceApp());
-    await tester.pumpAndSettle();
+    await _pumpDartAcceptanceApp(tester);
 
-    await tester.ensureVisible(
-        find.byKey(const ValueKey<String>('acceptance.controls.clear_token_button')));
-    await tester.tap(
-        find.byKey(const ValueKey<String>('acceptance.controls.clear_token_button')));
+    await _scrollUntilBuilt(
+      tester,
+      const ValueKey<String>('acceptance.controls.clear_token_button'),
+    );
+    await tester.ensureVisible(find.byKey(
+        const ValueKey<String>('acceptance.controls.clear_token_button')));
+    await tester.tap(find.byKey(
+        const ValueKey<String>('acceptance.controls.clear_token_button')));
     await tester.pump();
-    await tester.ensureVisible(
-        find.byKey(const ValueKey<String>('acceptance.controls.expire_token_button')));
-    await tester.tap(
-        find.byKey(const ValueKey<String>('acceptance.controls.expire_token_button')));
+    await _scrollUntilBuilt(
+      tester,
+      const ValueKey<String>('acceptance.controls.expire_token_button'),
+    );
+    await tester.ensureVisible(find.byKey(
+        const ValueKey<String>('acceptance.controls.expire_token_button')));
+    await tester.tap(find.byKey(
+        const ValueKey<String>('acceptance.controls.expire_token_button')));
     await tester.pump();
 
     expect(tester.takeException(), isNull);
@@ -157,15 +162,21 @@ Future<void> main() async {
   // drives the plane over real HTTP from the test process.
   // ---------------------------------------------------------------------
   group('android native plane (R002-FF003)', () {
-    testWidgets('native plane starts with reachable endpoint',
-        (tester) async {
+    testWidgets('native plane starts with reachable endpoint', (tester) async {
       if (!Platform.isAndroid) {
         throw StateError('android-only native plane test');
       }
-      final controller =
-          AcceptanceController.withHost(AndroidNativePlane());
-      addTearDown(controller.dispose);
-      await tester.pumpWidget(AcceptanceApp(controller: controller));
+      final controller = AcceptanceController.withHost(AndroidNativePlane());
+      addTearDown(() async {
+        await controller.stop();
+        controller.dispose();
+      });
+      // autoStart=false: start is driven by the test's runAsync below —
+      // the auto-start would park in the fake-async zone while the native
+      // bridge is already attached, and a second start used to trip the
+      // one-shot attach (R002-FF003 fix).
+      await tester
+          .pumpWidget(AcceptanceApp(controller: controller, autoStart: false));
       await tester.pump();
 
       Uri? endpoint;
@@ -175,7 +186,12 @@ Future<void> main() async {
       });
       await tester.pumpAndSettle();
 
-      expect(controller.planeRunning, isTrue, reason: 'native plane running');
+      final startLog = controller.requestLog
+          .where((entry) => entry.route == '/plane/start')
+          .map((entry) => '${entry.authResult}: ${entry.message}')
+          .join('; ');
+      expect(controller.planeRunning, isTrue,
+          reason: 'native plane running; startLog=$startLog');
       expect(endpoint, isNotNull, reason: 'native endpoint bound');
       expect(controller.capabilityCount, 4);
 
@@ -198,31 +214,50 @@ Future<void> main() async {
       await _capture(tester, binding, '${prefix}_ff003_01_status.png');
     });
 
-    testWidgets('unauthorized sensitive request drives pending dialog; '
+    testWidgets(
+        'auth request drives pending dialog; '
         'approve yields claim + token', (tester) async {
       if (!Platform.isAndroid) {
         throw StateError('android-only native plane test');
       }
-      final controller =
-          AcceptanceController.withHost(AndroidNativePlane());
-      addTearDown(controller.dispose);
-      await tester.pumpWidget(AcceptanceApp(controller: controller));
+      final controller = AcceptanceController.withHost(AndroidNativePlane());
+      addTearDown(() async {
+        await controller.stop();
+        controller.dispose();
+      });
+      // autoStart=false — see the note in the previous test case.
+      await tester
+          .pumpWidget(AcceptanceApp(controller: controller, autoStart: false));
       await tester.pump();
 
       await tester.runAsync(controller.start);
       await tester.pumpAndSettle();
+      final startLog = controller.requestLog
+          .where((entry) => entry.route == '/plane/start')
+          .map((entry) => '${entry.authResult}: ${entry.message}')
+          .join('; ');
+      expect(controller.planeRunning, isTrue,
+          reason: 'native plane running; startLog=$startLog');
       final endpoint = controller.endpoint!;
 
-      // Fire a REAL unauthorized sensitive request at the native endpoint;
-      // the native auth manager pends and calls back over the channel.
+      // Fire a REAL auth bootstrap request at the native endpoint; the
+      // native auth manager pends and calls back over the channel.
+      const clientNonce = 'ff003-native-auth';
+      String? requestId;
       await tester.runAsync(() async {
-        final client = HttpClient();
-        addTearDown(client.close);
-        final req = await client.postUrl(
-            endpoint.replace(path: '/debug/secure-action'));
-        final response = await req.close();
-        expect(response.statusCode, 401,
-            reason: 'unauthorized sensitive request is rejected');
+        final response = await _postJson(
+          endpoint,
+          '/auth/request',
+          <String, Object?>{
+            'clientNonce': clientNonce,
+            'clientLabel': 'integration-test',
+            'requestedMethod': 'POST',
+            'requestedPath': '/debug/secure-action',
+          },
+        );
+        expect(response.statusCode, 202, reason: response.bodyText);
+        requestId = response.body['requestId'] as String?;
+        expect(requestId, isNotNull);
       });
       await tester.pumpAndSettle();
 
@@ -234,13 +269,36 @@ Future<void> main() async {
       );
       await _capture(tester, binding, '${prefix}_ff003_02_pending.png');
 
-      await tester.tap(
-          find.byKey(const ValueKey<String>('acceptance.auth_dialog.approve_button')));
+      await tester.tap(find.byKey(
+          const ValueKey<String>('acceptance.auth_dialog.approve_button')));
       await tester.pumpAndSettle();
 
       expect(controller.authState, AcceptanceAuthState.approved);
       expect(controller.tokenPresent, isTrue,
           reason: 'claim recorded after approve');
+      String? token;
+      await tester.runAsync(() async {
+        final claim = await _postJson(
+          endpoint,
+          '/auth/claim',
+          <String, Object?>{
+            'requestId': requestId,
+            'clientNonce': clientNonce,
+          },
+        );
+        expect(claim.statusCode, 200, reason: claim.bodyText);
+        token = claim.body['token'] as String?;
+        expect(token, isNotNull);
+
+        final secure = await _postJson(
+          endpoint,
+          '/debug/secure-action',
+          const <String, Object?>{},
+          bearerToken: token,
+        );
+        expect(secure.statusCode, 200, reason: secure.bodyText);
+        expect(secure.body['ok'], isTrue);
+      });
       expect(
         controller.requestLog.any((e) => e.authResult == 'claimed'),
         isTrue,
@@ -256,6 +314,72 @@ Future<void> main() async {
   });
 }
 
+Future<AcceptanceController> _pumpDartAcceptanceApp(
+  WidgetTester tester, {
+  bool autoStart = false,
+}) async {
+  final controller = AcceptanceController();
+  addTearDown(() async {
+    await controller.stop();
+    controller.dispose();
+  });
+  await tester
+      .pumpWidget(AcceptanceApp(controller: controller, autoStart: autoStart));
+  await tester.pumpAndSettle();
+  return controller;
+}
+
+Future<void> _scrollUntilBuilt(WidgetTester tester, Key key) async {
+  final finder = find.byKey(key);
+  for (var attempt = 0; attempt < 8 && finder.evaluate().isEmpty; attempt++) {
+    await tester.drag(find.byType(ListView), const Offset(0, -360));
+    await tester.pumpAndSettle();
+  }
+}
+
+Future<_JsonResponse> _postJson(
+  Uri endpoint,
+  String path,
+  Map<String, Object?> body, {
+  String? bearerToken,
+}) async {
+  final client = HttpClient();
+  try {
+    final request = await client.postUrl(endpoint.replace(path: path));
+    final bodyBytes = utf8.encode(jsonEncode(body));
+    request.headers.contentType = ContentType.json;
+    if (bearerToken != null) {
+      request.headers
+          .set(HttpHeaders.authorizationHeader, 'Bearer $bearerToken');
+    }
+    request.contentLength = bodyBytes.length;
+    request.add(bodyBytes);
+    final response = await request.close();
+    final bodyText = await response
+        .transform(utf8.decoder)
+        .fold<String>('', (a, b) => a + b);
+    return _JsonResponse(
+      statusCode: response.statusCode,
+      bodyText: bodyText,
+      body: jsonDecode(bodyText) as Map<String, Object?>,
+    );
+  } finally {
+    client.close(force: true);
+  }
+}
+
+class _JsonResponse {
+  const _JsonResponse({
+    required this.statusCode,
+    required this.bodyText,
+    required this.body,
+  });
+
+  final int statusCode;
+  final String bodyText;
+  final Map<String, Object?> body;
+}
+
 Future<void> _capture(
   WidgetTester tester,
   IntegrationTestWidgetsFlutterBinding binding,
@@ -263,8 +387,7 @@ Future<void> _capture(
 ) async {
   final RenderView view = tester.binding.renderViews.first;
   final OffsetLayer layer = view.debugLayer! as OffsetLayer;
-  final ui.Image image =
-      layer.toImageSync(Offset.zero & view.paintBounds.size);
+  final ui.Image image = layer.toImageSync(Offset.zero & view.paintBounds.size);
   final ByteData? bytes =
       await image.toByteData(format: ui.ImageByteFormat.png);
   File(path).writeAsBytesSync(bytes!.buffer.asUint8List());

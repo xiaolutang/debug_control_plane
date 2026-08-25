@@ -120,3 +120,19 @@ EXIT=1
 # 手机端未出现可见安装确认弹窗（MIUI/HyperOS V816 USB 安装需开发者选项显式开启「USB 安装」）
 # 结论：维持 deferred(device_required)——环境授权未放开，非代码回归；恢复路径见 ci/README.md「R002 独立验收门」
 ---
+
+---
+# 补充：R002-FF003 Android 单文件补验（2026-08-25T16:34+08:00）
+# command: cd flutter_debug_control_plane/example && fvm flutter test integration_test/acceptance_integration_test.dart -d bc6763eb
+# result: PASS, exit 0, 8/8 tests passed
+# covered:
+# - Android native plane starts and /hello returns HTTP 200
+# - /auth/request creates pending dialog on device
+# - Approve + /auth/claim returns token
+# - Bearer POST /debug/secure-action returns 200
+#
+# 同轮补充尝试：cd flutter_debug_control_plane/example && fvm flutter test integration_test -d bc6763eb
+# result: deferred(device_required), exit 1
+# reason: HyperOS/MIUI USB install policy returned INSTALL_FAILED_USER_RESTRICTED for all 3 integration files before test body loaded.
+# interpretation: FF003 native bridge/auth chain is now real-device PASS; BF008 full-directory e2e remains partially deferred because device installation permission is intermittent outside code control.
+---

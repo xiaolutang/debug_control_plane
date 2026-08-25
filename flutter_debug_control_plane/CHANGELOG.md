@@ -1,3 +1,12 @@
+## 0.3.0
+
+- 版本对齐: kotlin 核心、dart 核心、本插件统一到 `0.3.0`，同版本号 =
+  已验证兼容组合。
+- Android 真机验收覆盖认证流程，并修正示例 app 重复启动/停止 native plane
+  时的注册去重与清理行为。
+- Android 侧 Kotlin 核心依赖升到
+  `com.github.xiaolutang:debug_control_plane:0.3.0`。
+
 ## 0.2.0
 
 - 版本对齐:整个 debug_control_plane 生态统一版本线——kotlin 0.2.0

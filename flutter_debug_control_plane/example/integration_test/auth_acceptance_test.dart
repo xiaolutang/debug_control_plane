@@ -30,20 +30,16 @@ Future<void> main() async {
 
   final Directory outputRoot = Directory('/tmp/ff004_acceptance');
   final String prefix = '${outputRoot.path}/ff004';
+  final bool skipNonIos = !Platform.isIOS;
 
-  testWidgets('setup guard: manual acceptance entry requires an iOS '
+  testWidgets(
+      'setup guard: manual acceptance entry requires an iOS '
       'simulator target', (tester) async {
-    if (!Platform.isIOS) {
-      fail(
-        'setup_required: auth_acceptance_test is the manual iOS simulator '
-        'acceptance entry. Run it with: fvm flutter test '
-        'integration_test/auth_acceptance_test.dart -d <ios-simulator-udid>',
-      );
-    }
     outputRoot.createSync(recursive: true);
-  });
+  }, skip: skipNonIos);
 
-  testWidgets('full chain: launch → real /auth/request → pending dialog → '
+  testWidgets(
+      'full chain: launch → real /auth/request → pending dialog → '
       'approve → token → sensitive request → logged', (tester) async {
     final controller = AcceptanceController();
     addTearDown(controller.dispose);
@@ -80,8 +76,8 @@ Future<void> main() async {
     await _capture(tester, binding, '${prefix}_02_pending.png');
 
     // 3. approve → claim（由测试进程模拟 desktop 客户端 claim）→ token。
-    await tester.tap(
-        find.byKey(const ValueKey<String>('acceptance.auth_dialog.approve_button')));
+    await tester.tap(find.byKey(
+        const ValueKey<String>('acceptance.auth_dialog.approve_button')));
     await tester.pumpAndSettle();
     expect(controller.authState, AcceptanceAuthState.approved,
         reason: 'approve closes dialog and sets approved (assertion #3)');
@@ -113,10 +109,10 @@ Future<void> main() async {
     await _capture(tester, binding, '${prefix}_03_allowed.png');
 
     // 5. expire → 下一次敏感请求 token_expired（assertion #6）。
-    await tester.ensureVisible(
-        find.byKey(const ValueKey<String>('acceptance.controls.expire_token_button')));
-    await tester.tap(
-        find.byKey(const ValueKey<String>('acceptance.controls.expire_token_button')));
+    await tester.ensureVisible(find.byKey(
+        const ValueKey<String>('acceptance.controls.expire_token_button')));
+    await tester.tap(find.byKey(
+        const ValueKey<String>('acceptance.controls.expire_token_button')));
     await tester.pumpAndSettle();
     await tester.runAsync(() async {
       final status = await _postSensitive(uri, token);
@@ -134,17 +130,17 @@ Future<void> main() async {
     await _capture(tester, binding, '${prefix}_04_expired.png');
 
     // 6. clear token（assertion #5）。
-    await tester.ensureVisible(
-        find.byKey(const ValueKey<String>('acceptance.controls.clear_token_button')));
-    await tester.tap(
-        find.byKey(const ValueKey<String>('acceptance.controls.clear_token_button')));
+    await tester.ensureVisible(find.byKey(
+        const ValueKey<String>('acceptance.controls.clear_token_button')));
+    await tester.tap(find.byKey(
+        const ValueKey<String>('acceptance.controls.clear_token_button')));
     await tester.pumpAndSettle();
     expect(controller.tokenPresent, isFalse,
         reason: 'clear_token sets tokenPresent=false (assertion #5)');
     await _capture(tester, binding, '${prefix}_05_cleared.png');
 
     await tester.runAsync(controller.stop);
-  });
+  }, skip: skipNonIos);
 
   testWidgets('deny path: real /auth/request → deny → denied + no claim',
       (tester) async {
@@ -165,8 +161,8 @@ Future<void> main() async {
     expect(controller.authState, AcceptanceAuthState.pending,
         reason: 'pending dialog before deny (assertion #2)');
 
-    await tester.tap(
-        find.byKey(const ValueKey<String>('acceptance.auth_dialog.deny_button')));
+    await tester.tap(find
+        .byKey(const ValueKey<String>('acceptance.auth_dialog.deny_button')));
     await tester.pumpAndSettle();
     expect(controller.authState, AcceptanceAuthState.denied,
         reason: 'deny sets denied (assertion #4)');
@@ -180,8 +176,8 @@ Future<void> main() async {
     await tester.runAsync(() async {
       final client = HttpClient();
       try {
-        final request = await client
-            .postUrl(endpoint!.replace(path: '/auth/claim'));
+        final request =
+            await client.postUrl(endpoint!.replace(path: '/auth/claim'));
         request.headers.contentType = ContentType.json;
         request.write(jsonEncode(<String, Object?>{
           'requestId': requestId,
@@ -198,7 +194,7 @@ Future<void> main() async {
     expect(controller.tokenPresent, isFalse);
 
     await tester.runAsync(controller.stop);
-  });
+  }, skip: skipNonIos);
 }
 
 Future<String> _postAuthRequest(Uri endpoint) async {
@@ -270,8 +266,7 @@ Future<void> _capture(
 ) async {
   final RenderView view = tester.binding.renderViews.first;
   final OffsetLayer layer = view.debugLayer! as OffsetLayer;
-  final ui.Image image =
-      layer.toImageSync(Offset.zero & view.paintBounds.size);
+  final ui.Image image = layer.toImageSync(Offset.zero & view.paintBounds.size);
   final ByteData? bytes =
       await image.toByteData(format: ui.ImageByteFormat.png);
   File(path).writeAsBytesSync(bytes!.buffer.asUint8List());

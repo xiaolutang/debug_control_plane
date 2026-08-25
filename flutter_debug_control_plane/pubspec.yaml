@@ -1,6 +1,6 @@
 name: flutter_debug_control_plane
 description: "Flutter bridge for the debug_control_plane Kotlin core (Android only). MethodChannel bridge: Dart Capability -> native ControlPlane."
-version: 0.2.0
+version: 0.3.0
 repository: https://github.com/xiaolutang/debug_control_plane
 # 版本对齐策略:本包与 kotlin 核心(JitPack com.github.xiaolutang:
 # debug_control_plane)及 dart 核心(pub.dev debug_control_plane)保持
@@ -13,9 +13,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # 与 dart 核心同线对齐(0.2.0)。本地开发期如需 path 联调,临时改回
+  # 与 dart 核心同线对齐(0.3.0)。本地开发期如需 path 联调,临时改回
   # path 再改回来,不 commit。
-  debug_control_plane: ^0.2.0
+  debug_control_plane: ^0.3.0
 
 dev_dependencies:
   flutter_test:

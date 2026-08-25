@@ -28,7 +28,7 @@ include(":app")
 // Kotlin core as a composite build — mirrors the plugin's standalone
 // android/settings.gradle.kts substitution so the example app resolves
 // com.github.xiaolutang:debug_control_plane from local sources (the
-// published 0.2.0 jar predates the R001/R002 auth API).
+// published artifacts may lag local R001/R002 acceptance work during release.
 includeBuild("../../../kotlin") {
     dependencySubstitution {
         substitute(module("com.pantas.debug.controlplane:core")).using(project(":"))

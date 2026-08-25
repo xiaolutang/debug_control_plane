@@ -47,6 +47,20 @@ cd "$REPO_ROOT"
 #  PYTHON_BIN=python3.13 — 否则步骤 4 在线上必挂,「本地跑过 = CI 会过」失效)
 export PYTHON_BIN="${PYTHON_BIN:-/usr/local/bin/python3.13}"
 
+PLUGIN_OVERRIDE="$REPO_ROOT/flutter_debug_control_plane/pubspec_overrides.yaml"
+cleanup_plugin_override() {
+  rm -f "$PLUGIN_OVERRIDE"
+}
+trap cleanup_plugin_override EXIT
+
+write_plugin_local_override() {
+  cat > "$PLUGIN_OVERRIDE" <<'YAML'
+dependency_overrides:
+  debug_control_plane:
+    path: ../dart
+YAML
+}
+
 run_step() {
   local name="$1"; shift
   echo ""
@@ -69,7 +83,9 @@ run_step "1-kotlin-build-test" ./gradlew build
 run_step "2-dart-test" bash -c 'cd dart && fvm flutter test'
 
 # --- [3] flutter 插件 Dart 桥接 test ----------------------------------------
+write_plugin_local_override
 run_step "3-plugin-test" bash -c 'cd flutter_debug_control_plane && fvm flutter test'
+cleanup_plugin_override
 
 # --- [4] flutter 插件 Android JVM test --------------------------------------
 run_step "4-plugin-android-jvm-test" bash -c 'cd flutter_debug_control_plane/android && ../../kotlin/gradlew -p . testDebugUnitTest'

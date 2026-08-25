@@ -59,17 +59,19 @@ class AndroidNativePlane implements PlaneHost {
     _sink = sink;
     // Native -> Dart pending authorization callback: synthesized into a
     // pending log entry (single channel into the controller).
-    _bridge.setAuthorizationHandler(sink == null ? null : (request) async {
-      _emit(
-        method: 'POST',
-        route: '/auth/request',
-        statusCode: 202,
-        authResult: 'pending',
-        requestId: request.requestId,
-        clientLabel: request.clientLabel ?? 'unknown client',
-      );
-      return;
-    });
+    _bridge.setAuthorizationHandler(sink == null
+        ? null
+        : (request) async {
+            _emit(
+              method: 'POST',
+              route: '/auth/request',
+              statusCode: 202,
+              authResult: 'pending',
+              requestId: request.requestId,
+              clientLabel: request.clientLabel ?? 'unknown client',
+            );
+            return;
+          });
     // The plane's constructor-time sink (capability handler logs) relays
     // into the same single controller entry point.
     _planeSink = sink;
@@ -98,9 +100,16 @@ class AndroidNativePlane implements PlaneHost {
   @override
   Future<void> stop() async {
     _bridge.setAuthorizationHandler(null);
-    await _bridge.stop();
-    await _bridge.dispose();
-    _planeRunning = false;
+    try {
+      for (final capId in _bridge.registeredIds.toList().reversed) {
+        await _bridge.unregister(capId);
+      }
+      await _bridge.stop();
+    } finally {
+      await _bridge.dispose();
+      _planeRunning = false;
+      _claimTokenId = null;
+    }
   }
 
   Map<String, Object?> _appMeta() => <String, Object?>{
