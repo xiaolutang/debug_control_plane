@@ -1,7 +1,7 @@
 {
   "version": "3.0",
   "project": "debug_control_plane",
-  "active_rc": "R002",
+  "active_rc": null,
   "default_workflow": null,
   "project_capabilities": {
     "schema_version": 2,
@@ -77,7 +77,15 @@
       "needs_manual_init": false
     }
   },
-  "archived_requirement_cycles": [],
+  "archived_requirement_cycles": [
+    {
+      "id": "R002",
+      "name": "flutter-auth-acceptance-app",
+      "archive_dir": "R002",
+      "total_tasks": 7,
+      "completed_at": "2026-08-25T18:43:18+08:00"
+    }
+  ],
   "rc_queue": [
     {
       "id": "R001",
@@ -112,43 +120,6 @@
           "degraded_reason": null
         }
       }
-    },
-    {
-      "id": "R002",
-      "requirement_cycle": "R002",
-      "status": "active",
-      "name": "flutter-auth-acceptance-app",
-      "topic": "flutter-auth-acceptance-app",
-      "analysis_topic": "flutter-auth-acceptance-app",
-      "version": "1.0",
-      "depends_on": [
-        "R001"
-      ],
-      "workflow": {
-        "evaluate_provider": "direct_subagent",
-        "mode": "auto"
-      },
-      "source": {
-        "tasks": ".dev-flow/R002/flutter-auth-acceptance-app-tasks.md",
-        "analysis_manifest": ".dev-flow/R002/analysis/manifest.json",
-        "design": ".dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app-design.md",
-        "test": ".dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app-test.md"
-      },
-      "review_evidence": {
-        "type": "plan_review",
-        "verdict": "PASS",
-        "report_path": ".dev-flow/R002/analysis/reviews/2026-08-24T18-40-00-plan-PASS.md",
-        "manifest_revision": 3,
-        "manifest_digest": "030e1b3d7d7215c51ba98a4754d07817f328a84db3075492e12b364f811dc15b",
-        "execution_evidence": {
-          "isolation": "independent_context",
-          "provider": "direct_subagent",
-          "subagent_role": "xlfoundry-plan-review",
-          "execution_id": "xlf-subagent:R002:plan-review:02",
-          "degraded_review": false,
-          "degraded_reason": null
-        }
-      }
     }
   ],
   "release_management": {
@@ -156,17 +127,23 @@
       "prefix": "R",
       "digits": 3
     },
-    "project_version": "0.3.0",
+    "project_version": "0.4.0",
     "version_bump": "minor",
     "releases": {
       "0.3.0": {
-        "status": "in-progress",
+        "status": "released",
         "rc_ids": [
           "R002"
         ],
         "completed_rcs": [
           "R002"
         ],
+        "released_at": "2026-08-25T18:43:18+08:00"
+      },
+      "0.4.0": {
+        "status": "in-progress",
+        "rc_ids": [],
+        "completed_rcs": [],
         "released_at": null
       }
     }

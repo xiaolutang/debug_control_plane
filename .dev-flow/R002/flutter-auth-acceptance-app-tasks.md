@@ -7,7 +7,7 @@ taskPackageVersion: "1.8"
 workflow:
   evaluate_provider: direct_subagent
   mode: auto
-status: planned
+status: archived
 analysisManifestPath: .dev-flow/R002/analysis/manifest.json
 analysisManifestRevision: 3
 analysisManifestDigest: 030e1b3d7d7215c51ba98a4754d07817f328a84db3075492e12b364f811dc15b

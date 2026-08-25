@@ -25,9 +25,8 @@ flowchart TD
 - `CapabilityMirror`：把 `/hello.registeredCapabilities` 映射成 MCP tool manifest。
 - `McpServer`：把 Python adapter 暴露为 MCP stdio server。
 
-## 当前需求关注
+## 已归档能力
 
-- App debug plane 授权门。
-- Python BridgeClient token 透传和授权错误处理。
-- Kotlin/Dart/Flutter/Python 协议字段和错误码一致性。
-
+- R001：App debug plane 授权门，Python BridgeClient token 透传和授权错误处理。
+- R002：Flutter 真实宿主验收 App、App 侧授权弹窗/请求日志、Python acceptance runner、Android native bridge 真机验收路径。
+- `0.3.0`：Kotlin/Dart/Flutter/Python 四端对齐发布，协议版本仍为 `protocolVersion=1`。
