@@ -7,7 +7,7 @@
   integration runs.
 - Flutter plugin: align the Android dependency to Kotlin core `0.3.0`.
 - Release: restore a single aligned version line across Kotlin core, Dart core,
-  and the Flutter plugin after the Kotlin-only `0.2.1` patch.
+  Flutter plugin, and Python after the Kotlin-only `0.2.1` patch.
 
 ## 0.2.1 - 2026-08-19
 

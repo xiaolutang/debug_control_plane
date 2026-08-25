@@ -43,7 +43,7 @@ python/
 ├── README.md                       # this file
 ├── LICENSE                         # MIT
 └── debug_control_plane/
-    ├── __init__.py                 # __version__ = "0.1.0"
+    ├── __init__.py                 # __version__ = "0.3.0"
     ├── device_discovery/           # USB/LAN device discovery + device pool
     │   ├── device_candidates.py
     │   ├── device_pool.py          # identity-keyed pool, TTL expiry / 身份键池，TTL 过期
@@ -73,7 +73,8 @@ Points at `debug_control_plane.mcp_plane.server:main` — a bare server (no busi
 
 ## Version / 版本
 
-`0.1.0` — initial release, API unstable. 首发，API 不稳定。
+`0.3.0` — aligned with Kotlin/Dart/Flutter `0.3.0`, API unstable.
+`0.3.0` —— 与 Kotlin/Dart/Flutter `0.3.0` 对齐，API 不稳定。
 
 ## License / 许可证
 
