@@ -184,7 +184,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：iOS 模拟器不依赖 Android native plugin，先用 Dart plane 提供可被 UI 和 Python runner 消费的基础验收 harness。
 
-## R002-BF005：Python acceptance — auth claim runner 与脚本入口 `⬜ 待处理`
+## R002-BF005：Python acceptance — auth claim runner 与脚本入口 `✅ 已完成`
 
 - 文件：`ci/acceptance-flutter-app.sh` + `python/tests/test_acceptance_flutter_app_auth.py`
 - 改动类型：新建
@@ -195,7 +195,7 @@ contextMdPaths:
 - risk_tags: [python, acceptance, device]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: done
 - sourceCapabilities: [BF005, BF006]
 - sourceSlices: [S01-acceptance-app]
 - sourceDesigns: [.dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app-design.md]
@@ -216,9 +216,9 @@ contextMdPaths:
 - decision_refs: [DEC-R002-002, DEC-R002-003]
 - blocked_files: [ci/ci-check-all.sh]
 - 具体改动点：
-  - R002-BF005.1 `⬜` shell 脚本解析 `--target`、`--endpoint` 并传给 pytest。
-  - R002-BF005.2 `⬜` pytest 中实现 claim token、内存保存 token、Bearer retry。
-  - R002-BF005.3 `⬜` 对无 endpoint、连接失败、超时、denied 输出稳定结果。
+  - R002-BF005.1 `✅` shell 脚本解析 `--target`、`--endpoint` 并传给 pytest。
+  - R002-BF005.2 `✅` pytest 中实现 claim token、内存保存 token、Bearer retry。
+  - R002-BF005.3 `✅` 对无 endpoint、连接失败、超时、denied 输出稳定结果。
 - 关键代码片段：
   ```python
   def test_acceptance_auth_claim_and_bearer_retry(endpoint: str) -> None:
