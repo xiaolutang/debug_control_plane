@@ -10,19 +10,20 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-FLUTTER_BIN="${FVM_FLUTTER:-$(command -v fvm >/dev/null 2>&1 && fvm stable --version >/dev/null 2>&1 && echo stable || echo "")}"
 
 if [ -n "${FVM_FLUTTER:-}" ]; then
-    FLUTTER_ROOT="$(cd "$(dirname "$FLUTTER_BIN")/.." && pwd)"
+    FLUTTER_ROOT="$(cd "$(dirname "$FVM_FLUTTER")/.." && pwd)"
+elif command -v flutter >/dev/null 2>&1; then
+    FLUTTER_ROOT="$(cd "$(dirname "$(command -v flutter)")/.." && pwd)"
 elif command -v fvm >/dev/null 2>&1; then
     FLUTTER_ROOT="$("$HERE/fvm_root.sh")"
 else
-    echo "error: fvm not found; set FVM_FLUTTER=/path/to/flutter/bin/flutter" >&2
+    echo "error: flutter/fvm not found; set FVM_FLUTTER=/path/to/flutter/bin/flutter" >&2
     exit 1
 fi
 
 CACHE="$FLUTTER_ROOT/bin/cache/artifacts/engine"
-if [ ! -d "$CACHE/android-arm-profile" ]; then
+if [ ! -d "$CACHE/android-arm-profile" ] || [ ! -d "$CACHE/android-arm" ]; then
     "$FLUTTER_ROOT/bin/flutter" precache --android >/dev/null
 fi
 
@@ -41,8 +42,8 @@ copy_artifact() {
 }
 
 status=0
-copy_artifact "$CACHE/android-arm-debug/flutter-debug.aar"        "$DST/flutter-debug.aar"        || status=1
-copy_artifact "$CACHE/android-arm-profile/flutter-profile.aar"    "$DST/flutter-profile.aar"      || status=1
-copy_artifact "$CACHE/android-arm-release/flutter-release.aar"    "$DST/flutter-release.aar"      || status=1
+copy_artifact "$CACHE/android-arm/flutter.jar"         "$DST/flutter-debug.jar"      || status=1
+copy_artifact "$CACHE/android-arm-profile/flutter.jar" "$DST/flutter-profile.jar"    || status=1
+copy_artifact "$CACHE/android-arm-release/flutter.jar" "$DST/flutter-release.jar"    || status=1
 
 exit $status

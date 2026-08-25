@@ -88,6 +88,7 @@ run_step "3-plugin-test" bash -c 'cd flutter_debug_control_plane && fvm flutter 
 cleanup_plugin_override
 
 # --- [4] flutter 插件 Android JVM test --------------------------------------
+run_step "4a-fetch-flutter-artifacts" bash flutter_debug_control_plane/tool/fetch_flutter_artifacts.sh
 run_step "4-plugin-android-jvm-test" bash -c 'cd flutter_debug_control_plane/android && ../../kotlin/gradlew -p . testDebugUnitTest'
 
 # --- [5] python pytest -------------------------------------------------------
