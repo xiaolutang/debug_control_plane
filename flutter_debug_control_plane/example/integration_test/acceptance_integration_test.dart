@@ -1,8 +1,10 @@
+import 'dart:convert' show utf8;
 import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:debug_control_plane_acceptance_example/main.dart';
 import 'package:debug_control_plane_acceptance_example/src/acceptance_controller.dart';
+import 'package:debug_control_plane_acceptance_example/src/android_native_plane.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -147,6 +149,110 @@ Future<void> main() async {
     await tester.pump();
 
     expect(tester.takeException(), isNull);
+  });
+
+  // ---------------------------------------------------------------------
+  // R002-FF003: Android native plane group (skipped elsewhere — the native
+  // bridge only exists on Android). Uses the same UI, same 12 identifiers;
+  // drives the plane over real HTTP from the test process.
+  // ---------------------------------------------------------------------
+  group('android native plane (R002-FF003)', () {
+    testWidgets('native plane starts with reachable endpoint',
+        (tester) async {
+      if (!Platform.isAndroid) {
+        throw StateError('android-only native plane test');
+      }
+      final controller =
+          AcceptanceController.withHost(AndroidNativePlane());
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(AcceptanceApp(controller: controller));
+      await tester.pump();
+
+      Uri? endpoint;
+      await tester.runAsync(() async {
+        await controller.start();
+        endpoint = controller.endpoint;
+      });
+      await tester.pumpAndSettle();
+
+      expect(controller.planeRunning, isTrue, reason: 'native plane running');
+      expect(endpoint, isNotNull, reason: 'native endpoint bound');
+      expect(controller.capabilityCount, 4);
+
+      // Real HTTP probe against the native endpoint: /hello works and
+      // reports authorization_required without a token.
+      await tester.runAsync(() async {
+        final client = HttpClient();
+        addTearDown(client.close);
+        final uri = endpoint!;
+        final hello = await client.getUrl(uri.replace(path: '/hello'));
+        final response = await hello.close();
+        final body = await response
+            .transform(utf8.decoder)
+            .fold<String>('', (a, b) => a + b);
+        expect(response.statusCode, 200, reason: 'hello reachable');
+        debugPrint('ff003-integration: hello status=${response.statusCode}');
+        expect(body.contains('protocolVersion'), isTrue,
+            reason: 'hello payload has protocolVersion');
+      });
+      await _capture(tester, binding, '${prefix}_ff003_01_status.png');
+    });
+
+    testWidgets('unauthorized sensitive request drives pending dialog; '
+        'approve yields claim + token', (tester) async {
+      if (!Platform.isAndroid) {
+        throw StateError('android-only native plane test');
+      }
+      final controller =
+          AcceptanceController.withHost(AndroidNativePlane());
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(AcceptanceApp(controller: controller));
+      await tester.pump();
+
+      await tester.runAsync(controller.start);
+      await tester.pumpAndSettle();
+      final endpoint = controller.endpoint!;
+
+      // Fire a REAL unauthorized sensitive request at the native endpoint;
+      // the native auth manager pends and calls back over the channel.
+      await tester.runAsync(() async {
+        final client = HttpClient();
+        addTearDown(client.close);
+        final req = await client.postUrl(
+            endpoint.replace(path: '/debug/secure-action'));
+        final response = await req.close();
+        expect(response.statusCode, 401,
+            reason: 'unauthorized sensitive request is rejected');
+      });
+      await tester.pumpAndSettle();
+
+      expect(controller.authState, AcceptanceAuthState.pending,
+          reason: 'pending dialog state reached via real request');
+      expect(
+        find.byKey(const ValueKey<String>('acceptance.auth_dialog.root')),
+        findsOneWidget,
+      );
+      await _capture(tester, binding, '${prefix}_ff003_02_pending.png');
+
+      await tester.tap(
+          find.byKey(const ValueKey<String>('acceptance.auth_dialog.approve_button')));
+      await tester.pumpAndSettle();
+
+      expect(controller.authState, AcceptanceAuthState.approved);
+      expect(controller.tokenPresent, isTrue,
+          reason: 'claim recorded after approve');
+      expect(
+        controller.requestLog.any((e) => e.authResult == 'claimed'),
+        isTrue,
+        reason: 'claimed synthesized log entry present',
+      );
+      expect(
+        controller.requestLog.any(
+            (e) => e.route == '/auth/request' && e.authResult == 'pending'),
+        isTrue,
+        reason: 'pending synthesized log entry present',
+      );
+    });
   });
 }
 

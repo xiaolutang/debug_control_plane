@@ -4,6 +4,7 @@ import 'package:debug_control_plane/debug_control_plane.dart';
 import 'package:flutter/foundation.dart';
 
 import 'acceptance_plane.dart';
+import 'acceptance_plane_host.dart';
 
 /// UI-layer six-state auth state for the acceptance app.
 ///
@@ -15,27 +16,31 @@ enum AcceptancePlaneStatus { stopped, starting, running, failed }
 
 /// Single source of truth for the acceptance app UI.
 ///
-/// Owns an [AcceptancePlane], subscribes to its request-log sink, derives
-/// [authState]/[tokenPresent]/[endpoint]/[requestLog] from it and notifies
-/// listeners. UI must not cache any of these locally.
+/// Owns a [PlaneHost] (Dart plane or Android native plane — R002-FF003),
+/// subscribes to its request-log sink, derives [authState]/[tokenPresent]/
+/// [endpoint]/[requestLog] from it and notifies listeners. UI must not
+/// cache any of these locally. Mode differences live inside the host; the
+/// controller contains no mode branches.
 class AcceptanceController extends ChangeNotifier {
-  AcceptanceController._(this.plane);
-
-  /// Creates a controller owning a fresh [AcceptancePlane] whose request-log
-  /// sink feeds this controller's state machine.
-  factory AcceptanceController() {
-    AcceptanceController? controller;
-    final plane = AcceptancePlane(onRequestLog: (entry) {
-      final attached = controller;
-      if (attached == null) return;
-      attached._applyLog(entry);
-      scheduleMicrotask(attached.notifyListeners);
+  AcceptanceController._(this.host) {
+    host.setOnRequestLog((entry) {
+      _applyLog(entry);
+      scheduleMicrotask(notifyListeners);
     });
-    controller = AcceptanceController._(plane);
-    return controller;
   }
 
-  final AcceptancePlane plane;
+  /// Creates a controller owning a fresh Dart plane host (FB001 default).
+  factory AcceptanceController() =>
+      AcceptanceController.withHost(DartPlaneHost());
+
+  /// Creates a controller over an explicit host (native mode injection).
+  factory AcceptanceController.withHost(PlaneHost host) =>
+      AcceptanceController._(host);
+
+  final PlaneHost host;
+
+  /// The acceptance plane behind the host (capability declarations source).
+  AcceptancePlane get plane => host.plane;
 
   final List<AcceptanceRequestLogEntry> _requestLog =
       <AcceptanceRequestLogEntry>[];
@@ -47,18 +52,22 @@ class AcceptanceController extends ChangeNotifier {
   String? pendingClientLabel;
 
   /// Read-only views.
-  bool get tokenPresent => plane.authManager.tokenPresent;
+  bool get tokenPresent => host.tokenPresent;
+
+  /// Whether the expire-token control is available in the current mode.
+  bool get canExpireToken => host.canExpireToken;
 
   List<AcceptanceRequestLogEntry> get requestLog =>
       List.unmodifiable(_requestLog);
 
-  Iterable<String> get pendingRequestIds => plane.authManager.pendingRequestIds;
+  Iterable<String> get pendingRequestIds =>
+      host.plane.authManager.pendingRequestIds;
 
   String? get activeRequestId => pendingRequestId;
 
   String? get activeClientLabel => pendingClientLabel;
 
-  int get capabilityCount => plane.buildCapabilities().length;
+  int get capabilityCount => host.capabilityCount;
 
   bool get planeRunning => planeStatus == AcceptancePlaneStatus.running;
 
@@ -66,14 +75,14 @@ class AcceptanceController extends ChangeNotifier {
   String get lastResultText =>
       _requestLog.isEmpty ? 'No requests yet' : _requestLog.last.authResult;
 
-  /// Starts the Dart debug plane. On success updates [endpoint] and sets
+  /// Starts the debug plane. On success updates [endpoint] and sets
   /// planeStatus=running; on failure sets planeStatus=failed without throwing.
   Future<void> start() async {
     if (planeStatus == AcceptancePlaneStatus.running) return;
     planeStatus = AcceptancePlaneStatus.starting;
     notifyListeners();
     try {
-      endpoint = await plane.startDartPlane();
+      endpoint = await host.start();
       planeStatus = AcceptancePlaneStatus.running;
     } catch (error) {
       planeStatus = AcceptancePlaneStatus.failed;
@@ -91,7 +100,7 @@ class AcceptanceController extends ChangeNotifier {
   }
 
   Future<void> stop() async {
-    await plane.stop();
+    await host.stop();
     planeStatus = AcceptancePlaneStatus.stopped;
     endpoint = null;
     notifyListeners();
@@ -101,24 +110,25 @@ class AcceptanceController extends ChangeNotifier {
   Future<void> approvePending() async {
     final id = pendingRequestId;
     if (id == null) return;
-    await plane.authManager.approvePending(id);
+    await host.approvePending(id);
   }
 
   /// Denies the currently pending authorization request (if any).
   Future<void> denyPending() async {
     final id = pendingRequestId;
     if (id == null) return;
-    await plane.authManager.denyPending(id);
+    await host.denyPending(id);
   }
 
-  void clearToken() {
-    plane.authManager.clearToken();
+  Future<void> clearToken() async {
+    await host.clearToken();
     authState = AcceptanceAuthState.cleared;
     notifyListeners();
   }
 
   void expireToken() {
-    plane.authManager.expireToken();
+    if (!canExpireToken) return;
+    host.expireToken();
     authState = AcceptanceAuthState.expired;
     notifyListeners();
   }
@@ -141,12 +151,13 @@ class AcceptanceController extends ChangeNotifier {
     String route = '/debug/secure-action',
     String? bearerToken,
   }) {
-    return plane.authManager.authorize(AuthRequest(
+    final AuthRequest request = AuthRequest(
       method: 'POST',
       segments: Uri.parse(route).pathSegments,
       routeClass: AuthRouteClass.sensitive,
       bearerToken: bearerToken ?? plane.authManager.activeToken,
-    ));
+    );
+    return plane.authManager.authorize(request);
   }
 
   /// Runtime state snapshot for acceptance collectors (DEC-002).

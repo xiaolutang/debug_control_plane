@@ -1,0 +1,20 @@
+---
+type: test-log
+task_id: R002-FF003
+layer: integration
+domain: android
+run_at: 2026-08-25T04:50:00Z
+status: deferred
+deferred_reason: device_required
+device: 23116PN5BC (bc6763eb, Android 16) — 未连接（adb devices 为空）
+command: cd flutter_debug_control_plane/example && fvm flutter test integration_test -d bc6763eb
+---
+
+# Test Log: R002-FF003 (integration.android) — deferred
+
+## 状态：未执行（设备不可用）
+
+- 执行尝试：`adb devices` 为空；`fvm flutter devices` 仅见 iOS simulator / macOS / Chrome。真机 bc6763eb（23116PN5BC）已断开连接。
+- 回退依据：Sprint Contract R002-FF003 Q5 既定回退路径（"设备不可用时回退 deferred 回 BF008"）；evidence R002-FF003.md "Integration (Android 真机)" 节如实记录未执行。
+- 集成测试代码已落地并待执行：`acceptance_integration_test.dart` 的 `android native plane (R002-FF003)` 分组（native plane 真实启动 + /hello 真实 HTTP 200 + 未授权敏感请求 401 → pending 弹窗 5 标识 → approve → claimed 日志 + tokenPresent）。
+- 补验路径（R002-BF008）：设备重新连接后执行上述 command（前置：解锁 + `adb shell svc power stayon true`），预期 6+2 用例全过并采集真机截图（visual baseline 像素级补采）。

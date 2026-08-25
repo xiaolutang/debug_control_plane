@@ -1,10 +1,23 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 
 import 'src/acceptance_controller.dart';
 import 'src/acceptance_plane.dart' show AcceptanceRequestLogEntry;
+import 'src/android_native_plane.dart';
 import 'src/auth_dialog.dart';
 
 void main() => runApp(const AcceptanceApp());
+
+/// Plane mode selection (DEC-R002-005): Android devices run the debug plane
+/// in the native process via the plugin bridge; everywhere else (iOS
+/// simulator etc.) the Dart plane keeps FB001 behavior.
+AcceptanceController createAcceptanceController() {
+  if (Platform.isAndroid) {
+    return AcceptanceController.withHost(AndroidNativePlane());
+  }
+  return AcceptanceController();
+}
 
 const List<String> acceptanceStableIdentifiers = <String>[
   'acceptance.status.endpoint_text',
@@ -71,7 +84,7 @@ class _AcceptanceHomeHostState extends State<_AcceptanceHomeHost> {
   void initState() {
     super.initState();
     if (widget.controller == null) {
-      _ownedController = AcceptanceController();
+      _ownedController = createAcceptanceController();
     }
     _controller.addListener(_onControllerChanged);
   }
@@ -309,13 +322,15 @@ class _ControlsSection extends StatelessWidget {
                 identifier: 'acceptance.controls.clear_token_button',
                 icon: Icons.delete_outline,
                 label: 'Clear token',
-                onPressed: controller.clearToken,
+                onPressed: () => controller.clearToken(),
               ),
               _ControlButton(
                 identifier: 'acceptance.controls.expire_token_button',
                 icon: Icons.schedule,
                 label: 'Expire token',
-                onPressed: controller.expireToken,
+                onPressed: controller.canExpireToken
+                    ? () => controller.expireToken()
+                    : null,
               ),
             ],
           ),
@@ -401,7 +416,7 @@ class _ControlButton extends StatelessWidget {
   final String identifier;
   final IconData icon;
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
