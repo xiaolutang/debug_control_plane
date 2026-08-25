@@ -275,7 +275,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：Android 真机阶段验证 R001/R002 穿过 Flutter plugin、Android native bridge 和 Kotlin core 的真实链路。
 
-## R002-FF004：example tests — Flutter 单测与 iOS 模拟器验收入口 `⬜ 待处理`
+## R002-FF004：example tests — Flutter 单测与 iOS 模拟器验收入口 `✅ 已完成`
 
 - 文件：`flutter_debug_control_plane/example/test/acceptance_app_test.dart` + `flutter_debug_control_plane/example/integration_test/auth_acceptance_test.dart`
 - 改动类型：新建
@@ -286,7 +286,7 @@ contextMdPaths:
 - risk_tags: [tests, flutter, ios_simulator]
 - smoke_required: true
 - mode: direct
-- status: pending
+- status: done
 - sourceCapabilities: [FF002, FB001, BF006]
 - sourceSlices: [S01-acceptance-app]
 - sourceDesigns: [.dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app-design.md]
@@ -315,9 +315,9 @@ contextMdPaths:
 - decision_refs: [DEC-R002-002, DEC-R002-005]
 - blocked_files: []
 - 具体改动点：
-  - R002-FF004.1 `⬜` 添加 controller/capability/widget tests。
-  - R002-FF004.2 `⬜` 添加 iOS simulator integration_test 入口和 README 注释。
-  - R002-FF004.3 `⬜` 确保无设备环境不会误报通过。
+  - R002-FF004.1 `✅` 添加 controller/capability/widget tests。
+  - R002-FF004.2 `✅` 添加 iOS simulator integration_test 入口和 README 注释。
+  - R002-FF004.3 `✅` 确保无设备环境不会误报通过。
 - 关键代码片段：
   ```dart
   testWidgets('acceptance app exposes stable identifiers', (tester) async {
