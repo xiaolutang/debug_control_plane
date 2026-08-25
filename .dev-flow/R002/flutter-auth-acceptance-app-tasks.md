@@ -229,7 +229,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：电脑端验收必须验证真实授权领取链路，不能只预置 token 后测成功。
 
-## R002-FF003：Android device mode — plugin/native bridge 接入 `⬜ 待处理`
+## R002-FF003：Android device mode — plugin/native bridge 接入 `✅ 已完成`
 
 - 文件：`flutter_debug_control_plane/example/lib/src/android_native_plane.dart`
 - 改动类型：新建
@@ -240,7 +240,7 @@ contextMdPaths:
 - risk_tags: [android, native_bridge, device]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: done
 - sourceCapabilities: [FF002, BF006]
 - sourceSlices: [S01-acceptance-app]
 - sourceDesigns: [.dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app-design.md]
@@ -263,9 +263,9 @@ contextMdPaths:
 - decision_refs: [DEC-R002-005]
 - blocked_files: []
 - 具体改动点：
-  - R002-FF003.1 `⬜` 增加运行模式选择：iOS/Dart plane 与 Android/native plane。
-  - R002-FF003.2 `⬜` Android 分支复用已有 `NativeControlPlaneBridge` start/register/stop。
-  - R002-FF003.3 `⬜` 将 native plane endpoint 和 request log 同步到同一 UI。
+  - R002-FF003.1 `✅` 增加运行模式选择：iOS/Dart plane 与 Android/native plane。
+  - R002-FF003.2 `✅` Android 分支复用已有 `NativeControlPlaneBridge` start/register/stop。
+  - R002-FF003.3 `✅` 将 native plane endpoint 和 request log 同步到同一 UI。
 - 关键代码片段：
   ```dart
   class AndroidNativePlane {
