@@ -1,0 +1,60 @@
+---
+type: test-log
+task_id: R002-BF005
+layer: integration
+domain: backend
+run_at: 2026-08-25T05:20:00Z
+status: pass
+exit_code: 0
+passed: 5
+failed: 0
+skipped: 0
+device: iPhone 16e simulator (DAA2A14D-9BF2-4E3B-9EF2-A7E1136C631F, Booted)
+endpoint: http://127.0.0.1:50009 (example app Dart plane, loopback)
+command: AUTH_DENIED_DRIVER=1 bash ci/acceptance-flutter-app.sh --target ios-simulator --endpoint http://127.0.0.1:50009
+---
+
+# Test Log: R002-BF005 (integration.backend) — pass
+
+## 环境编排
+
+- iOS 模拟器 iPhone 16e (DAA2A14D-9BF2-4E3B-9EF2-A7E1136C631F) 已 Boot。
+- 驱动用例（纯测试文件，非 app 代码）：
+  `cd flutter_debug_control_plane/example && fvm flutter test integration_test/acceptance_pytest_driver_test.dart -d DAA2A14D-... --dart-define=DRIVER_SECONDS=300`
+  该用例启动 example app Dart plane（loopback），输出 `pytest-driver: endpoint=http://127.0.0.1:50009`，并在存活期内按 clientLabel 分派：
+  `deny*` → denyPending、`hold*` → 保持 pending、其余 → approvePending（驱动日志 /tmp/bf005_driver.log 见 approve/deny 分派记录）。
+- 宿主机 `AUTH_DENIED_DRIVER=1`（启用 denied marker 用例）执行上方 command。
+
+## 结果（5 passed in 1.62s, exit 0）
+
+```
+tests/test_acceptance_flutter_app_auth.py::test_acceptance_auth_claim_and_bearer_retry PASSED [ 20%]
+tests/test_acceptance_flutter_app_auth.py::test_forged_token_rejected_401 PASSED [ 40%]
+tests/test_acceptance_flutter_app_auth.py::test_claim_before_approval_rejected PASSED [ 60%]
+tests/test_acceptance_flutter_app_auth.py::test_multi_capability_bearer PASSED [ 80%]
+tests/test_acceptance_flutter_app_auth.py::test_denied_flow PASSED       [100%]
+============================== 5 passed in 1.62s ===============================
+```
+
+- 主链路：/auth/request 202 pending → /auth/status 轮询至 approved（驱动 approve）→ /auth/claim 200 {token, tokenId, expiresAt} → Bearer POST /debug/secure-action 200；无 token → 401。
+- 伪造 token：POST /debug/secure-action Bearer tok-forged-* → 401 + code=invalid_token。
+- claim 未 approved：hold 请求 claim → 200 {status:'pending'} 且无 token（wire 事实：plane 对 pending claim 返回状态回显而非 4xx）；unknown requestId claim → 401 + code=invalid_token。
+- 多 capability：claim 后 Bearer 调 debug.echo（200, capability=debug.echo）+ debug.deviceInfo（200, capability=debug.deviceInfo），共 2 个 capability。
+- denied（marker auth_denied_driver，AUTH_DENIED_DRIVER=1）：deny-bf005 请求被驱动 deny → /auth/status 403 → /auth/claim 403 + code=authorization_denied，无 token。
+
+## 降级路径实测（同日）
+
+1. 无 endpoint：`bash ci/acceptance-flutter-app.sh` → stdout `setup_required: no endpoint provided (use --endpoint or ACCEPTANCE_ENDPOINT)`，exit 75。
+   pytest 单跑（无 --endpoint 无 env）→ 5 skipped，逐用例 `setup_required: no endpoint (use --endpoint or ACCEPTANCE_ENDPOINT)`。
+2. endpoint 不可达：`bash ci/acceptance-flutter-app.sh --endpoint http://127.0.0.1:9` → 5 skipped
+   `setup_required: endpoint unreachable (http://127.0.0.1:9/hello: URLError: [Errno 61] Connection refused)`，脚本识别 skip-only → exit 75。
+3. 超时稳定输出：`--endpoint http://10.255.255.1:9` → 5.02s 后单行稳定原因
+   `setup_required: endpoint unreachable (http://10.255.255.1:9/hello: URLError: timed out)`，无裸 traceback。
+
+## 回归
+
+`cd python && python3 -m pytest tests -q` → 346 passed, 7 skipped（现有套件零回归；本任务新增用例在无 endpoint 集合运行时计入 skip 语义）。
+
+## 驱动用例结果
+
+`acceptance_pytest_driver_test.dart` 本身随会话正常结束：`05:01 +1: All tests passed!`（exit 0），存活期内完成 5 次 approve 分派（bf005-pytest ×2、bf005-multi ×3）+ 2 次 deny 分派（deny-bf005）。

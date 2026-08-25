@@ -8,3 +8,28 @@ mcp_plane 都在新 repo debug_control_plane 内,正向包 import)。
 """
 
 from __future__ import annotations
+
+import pytest
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """R002-BF005: example app acceptance endpoint 参数(--endpoint)。
+
+    option 优先, env ACCEPTANCE_ENDPOINT 兜底; 消费逻辑见
+    tests/test_acceptance_flutter_app_auth.py 的 endpoint fixture。
+    """
+    group = parser.getgroup("acceptance")
+    group.addoption(
+        "--endpoint",
+        action="store",
+        default=None,
+        metavar="URL",
+        help="Running example app Dart plane endpoint "
+        "(falls back to env ACCEPTANCE_ENDPOINT).",
+    )
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    config.addinivalue_line(
+        "markers", "auth_denied_driver: needs a flutter-side deny driver"
+    )
