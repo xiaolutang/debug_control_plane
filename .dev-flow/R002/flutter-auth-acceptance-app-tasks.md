@@ -49,7 +49,7 @@ contextMdPaths:
 5. R002-FF004
 6. R002-BF008
 
-## R002-FF002：example app — Flutter 验收 App 骨架 `⬜ 待处理`
+## R002-FF002：example app — Flutter 验收 App 骨架 `✅ 已完成`
 
 - 文件：`flutter_debug_control_plane/example/lib/main.dart` + `flutter_debug_control_plane/example/pubspec.yaml`
 - 改动类型：新建
@@ -60,7 +60,7 @@ contextMdPaths:
 - risk_tags: [flutter, example, ios_simulator]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [FF002, BF006]
 - sourceSlices: [S01-acceptance-app]
 - sourceDesigns: [.dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app-design.md]
@@ -80,9 +80,9 @@ contextMdPaths:
 - decision_refs: [DEC-R002-001, DEC-R002-005]
 - blocked_files: []
 - 具体改动点：
-  - R002-FF002.1 `⬜` 新建 example `pubspec.yaml`，path 依赖 `../` plugin 与 `../../dart` debug_control_plane。
-  - R002-FF002.2 `⬜` 新建 `main.dart` 与 `AcceptanceApp`，提供 Status、Requests、Controls UI。
-  - R002-FF002.3 `⬜` 使用中立稳定标识清单落地 12 个 UI 锚点。
+  - R002-FF002.1 `✅` 新建 example `pubspec.yaml`，path 依赖 `../` plugin 与 `../../dart` debug_control_plane。
+  - R002-FF002.2 `✅` 新建 `main.dart` 与 `AcceptanceApp`，提供 Status、Requests、Controls UI。
+  - R002-FF002.3 `✅` 使用中立稳定标识清单落地 12 个 UI 锚点。
 - 关键代码片段：
   ```dart
   void main() => runApp(const AcceptanceApp());
