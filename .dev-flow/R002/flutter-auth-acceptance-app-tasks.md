@@ -327,7 +327,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：把 iOS 模拟器验收作为第一阶段真实 App 验收入口，同时保持主 CI 可控。
 
-## R002-BF008：regression gate — R001+R002 联合回归 `⬜ 待处理`
+## R002-BF008：regression gate — R001+R002 联合回归 `✅ 已完成`
 
 - 文件：`ci/README.md` + `.dev-flow/R002/evidence/execute-checkpoint.md`
 - 改动类型：修改 / 新建
@@ -338,7 +338,7 @@ contextMdPaths:
 - risk_tags: [ci, regression, acceptance]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: done
 - sourceCapabilities: [BF005, BF006, FF002, FB001]
 - sourceSlices: [S01-acceptance-app]
 - sourceDesigns: [.dev-flow/R002/analysis/2026-08-24--flutter-auth-acceptance-app-design.md]
@@ -364,9 +364,9 @@ contextMdPaths:
 - decision_refs: [DEC-R002-002]
 - blocked_files: []
 - 具体改动点：
-  - R002-BF008.1 `⬜` 更新 `ci/README.md`，记录独立 acceptance gate 用法。
-  - R002-BF008.2 `⬜` 新建/更新 R002 execute checkpoint。
-  - R002-BF008.3 `⬜` 跑主 CI 和可用的 example app tests，记录 deferred device 验收。
+  - R002-BF008.1 `✅` 更新 `ci/README.md`，记录独立 acceptance gate 用法。
+  - R002-BF008.2 `✅` 新建/更新 R002 execute checkpoint。
+  - R002-BF008.3 `✅` 跑主 CI 和可用的 example app tests，记录 deferred device 验收。
 - 关键代码片段：
   ```bash
   PYTHON_BIN=python3 bash ci/ci-check-all.sh
