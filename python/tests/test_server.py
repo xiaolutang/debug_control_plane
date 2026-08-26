@@ -27,7 +27,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -237,12 +237,22 @@ class TestDispatchRouting:
         assert call.args == ("dev1", "POST", ["virtual", "connect"], {"profileId": "x"})
 
     @pytest.mark.asyncio
-    async def test_invoke_command_accepts_selector_args_without_forwarding_bf007(
+    async def test_invoke_command_forwards_selector_args_bf007(
         self, assembled
     ):
         srv, *_ = assembled
         mock_client = assembled[2]
         mock_client.invoke.return_value = {"result": "ok"}
+        mock_client.hello.return_value = _make_target(registered=(
+            {
+                "id": "debug",
+                "scope": "page",
+                "pageId": "page-a",
+                "scopeRevision": 4,
+                "resources": [],
+                "commands": [{"method": "POST", "path": ["virtual", "connect"]}],
+            },
+        ))
         h = srv.call_handler_for_test("invoke_command")
         await h({
             "device_id": "dev1",
@@ -253,9 +263,14 @@ class TestDispatchRouting:
             "page_id": "page-a",
             "scope_revision": 4,
         })
-        assert mock_client.invoke.call_args.args == (
-            "dev1", "POST", ["virtual", "connect"], {}
-        )
+        call = mock_client.invoke.call_args
+        assert call.args == ("dev1", "POST", ["virtual", "connect"], {})
+        assert call.kwargs == {
+            "capability_id": "debug",
+            "scope": "page",
+            "page_id": "page-a",
+            "scope_revision": 4,
+        }
 
     @pytest.mark.asyncio
     async def test_read_resource_uses_path_segments(self, assembled):
@@ -271,12 +286,22 @@ class TestDispatchRouting:
         assert mock_client.read.call_args.args == ("dev1", ["profiles"])
 
     @pytest.mark.asyncio
-    async def test_read_resource_accepts_selector_args_without_forwarding_bf007(
+    async def test_read_resource_forwards_selector_args_bf007(
         self, assembled
     ):
         srv, *_ = assembled
         mock_client = assembled[2]
         mock_client.read.return_value = {"profiles": []}
+        mock_client.hello.return_value = _make_target(registered=(
+            {
+                "id": "debug",
+                "scope": "page",
+                "pageId": "page-a",
+                "scopeRevision": 4,
+                "resources": [{"method": "GET", "path": ["profiles"]}],
+                "commands": [],
+            },
+        ))
         h = srv.call_handler_for_test("read_resource")
         await h({
             "device_id": "dev1",
@@ -287,7 +312,230 @@ class TestDispatchRouting:
             "page_id": "page-a",
             "scope_revision": 4,
         })
-        assert mock_client.read.call_args.args == ("dev1", ["profiles"])
+        call = mock_client.read.call_args
+        assert call.args == ("dev1", ["profiles"])
+        assert call.kwargs == {
+            "capability_id": "debug",
+            "scope": "page",
+            "page_id": "page-a",
+            "scope_revision": 4,
+        }
+
+    @pytest.mark.asyncio
+    async def test_page_selector_missing_from_snapshot_rejects_before_forwarding(
+        self, assembled
+    ):
+        srv, *_ = assembled
+        mock_client = assembled[2]
+        mock_client.hello.return_value = _make_target(registered=(
+            {
+                "id": "debug",
+                "scope": "page",
+                "pageId": "page-current",
+                "resources": [],
+                "commands": [],
+            },
+        ))
+        h = srv.call_handler_for_test("invoke_command")
+
+        from mcp.shared.exceptions import McpError
+        with pytest.raises(McpError) as exc_info:
+            await h({
+                "device_id": "dev1",
+                "capability_id": "debug",
+                "command_path": ["virtual", "connect"],
+                "args": {},
+                "scope": "page",
+                "page_id": "page-old",
+            })
+
+        assert "page capability stale" in exc_info.value.error.message
+        mock_client.invoke.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("bad_args", "message"),
+        [
+            ({"scope": "session"}, "scope must be app or page"),
+            ({"scope": "page"}, "page_id is required"),
+            ({"scope": "app", "page_id": "page-a"}, "page_id requires scope=page"),
+            ({"scope": "page", "page_id": "page-a", "scope_revision": True}, "integer"),
+        ],
+    )
+    async def test_selector_validation_rejects_invalid_args(
+        self, assembled, bad_args, message
+    ):
+        srv, *_ = assembled
+        h = srv.call_handler_for_test("read_resource")
+        args = {
+            "device_id": "dev1",
+            "capability_id": "debug",
+            "resource_path": ["profiles"],
+            **bad_args,
+        }
+
+        with pytest.raises(ValueError) as exc_info:
+            await h(args)
+
+        assert message in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("status_code", "body"),
+        [
+            (410, {"errorCode": "page_capability_gone", "message": "gone"}),
+            (409, {"errorCode": "capability_scope_expired", "message": "expired"}),
+        ],
+    )
+    async def test_page_gone_or_expired_refreshes_and_preserves_error(
+        self, assembled, monkeypatch, status_code, body
+    ):
+        srv, *_ = assembled
+        mock_client = assembled[2]
+        mock_client.hello.side_effect = [
+            _make_target(registered=(
+                {
+                    "id": "debug",
+                    "scope": "page",
+                    "pageId": "page-a",
+                    "resources": [],
+                    "commands": [{"method": "POST", "path": ["debug", "tap"]}],
+                },
+            )),
+            _make_target(registered=()),
+        ]
+        mock_client.invoke.side_effect = DeviceHttpError(status_code, body)
+        emit = AsyncMock()
+        monkeypatch.setattr(srv, "_emit_list_changed", emit)
+        h = srv.call_handler_for_test("invoke_command")
+
+        from mcp.shared.exceptions import McpError
+        with pytest.raises(McpError) as exc_info:
+            await h({
+                "device_id": "dev1",
+                "capability_id": "debug",
+                "command_path": ["debug", "tap"],
+                "args": {},
+                "scope": "page",
+                "page_id": "page-a",
+            })
+
+        message = exc_info.value.error.message
+        assert f"status={status_code}" in message
+        assert next(iter(body.values())) in message
+        assert mock_client.hello.call_count == 2
+        emit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_page_gone_refresh_without_change_does_not_emit(self, assembled, monkeypatch):
+        srv, *_ = assembled
+        mock_client = assembled[2]
+        target = _make_target(registered=(
+            {
+                "id": "debug",
+                "scope": "page",
+                "pageId": "page-a",
+                "resources": [],
+                "commands": [{"method": "POST", "path": ["debug", "tap"]}],
+            },
+        ))
+        mock_client.hello.side_effect = [target, target]
+        mock_client.invoke.side_effect = DeviceHttpError(
+            410, {"errorCode": "page_capability_gone"}
+        )
+        emit = AsyncMock()
+        monkeypatch.setattr(srv, "_emit_list_changed", emit)
+        h = srv.call_handler_for_test("invoke_command")
+
+        from mcp.shared.exceptions import McpError
+        with pytest.raises(McpError):
+            await h({
+                "device_id": "dev1",
+                "capability_id": "debug",
+                "command_path": ["debug", "tap"],
+                "args": {},
+                "scope": "page",
+                "page_id": "page-a",
+            })
+
+        emit.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "error",
+        [
+            DeviceHttpError(404, {"errorCode": "not_found"}),
+            DeviceHttpError(409, {"errorCode": "real_controller_active"}),
+            DeviceHttpError(500, {"errorCode": "boom"}),
+            DeviceHttpError(0, None, "transport: refused"),
+        ],
+    )
+    async def test_non_page_http_errors_do_not_refresh_as_stale(
+        self, assembled, monkeypatch, error
+    ):
+        srv, *_ = assembled
+        mock_client = assembled[2]
+        mock_client.hello.return_value = _make_target(registered=(
+            {
+                "id": "debug",
+                "scope": "page",
+                "pageId": "page-a",
+                "resources": [{"method": "GET", "path": ["debug", "status"]}],
+                "commands": [],
+            },
+        ))
+        mock_client.read.side_effect = error
+        emit = AsyncMock()
+        monkeypatch.setattr(srv, "_emit_list_changed", emit)
+        h = srv.call_handler_for_test("read_resource")
+
+        from mcp.shared.exceptions import McpError
+        with pytest.raises(McpError):
+            await h({
+                "device_id": "dev1",
+                "capability_id": "debug",
+                "resource_path": ["debug", "status"],
+                "scope": "page",
+                "page_id": "page-a",
+            })
+
+        assert mock_client.hello.call_count == 1
+        emit.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_auth_error_is_not_page_stale_refresh(self, assembled, monkeypatch):
+        srv, *_ = assembled
+        mock_client = assembled[2]
+        mock_client.hello.return_value = _make_target(registered=(
+            {
+                "id": "debug",
+                "scope": "page",
+                "pageId": "page-a",
+                "resources": [{"method": "GET", "path": ["debug", "status"]}],
+                "commands": [],
+            },
+        ))
+        mock_client.read.side_effect = DeviceAuthError(
+            401, {"code": "authorization_required"}, "authorization_required"
+        )
+        emit = AsyncMock()
+        monkeypatch.setattr(srv, "_emit_list_changed", emit)
+        h = srv.call_handler_for_test("read_resource")
+
+        from mcp.shared.exceptions import McpError
+        with pytest.raises(McpError) as exc_info:
+            await h({
+                "device_id": "dev1",
+                "capability_id": "debug",
+                "resource_path": ["debug", "status"],
+                "scope": "page",
+                "page_id": "page-a",
+            })
+
+        assert "authorization_required" in exc_info.value.error.message
+        assert "page capability stale" not in exc_info.value.error.message
+        assert mock_client.hello.call_count == 1
+        emit.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_get_state_reads_state_path(self, assembled):

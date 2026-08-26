@@ -294,7 +294,7 @@ contextMdPaths:
 - 关键代码片段：`CapabilitySchema(capability_id: str, scope: str = "app", page_id: str | None = None, scope_revision: int | None = None)`
 - 改动理由/上下文：MCP 工具暴露以 Python mirror cache 为准。
 
-## R003-BF007：python bridge/server — selector header 与 stale tool 收敛 `⬜ 待处理`
+## R003-BF007：python bridge/server — selector header 与 stale tool 收敛 `✅ 已完成`
 
 - 文件：`python/debug_control_plane/mcp_plane/bridge_client.py` + `python/debug_control_plane/mcp_plane/server.py` + `python/tests/test_bridge_client.py` + `python/tests/test_server.py`
 - 改动类型：修改
@@ -305,7 +305,7 @@ contextMdPaths:
 - risk_tags: [python, mcp, bridge, stale]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [BF002, BF006]
 - sourceSlices: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-python-mcp-slice.md, .dev-flow/R003/analysis/2026-08-25--capability-scope-split-core-slice.md]
 - sourceDesigns: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-design.md]
@@ -315,7 +315,7 @@ contextMdPaths:
 - contract_refs: [PROTOCOL.md]
 - decision_refs: [DEC-R003-003, DEC-R003-005, DEC-R003-007]
 - blocked_files: []
-- 具体改动点：R003-BF007.1 `⬜` `BridgeClient.invoke/read` 增加 selector 参数并合并 headers；R003-BF007.2 `⬜` server meta tool 校验并转发 selector；R003-BF007.3 `⬜` gone/expired 后 refresh 并发送 list_changed。
+- 具体改动点：R003-BF007.1 `✅` `BridgeClient.invoke/read` 增加 selector 参数并合并 headers；R003-BF007.2 `✅` server meta tool 校验并转发 selector；R003-BF007.3 `✅` gone/expired 后 refresh 并发送 list_changed。
 - 关键代码片段：`def selector_headers(*, capability_id: str, scope: str | None, page_id: str | None, scope_revision: int | None) -> dict[str, str]: ...`
 - 改动理由/上下文：agent 仍调用 MCP 工具，页面命中依赖 Python selector header。
 

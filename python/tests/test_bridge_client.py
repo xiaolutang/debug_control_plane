@@ -46,6 +46,7 @@ from debug_control_plane.mcp_plane.bridge_client import (
     DeviceUnreachable,
     _iter_sse,
     _safe_body,
+    selector_headers,
 )
 
 # ---------------------------------------------------------------------------
@@ -333,6 +334,52 @@ class TestInvoke:
         client.invoke("dev1", "POST", ["raw"], b"hello-bytes")
         assert captured[0].content == b"hello-bytes"
 
+    def test_selector_headers_forwarded_with_auth_header(self):
+        captured: list[httpx.Request] = []
+
+        def handler(req: httpx.Request) -> httpx.Response:
+            captured.append(req)
+            return _ok_json({"ok": True})
+
+        pool = _MockPool({"dev1": _fresh()}, [])
+        provider = _FakeTokenProvider({"dev1": "token-1"}, [], [], [])
+        client = _make_client(pool, handler, token_provider=provider)
+
+        client.invoke(
+            "dev1",
+            "POST",
+            ["debug", "tap"],
+            {},
+            capability_id="debug",
+            scope="page",
+            page_id="page-a",
+            scope_revision=7,
+        )
+
+        headers = captured[0].headers
+        assert headers["Authorization"] == "Bearer token-1"
+        assert headers["X-DCP-Capability-Id"] == "debug"
+        assert headers["X-DCP-Capability-Scope"] == "page"
+        assert headers["X-DCP-Page-Id"] == "page-a"
+        assert headers["X-DCP-Scope-Revision"] == "7"
+
+    def test_no_selector_keeps_legacy_headers(self):
+        captured: list[httpx.Request] = []
+
+        def handler(req: httpx.Request) -> httpx.Response:
+            captured.append(req)
+            return _ok_json({"ok": True})
+
+        pool = _MockPool({"dev1": _fresh()}, [])
+        client = _make_client(pool, handler)
+
+        client.invoke("dev1", "POST", ["debug", "tap"], {})
+
+        assert "X-DCP-Capability-Id" not in captured[0].headers
+        assert "X-DCP-Capability-Scope" not in captured[0].headers
+        assert "X-DCP-Page-Id" not in captured[0].headers
+        assert "X-DCP-Scope-Revision" not in captured[0].headers
+
 
 # ---------------------------------------------------------------------------
 # auth token provider + auth error taxonomy (R001-BF009)
@@ -580,6 +627,55 @@ class TestRead:
         result = client.read("dev1", ["profiles"])
         assert result == [{"id": "a"}, {"id": "b"}]
         assert captured[0].url.path == "/profiles"
+
+    def test_read_forwards_selector_headers(self):
+        captured: list[httpx.Request] = []
+
+        def handler(req: httpx.Request) -> httpx.Response:
+            captured.append(req)
+            return _ok_json({"status": "ok"})
+
+        pool = _MockPool({"dev1": _fresh()}, [])
+        client = _make_client(pool, handler)
+
+        result = client.read(
+            "dev1",
+            ["debug", "status"],
+            capability_id="debug",
+            scope="page",
+            page_id="page-a",
+            scope_revision=8,
+        )
+
+        assert result == {"status": "ok"}
+        assert captured[0].method == "GET"
+        assert captured[0].headers["X-DCP-Capability-Id"] == "debug"
+        assert captured[0].headers["X-DCP-Capability-Scope"] == "page"
+        assert captured[0].headers["X-DCP-Page-Id"] == "page-a"
+        assert captured[0].headers["X-DCP-Scope-Revision"] == "8"
+
+
+class TestSelectorHeaders:
+    def test_selector_headers_stringifies_int_revision(self):
+        assert selector_headers(
+            capability_id="debug",
+            scope="page",
+            page_id="page-a",
+            scope_revision=3,
+        ) == {
+            "X-DCP-Capability-Id": "debug",
+            "X-DCP-Capability-Scope": "page",
+            "X-DCP-Page-Id": "page-a",
+            "X-DCP-Scope-Revision": "3",
+        }
+
+    def test_selector_headers_ignores_malformed_optional_values(self):
+        assert selector_headers(
+            capability_id="debug",
+            scope="invalid",
+            page_id="",
+            scope_revision=True,
+        ) == {"X-DCP-Capability-Id": "debug"}
 
 
 # ---------------------------------------------------------------------------

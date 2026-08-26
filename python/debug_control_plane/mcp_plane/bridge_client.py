@@ -279,6 +279,11 @@ class BridgeClient:
         method: str,
         path: list[str],
         body: Any = None,
+        *,
+        capability_id: str | None = None,
+        scope: str | None = None,
+        page_id: str | None = None,
+        scope_revision: int | None = None,
     ) -> Any:
         """Forward ``method path body`` to the phone (byte-level pass-through).
 
@@ -295,6 +300,9 @@ class BridgeClient:
             body: request body. If it's a dict/list it's sent as JSON
                 (``json=``); otherwise it's sent raw (``content=``) and may
                 be ``None``.
+            capability_id/scope/page_id/scope_revision: optional R003
+                selector metadata forwarded as ``X-DCP-*`` headers. Omitted
+                values keep the legacy flat dispatch behavior.
 
         Returns:
             The phone's response body, parsed: dict/list for JSON, ``str``
@@ -309,6 +317,14 @@ class BridgeClient:
         host = self.resolve(device_id)
         url = self._build_url(host, path)
         headers = self._auth_headers(device_id)
+        headers.update(
+            selector_headers(
+                capability_id=capability_id,
+                scope=scope,
+                page_id=page_id,
+                scope_revision=scope_revision,
+            )
+        )
         try:
             if isinstance(body, (dict, list)):
                 resp = self._client.request(method, url, json=body, headers=headers)
@@ -322,13 +338,31 @@ class BridgeClient:
             raise self._http_error(device_id, resp)
         return _safe_body(resp)
 
-    def read(self, device_id: str, path: list[str]) -> Any:
+    def read(
+        self,
+        device_id: str,
+        path: list[str],
+        *,
+        capability_id: str | None = None,
+        scope: str | None = None,
+        page_id: str | None = None,
+        scope_revision: int | None = None,
+    ) -> Any:
         """GET convenience for ``read_resource`` / ``get_state``.
 
         Equivalent to ``invoke(device_id, "GET", path, None)`` but signals
         intent at the call site. Returns the parsed phone body.
         """
-        return self.invoke(device_id, "GET", path, None)
+        return self.invoke(
+            device_id,
+            "GET",
+            path,
+            None,
+            capability_id=capability_id,
+            scope=scope,
+            page_id=page_id,
+            scope_revision=scope_revision,
+        )
 
     def hello(self, device_id: str) -> NetworkTarget:
         """Fetch ``/hello`` and parse to a typed :class:`NetworkTarget`.
@@ -530,6 +564,26 @@ def _safe_body(resp: httpx.Response) -> Any:
         return resp.text
 
 
+def selector_headers(
+    *,
+    capability_id: str | None = None,
+    scope: str | None = None,
+    page_id: str | None = None,
+    scope_revision: int | None = None,
+) -> dict[str, str]:
+    """Build optional R003 selector headers for capability-scoped dispatch."""
+    headers: dict[str, str] = {}
+    if isinstance(capability_id, str) and capability_id:
+        headers["X-DCP-Capability-Id"] = capability_id
+    if scope in ("app", "page"):
+        headers["X-DCP-Capability-Scope"] = scope
+    if isinstance(page_id, str) and page_id:
+        headers["X-DCP-Page-Id"] = page_id
+    if isinstance(scope_revision, int) and not isinstance(scope_revision, bool):
+        headers["X-DCP-Scope-Revision"] = str(scope_revision)
+    return headers
+
+
 def _quote_segment(seg: str) -> str:
     """URL-encode a single path segment (preserving ``/`` within a segment).
 
@@ -647,6 +701,7 @@ __all__ = [
     "DeviceAuthError",
     "DeviceHttpError",
     "DeviceStale",
+    "selector_headers",
     # AD-B9: DeviceUnreachable 已下沉 device_discovery.protocol,
     # 本模块 forward import(BF007),不 re-export。
 ]

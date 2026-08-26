@@ -85,7 +85,7 @@ from .bridge_client import (
     DeviceStale,
     DeviceUnreachable,
 )
-from .capability_mirror import CapabilityMirror, ToolSpec
+from .capability_mirror import CapabilityMirror, CapabilitySchema, ToolSpec
 from .semantic_provider import SemanticProvider
 
 # ★ BF008-010 (Contract §0.1 边界 1 收尾 + 方案 X): capability-specific semantic
@@ -342,20 +342,25 @@ class McpServer:
             # method+path, so we forward command_path as the path and pass
             # the body verbatim. method defaults to POST (R19 commands are
             # all POST per the debug-capability declarations); a future
-            # schema field could override it. capability_id is reserved for
-            # routing/audit (the phone's path already encodes it) so it's
-            # validated for presence by the schema but not forwarded.
-            return await _run(
+            # schema field could override it. BF007 forwards capability_id
+            # plus optional scope fields as selector headers when provided.
+            selector = _selector_from_meta_args(args)
+            await self._ensure_page_selector_current(args["device_id"], selector)
+            return await self._run_meta_call(
                 client.invoke,
                 args["device_id"], "POST",
                 list(args.get("command_path", [])),
                 args.get("args"),
+                selector=selector,
             )
 
         async def h_read_resource(args):
-            return await _run(
+            selector = _selector_from_meta_args(args)
+            await self._ensure_page_selector_current(args["device_id"], selector)
+            return await self._run_meta_call(
                 client.read,
                 args["device_id"], list(args.get("resource_path", [])),
+                selector=selector,
             )
 
         async def h_list_capabilities(args):
@@ -571,6 +576,75 @@ class McpServer:
             "discover_devices": h_discover_devices,
             "register_device": h_register_device,
         }
+
+    async def _ensure_page_selector_current(
+        self,
+        device_id: str,
+        selector: dict[str, Any],
+    ) -> None:
+        """Reject stale page-scoped meta calls before forwarding to the App."""
+        if selector.get("scope") != "page":
+            return
+
+        schemas = self._mirror.schemas(device_id)
+        if not schemas:
+            schemas = await self._refresh_selector_snapshot(device_id)
+
+        if _has_page_capability(schemas, selector):
+            return
+
+        raise McpError(types.ErrorData(
+            code=-32602,
+            message=(
+                "page capability stale: "
+                f"capability_id={selector['capability_id']!r} "
+                f"page_id={selector['page_id']!r}; "
+                "call list_capabilities/tools list and retry with a current selector"
+            ),
+        ))
+
+    async def _refresh_selector_snapshot(
+        self,
+        device_id: str,
+    ) -> list[CapabilitySchema]:
+        """Refresh an empty selector snapshot and surface auth distinctly."""
+        await anyio.to_thread.run_sync(lambda: self._mirror.refresh(device_id))
+        auth_err = self._mirror.auth_error(device_id)
+        if auth_err is not None:
+            raise _bridge_error_to_mcp(auth_err)
+        return self._mirror.schemas(device_id)
+
+    async def _run_meta_call(
+        self,
+        sync_fn,
+        device_id: str,
+        *args,
+        selector: dict[str, Any],
+    ):
+        """Run a meta dispatch and converge page stale App responses."""
+        try:
+            return await anyio.to_thread.run_sync(
+                lambda: sync_fn(device_id, *args, **selector)
+            )
+        except DeviceAuthError as exc:
+            raise _bridge_error_to_mcp(exc) from exc
+        except DeviceHttpError as exc:
+            if _is_page_scope_error(exc):
+                await self._refresh_after_page_scope_error(device_id)
+            raise _bridge_error_to_mcp(exc) from exc
+        except (BridgeError, DeviceUnreachable) as exc:
+            raise _bridge_error_to_mcp(exc) from exc
+
+    async def _refresh_after_page_scope_error(self, device_id: str) -> None:
+        """Best-effort manifest refresh after App says a page selector is stale."""
+        try:
+            changed = await anyio.to_thread.run_sync(
+                lambda: self._mirror.refresh(device_id)
+            )
+            if changed:
+                await self._emit_list_changed()
+        except Exception:  # noqa: BLE001
+            logger.debug("stale page capability refresh failed", exc_info=True)
 
     # ------------------------------------------------------------------
     # list_changed emission (§5.5 ②③; main path is ①, this is auxiliary)
@@ -892,6 +966,66 @@ def _schemas_to_jsonable(schemas) -> list[dict[str, Any]]:
             entry["scopeRevision"] = sch.scope_revision
         out.append(entry)
     return out
+
+
+def _selector_from_meta_args(args: dict[str, Any]) -> dict[str, Any]:
+    """Return BridgeClient selector kwargs from meta-tool arguments."""
+    if not any(key in args for key in ("scope", "page_id", "scope_revision")):
+        return {}
+
+    capability_id = args.get("capability_id")
+    if not isinstance(capability_id, str) or not capability_id:
+        raise ValueError("capability_id is required when selector is provided")
+
+    scope = args.get("scope")
+    if scope not in ("app", "page"):
+        raise ValueError("scope must be app or page")
+
+    page_id = args.get("page_id")
+    if page_id is not None and (not isinstance(page_id, str) or not page_id):
+        raise ValueError("page_id must be a non-empty string")
+    if scope == "page" and page_id is None:
+        raise ValueError("page_id is required when scope=page")
+    if scope != "page" and page_id is not None:
+        raise ValueError("page_id requires scope=page")
+
+    scope_revision = args.get("scope_revision")
+    if scope_revision is not None and (
+        not isinstance(scope_revision, int) or isinstance(scope_revision, bool)
+    ):
+        raise ValueError("scope_revision must be an integer")
+
+    return {
+        "capability_id": capability_id,
+        "scope": scope,
+        "page_id": page_id,
+        "scope_revision": scope_revision,
+    }
+
+
+def _has_page_capability(
+    schemas: list[CapabilitySchema],
+    selector: dict[str, Any],
+) -> bool:
+    """Return whether the mirror has the exact page-scoped capability."""
+    return any(
+        sch.capability_id == selector["capability_id"]
+        and sch.scope == "page"
+        and sch.page_id == selector["page_id"]
+        for sch in schemas
+    )
+
+
+def _is_page_scope_error(exc: DeviceHttpError) -> bool:
+    """True for App signals that mean the page-scoped tool cache is stale."""
+    if exc.status_code not in (409, 410) or not isinstance(exc.body, dict):
+        return False
+    code = exc.body.get("errorCode") or exc.body.get("code")
+    return (
+        exc.status_code == 410 and code == "page_capability_gone"
+    ) or (
+        exc.status_code == 409 and code == "capability_scope_expired"
+    )
 
 
 def _event_to_jsonable(ev) -> dict[str, Any]:
