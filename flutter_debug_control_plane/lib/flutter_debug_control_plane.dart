@@ -7,6 +7,9 @@
 ///   reverse-invoke dispatch).
 /// * [BridgeCapability] — adapts a Dart core `Capability` for registration
 ///   (single-subscription events, D2).
+/// * [PageCapabilityScope] — page-level capability lifecycle registrar
+///   (R003-FB001): explicit `scope='page'` register/dispose so the business
+///   side never hand-assembles channel payloads.
 /// * Channel protocol constants ([kMethodChannel], ...).
 ///
 /// Zero business dependencies: only `debug_control_plane` (Dart core,
@@ -16,4 +19,5 @@ library flutter_debug_control_plane;
 
 export 'src/bridge_capability.dart';
 export 'src/channel_protocol.dart';
+export 'src/page_capability_scope.dart';
 export 'src/native_control_plane_bridge.dart';
