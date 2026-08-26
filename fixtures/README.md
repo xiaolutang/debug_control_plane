@@ -36,6 +36,9 @@
 | 文件 | 类型 | 对应契约 | 断言要点 |
 |---|---|---|---|
 | `hello.json` | 语义级 | §1.2 `/hello` | protocolVersion=1、eventsEndpoint、profileRevision=1、registeredCapabilities schema、path 是 JSON 数组 |
+| `hello-page-scope.json` | 语义级 | §1.2 + §3.2 page scope | app scope 与 page scope 并存；`scope=page` 含 `pageId/pageName/scopeRevision`；path 仍是 JSON 数组 |
+| `hello-multi-page-scope.json` | 语义级 | §1.2 + §3.2 multi-page scope | 多个 active page scope 并存；`page-a`/`page-b` 同时表达；`pageName` 不参与唯一性 |
+| `hello-schema-shrink.json` | 语义级 | §1.2 + §3.2 schema shrink | 相对 multi-page 移除 `page-b`，用于 mirror stale/shrink 场景 |
 | `hello-auth-required.json` | 语义级 | §1.2 + §2 未授权 `/hello` | 最小 bootstrap、authRequired/authEndpoints、**无 registeredCapabilities / 聚合 state** |
 | `hello-auth-authorized.json` | 语义级 | §1.2 + §2 授权后 `/hello` | 完整 hello + registeredCapabilities + 聚合 state + authStatus=authorized |
 | `state-empty.json` | 语义级 | §1.3 `/state` 空载 | **无 ok 包裹**、空 object `{}` |
@@ -45,6 +48,8 @@
 | `error-404.json` | 语义级 | §5.2 路由未命中 | `{ok:false, code:"not_found", message:"Endpoint was not found."}` |
 | `error-400.json` | 语义级 | §5.2 POST body 非法 | `{ok:false, code:"invalid_request", ...}` |
 | `error-500.json` | 语义级 | §5.2 handler 异常 | `{ok:false, code:"internal_error", ...}` |
+| `error-page-capability-gone.json` | 语义级 | §5.2 page scope 失效 | HTTP 410；`{ok:false, code:"page_capability_gone", message}`；客户端 stale + 刷新 `/hello` |
+| `error-capability-scope-expired.json` | 语义级 | §5.2 scope revision 过期 | HTTP 409；`{ok:false, code:"capability_scope_expired", message}`；客户端 stale + 刷新 `/hello` |
 | `error-401-authorization-required.json` | 语义级 | §2.4 auth 缺失 | `{ok:false, code:"authorization_required", ...}` |
 | `error-401-token-expired.json` | 语义级 | §2.4 auth 过期 | `{ok:false, code:"token_expired", ...}` |
 | `error-403-authorization-denied.json` | 语义级 | §2.4 auth 拒绝 | `{ok:false, code:"authorization_denied", ...}` |

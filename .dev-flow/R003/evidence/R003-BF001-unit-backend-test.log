@@ -1,0 +1,49 @@
+---
+status: pass
+passed: 37
+failed: 0
+errors: 0
+task_id: R003-BF001
+---
+PASS 01 jq is available
+PASS 02 PROTOCOL.md contains: 每元素可选 `scope`（string，取值 `app` 或 `page`）
+PASS 03 PROTOCOL.md contains: 缺省等价 `app`
+PASS 04 PROTOCOL.md contains: 当 `scope == "page"` 时，`pageId` 必须存在且非空
+PASS 05 PROTOCOL.md contains: `pageName`（string）。该字段仅用于展示 metadata，不参与 capability 唯一性
+PASS 06 PROTOCOL.md contains: `scopeRevision`（int）。该值代表 capability scope 镜像修订号
+PASS 07 PROTOCOL.md contains: 新增 scope 字段属于向后兼容扩展，`protocolVersion` 仍保持 `1`
+PASS 08 PROTOCOL.md contains: `resources[].path` 与 `commands[].path` 必须继续是 JSON 数组
+PASS 09 PROTOCOL.md contains: `410` | `"page_capability_gone"`
+PASS 10 PROTOCOL.md contains: `409` | `"capability_scope_expired"`
+PASS 11 PROTOCOL.md contains: 客户端收到 `page_capability_gone` 或 `capability_scope_expired` 后，必须把本地 capability mirror 标记为 stale
+PASS 12 PROTOCOL.md contains: 客户端不得对旧工具、旧 `pageId` 或旧 `scopeRevision` 做盲目重试
+PASS 13 fixtures/hello.json protocolVersion=1
+PASS 14 fixtures/hello.json route paths are JSON arrays
+PASS 15 fixtures/hello-page-scope.json protocolVersion=1
+PASS 16 fixtures/hello-page-scope.json route paths are JSON arrays
+PASS 17 fixtures/hello-multi-page-scope.json protocolVersion=1
+PASS 18 fixtures/hello-multi-page-scope.json route paths are JSON arrays
+PASS 19 fixtures/hello-schema-shrink.json protocolVersion=1
+PASS 20 fixtures/hello-schema-shrink.json route paths are JSON arrays
+PASS 21 legacy hello fixture keeps scope absent
+PASS 22 page fixture has page-a scope fields
+PASS 23 page fixture has app scope entry
+PASS 24 multi-page fixture contains page-a and page-b
+PASS 25 multi-page fixture preserves page names
+PASS 26 multi-page fixture preserves scope revisions
+PASS 27 schema-shrink keeps page-a only
+PASS 28 schema-shrink removes page-b
+PASS 29 gone error fixture status/code/message
+PASS 30 gone error fixture refresh guidance
+PASS 31 expired error fixture status/code/message
+PASS 32 expired error fixture refresh guidance
+PASS 33 fixtures/README.md contains: `hello-page-scope.json`
+PASS 34 fixtures/README.md contains: `hello-multi-page-scope.json`
+PASS 35 fixtures/README.md contains: `hello-schema-shrink.json`
+PASS 36 fixtures/README.md contains: `error-page-capability-gone.json`
+PASS 37 fixtures/README.md contains: `error-capability-scope-expired.json`
+SCENARIO Protocol fixture: PASS
+SCENARIO Dart core: PASS via legacy hello compatibility fixture and protocol JSON checks
+SCENARIO Kotlin core: PASS via legacy hello compatibility fixture and protocol JSON checks
+SCENARIO Python mirror: PASS via page/multi-page/schema-shrink/error fixture checks
+SUMMARY passed=37 failed=0 errors=0

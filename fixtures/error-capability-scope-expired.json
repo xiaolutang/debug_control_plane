@@ -1,0 +1,13 @@
+{
+  "_fixture_meta": {
+    "endpoint": "客户端 capability scope mirror revision 过期",
+    "contract_ref": "PROTOCOL.md §5.2",
+    "source_of_truth": "R003-BF001 protocol scope error contract",
+    "type": "semantic",
+    "http_status": 409,
+    "notes": "客户端收到后必须标记 capability mirror stale，重新拉取 /hello，不得重试旧工具"
+  },
+  "ok": false,
+  "code": "capability_scope_expired",
+  "message": "Capability scope mirror expired. Refresh /hello before invoking tools."
+}

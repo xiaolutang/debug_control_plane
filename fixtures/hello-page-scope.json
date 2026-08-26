@@ -1,0 +1,62 @@
+{
+  "_fixture_meta": {
+    "endpoint": "GET /hello",
+    "contract_ref": "PROTOCOL.md §1.2 §3.2",
+    "source_of_truth": "R003-BF001 protocol scope fixture",
+    "type": "semantic",
+    "notes": "BF003 归一化时跳过 _ 前缀键；本 fixture 展示 app scope 与 page scope 并存，scope=page 时 pageId 必填，pageName 仅展示"
+  },
+  "protocolVersion": 1,
+  "app": "$$unstable:app-injected",
+  "deviceId": "$$unstable:app-injected",
+  "deviceName": "$$unstable:app-injected",
+  "platform": "$$unstable:app-injected",
+  "capabilities": "$$unstable:app-injected",
+  "serverHost": "$$unstable:request-host",
+  "serverPort": "$$unstable:bound-port",
+  "localIps": "$$unstable:network-ips",
+  "eventsEndpoint": "/events",
+  "profileRevision": 1,
+  "registeredCapabilities": [
+    {
+      "id": "sample.app",
+      "scope": "app",
+      "scopeRevision": 1,
+      "resources": [
+        {
+          "method": "GET",
+          "path": ["sample", "status"],
+          "description": "App scope sample resource"
+        }
+      ],
+      "commands": [
+        {
+          "method": "POST",
+          "path": ["sample", "invoke"],
+          "description": "App scope sample command"
+        }
+      ]
+    },
+    {
+      "id": "sample.page.panel",
+      "scope": "page",
+      "pageId": "page-a",
+      "pageName": "Page A",
+      "scopeRevision": 2,
+      "resources": [
+        {
+          "method": "GET",
+          "path": ["panel", "state"],
+          "description": "Page scope sample resource"
+        }
+      ],
+      "commands": [
+        {
+          "method": "POST",
+          "path": ["panel", "refresh"],
+          "description": "Page scope sample command"
+        }
+      ]
+    }
+  ]
+}

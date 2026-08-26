@@ -1,0 +1,41 @@
+schema_version: 1
+requirement_cycle: R003
+topic: capability-scope-split
+source_design: .dev-flow/R003/analysis/2026-08-25--capability-scope-split-design.md
+stable_identifiers:
+  - id: acceptance.page_scope.open_button
+    owner: FB001
+    description: 打开页面级 capability demo 的入口。
+  - id: acceptance.page_scope.page_id_text
+    owner: FB001
+    description: 展示当前业务传入 pageId。
+  - id: acceptance.page_scope.registered_count_text
+    owner: FB001
+    description: 展示当前 active page capability 数量。
+  - id: acceptance.page_scope.close_button
+    owner: FB001
+    description: 离开页面并触发 scoped unregister。
+  - id: acceptance.page_scope.refresh_tools_button
+    owner: BF006
+    description: 触发 MCP/HTTP capability 刷新的测试入口。
+visual_acceptance:
+  - id: page_scope_status_visible
+    owners: [FB001, BF008]
+    assertion: 页面 scope demo 中 pageId、registered count 和关闭入口在手机宽度下不遮挡。
+  - id: page_scope_multi_visible
+    owners: [FB001, BF008]
+    assertion: 同时存在 page A/page B 时，两个页面 scope 的标识可区分。
+interaction_assertions:
+  - id: page_register_on_open
+    owners: [FB001, FF001]
+    steps:
+      - tap: acceptance.page_scope.open_button
+      - expect_visible: acceptance.page_scope.page_id_text
+      - expect_value: acceptance.page_scope.registered_count_text
+    result: 页面进入后 page capability 已注册。
+  - id: page_unregister_on_close
+    owners: [FB001, BF004]
+    steps:
+      - tap: acceptance.page_scope.close_button
+      - tap: acceptance.page_scope.refresh_tools_button
+    result: 页面离开后对应 page capability 不再出现在工具列表。

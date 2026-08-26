@@ -1,0 +1,58 @@
+{
+  "_fixture_meta": {
+    "endpoint": "GET /hello",
+    "contract_ref": "PROTOCOL.md §1.2 §3.2 §5.2",
+    "source_of_truth": "R003-BF001 protocol scope fixture",
+    "type": "semantic",
+    "notes": "相对 hello-multi-page-scope.json，本 fixture 移除 page-b，只保留 page-a，用于证明 mirror schema shrink 后客户端必须刷新旧 page-b 工具"
+  },
+  "protocolVersion": 1,
+  "app": "$$unstable:app-injected",
+  "deviceId": "$$unstable:app-injected",
+  "deviceName": "$$unstable:app-injected",
+  "platform": "$$unstable:app-injected",
+  "capabilities": "$$unstable:app-injected",
+  "serverHost": "$$unstable:request-host",
+  "serverPort": "$$unstable:bound-port",
+  "localIps": "$$unstable:network-ips",
+  "eventsEndpoint": "/events",
+  "profileRevision": 1,
+  "registeredCapabilities": [
+    {
+      "id": "sample.app",
+      "scope": "app",
+      "scopeRevision": 5,
+      "resources": [
+        {
+          "method": "GET",
+          "path": ["sample", "status"]
+        }
+      ],
+      "commands": [
+        {
+          "method": "POST",
+          "path": ["sample", "invoke"]
+        }
+      ]
+    },
+    {
+      "id": "sample.page.form",
+      "scope": "page",
+      "pageId": "page-a",
+      "pageName": "Page A",
+      "scopeRevision": 5,
+      "resources": [
+        {
+          "method": "GET",
+          "path": ["form", "state"]
+        }
+      ],
+      "commands": [
+        {
+          "method": "POST",
+          "path": ["form", "submit"]
+        }
+      ]
+    }
+  ]
+}

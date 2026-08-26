@@ -1,0 +1,77 @@
+{
+  "_fixture_meta": {
+    "endpoint": "GET /hello",
+    "contract_ref": "PROTOCOL.md §1.2 §3.2",
+    "source_of_truth": "R003-BF001 protocol scope fixture",
+    "type": "semantic",
+    "notes": "证明多个 active page scope 可并存；同一 capability id 可在不同 pageId 下表达，pageName 不参与唯一性"
+  },
+  "protocolVersion": 1,
+  "app": "$$unstable:app-injected",
+  "deviceId": "$$unstable:app-injected",
+  "deviceName": "$$unstable:app-injected",
+  "platform": "$$unstable:app-injected",
+  "capabilities": "$$unstable:app-injected",
+  "serverHost": "$$unstable:request-host",
+  "serverPort": "$$unstable:bound-port",
+  "localIps": "$$unstable:network-ips",
+  "eventsEndpoint": "/events",
+  "profileRevision": 1,
+  "registeredCapabilities": [
+    {
+      "id": "sample.app",
+      "scope": "app",
+      "scopeRevision": 3,
+      "resources": [
+        {
+          "method": "GET",
+          "path": ["sample", "status"]
+        }
+      ],
+      "commands": [
+        {
+          "method": "POST",
+          "path": ["sample", "invoke"]
+        }
+      ]
+    },
+    {
+      "id": "sample.page.form",
+      "scope": "page",
+      "pageId": "page-a",
+      "pageName": "Page A",
+      "scopeRevision": 4,
+      "resources": [
+        {
+          "method": "GET",
+          "path": ["form", "state"]
+        }
+      ],
+      "commands": [
+        {
+          "method": "POST",
+          "path": ["form", "submit"]
+        }
+      ]
+    },
+    {
+      "id": "sample.page.form",
+      "scope": "page",
+      "pageId": "page-b",
+      "pageName": "Page B",
+      "scopeRevision": 4,
+      "resources": [
+        {
+          "method": "GET",
+          "path": ["form", "state"]
+        }
+      ],
+      "commands": [
+        {
+          "method": "POST",
+          "path": ["form", "submit"]
+        }
+      ]
+    }
+  ]
+}

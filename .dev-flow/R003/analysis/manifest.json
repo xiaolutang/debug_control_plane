@@ -1,0 +1,336 @@
+{
+  "schema_version": "1.0",
+  "manifest_revision": 4,
+  "manifest_digest": "caa27b26fb4321f0b0624484af9ab8c8ea949731a900c9cf7489a5e85c849ced",
+  "topic": "capability-scope-split",
+  "requirement_cycle": "R003",
+  "analysis_protocol": "v1",
+  "protocol_application": "standard",
+  "analysis_state": "analyzed",
+  "blocked_reason": null,
+  "blocked_slice": null,
+  "slices": [
+    {
+      "id": "S01-protocol-scope-contract",
+      "path": ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-protocol-slice.md",
+      "status": "completed",
+      "revision": 3,
+      "checkpoint": {
+        "completed_sections": [
+          "概述",
+          "一、交互链",
+          "二、逻辑树",
+          "三、功能编号与网络定位",
+          "四、边界接口",
+          "五、结论",
+          "SCN-SCOPE-CONTRACT",
+          "BF001",
+          "BF002"
+        ]
+      },
+      "digest": "ec59a48f6ade5387871e5463d75da1bfae7216ff44b0100826697364c9278fed",
+      "evidence": {
+        "execution_id": "xlf-subagent:R003:analysis-slice:S01-protocol-scope-contract:01",
+        "provider": "direct_subagent",
+        "isolation": "independent_context"
+      },
+      "deps": [],
+      "owners": [
+        "SCN-SCOPE-CONTRACT",
+        "BF001",
+        "BF002"
+      ],
+      "context_refs": [
+        ".dev-flow/architecture.md",
+        ".dev-flow/R003/analysis/brainstorm-2026-08-25--capability-scope-split.md",
+        "PROTOCOL.md",
+        "fixtures/hello.json",
+        "fixtures/route-decl.json",
+        "fixtures/error-404.json"
+      ]
+    },
+    {
+      "id": "S02-core-runtime-scope-registry",
+      "path": ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-core-slice.md",
+      "status": "completed",
+      "revision": 4,
+      "checkpoint": {
+        "completed_sections": [
+          "概述",
+          "交互链",
+          "逻辑树",
+          "功能编号与网络定位",
+          "边界接口",
+          "结论",
+          "SCN-CORE-SCOPE-REGISTRY",
+          "BF003",
+          "BF004"
+        ]
+      },
+      "digest": "5196ea77ee2835ffd9e2d88797a848fff2db07c6b073f2b6f2ec23aa3c064619",
+      "evidence": {
+        "execution_id": "xlf-subagent:R003:analysis-slice:S02-core-runtime-scope-registry:01",
+        "provider": "direct_subagent",
+        "isolation": "independent_context"
+      },
+      "deps": [
+        "S01-protocol-scope-contract"
+      ],
+      "owners": [
+        "SCN-CORE-SCOPE-REGISTRY",
+        "BF003",
+        "BF004"
+      ],
+      "context_refs": [
+        ".dev-flow/architecture.md",
+        ".dev-flow/R003/analysis/brainstorm-2026-08-25--capability-scope-split.md",
+        "dart/lib/src/capability.dart",
+        "dart/lib/src/control_plane.dart",
+        "kotlin/src/main/kotlin/com/pantas/debug/controlplane/Capability.kt",
+        "kotlin/src/main/kotlin/com/pantas/debug/controlplane/ControlPlane.kt"
+      ]
+    },
+    {
+      "id": "S03-flutter-plugin-page-lifecycle",
+      "path": ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-flutter-slice.md",
+      "status": "completed",
+      "revision": 3,
+      "checkpoint": {
+        "completed_sections": [
+          "概述",
+          "一、交互链",
+          "二、逻辑树",
+          "三、功能编号与网络定位",
+          "四、稳定标识预清单",
+          "五、边界接口",
+          "六、结论",
+          "SCN-FLUTTER-PAGE-LIFECYCLE",
+          "FF001",
+          "FB001"
+        ]
+      },
+      "digest": "06cb0f1a920b1990fe504ce021992e07b7a9391420830c1c6c39e05a65506118",
+      "evidence": {
+        "execution_id": "xlf-subagent:R003:analysis-slice:S03-flutter-plugin-page-lifecycle:01",
+        "provider": "direct_subagent",
+        "isolation": "independent_context"
+      },
+      "deps": [
+        "S01-protocol-scope-contract",
+        "S02-core-runtime-scope-registry"
+      ],
+      "owners": [
+        "SCN-FLUTTER-PAGE-LIFECYCLE",
+        "FF001",
+        "FB001"
+      ],
+      "context_refs": [
+        ".dev-flow/architecture.md",
+        ".dev-flow/R003/analysis/brainstorm-2026-08-25--capability-scope-split.md",
+        "flutter_debug_control_plane/lib/src/native_control_plane_bridge.dart",
+        "flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/DartCapabilityRegistry.kt",
+        "flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/DebugControlPlaneFlutterPlugin.kt"
+      ]
+    },
+    {
+      "id": "S04-python-mcp-scope-mirror",
+      "path": ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-python-mcp-slice.md",
+      "status": "completed",
+      "revision": 4,
+      "checkpoint": {
+        "completed_sections": [
+          "概述",
+          "交互链",
+          "逻辑树",
+          "功能编号与网络定位",
+          "边界接口",
+          "结论",
+          "SCN-MCP-SCOPE-MIRROR",
+          "BF005",
+          "BF006"
+        ]
+      },
+      "digest": "1997fa4daa144559c32b29d2e7bbdb6759a13135ee8511f24e99db1fc9db7677",
+      "evidence": {
+        "execution_id": "xlf-subagent:R003:analysis-slice:S04-python-mcp-scope-mirror:01",
+        "provider": "direct_subagent",
+        "isolation": "independent_context"
+      },
+      "deps": [
+        "S01-protocol-scope-contract",
+        "S02-core-runtime-scope-registry"
+      ],
+      "owners": [
+        "SCN-MCP-SCOPE-MIRROR",
+        "BF005",
+        "BF006"
+      ],
+      "context_refs": [
+        ".dev-flow/architecture.md",
+        ".dev-flow/R003/analysis/brainstorm-2026-08-25--capability-scope-split.md",
+        "python/debug_control_plane/mcp_plane/capability_mirror.py",
+        "python/debug_control_plane/mcp_plane/bridge_client.py"
+      ]
+    },
+    {
+      "id": "S05-acceptance-and-regression",
+      "path": ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-acceptance-slice.md",
+      "status": "completed",
+      "revision": 4,
+      "checkpoint": {
+        "completed_sections": [
+          "概述",
+          "交互链",
+          "逻辑树",
+          "功能编号与网络定位",
+          "边界接口",
+          "结论",
+          "SCN-SCOPE-ACCEPTANCE",
+          "BF007",
+          "BF008"
+        ]
+      },
+      "digest": "e91b36c23f91732ed6499410cd74acb8a0b3342919965e05e72d34422e5a8c0f",
+      "evidence": {
+        "execution_id": "xlf-subagent:R003:analysis-slice:S05-acceptance-and-regression:01",
+        "provider": "direct_subagent",
+        "isolation": "independent_context"
+      },
+      "deps": [
+        "S01-protocol-scope-contract",
+        "S02-core-runtime-scope-registry",
+        "S03-flutter-plugin-page-lifecycle",
+        "S04-python-mcp-scope-mirror"
+      ],
+      "owners": [
+        "SCN-SCOPE-ACCEPTANCE",
+        "BF007",
+        "BF008"
+      ],
+      "context_refs": [
+        ".dev-flow/architecture.md",
+        ".dev-flow/config.json",
+        ".dev-flow/R003/analysis/brainstorm-2026-08-25--capability-scope-split.md",
+        "ci/ci-check-all.sh"
+      ]
+    }
+  ],
+  "integration": {
+    "path": ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-integration.md",
+    "digest": "113bd61f12572e64fff33378e97b1cc71f804eb2afe090c1967ee1cf5d35d059",
+    "summary": "R003 capability scope split analysis integrated across protocol, core runtime, Flutter plugin lifecycle, Python MCP mirror, and acceptance regression.",
+    "capabilities": [
+      "BF001",
+      "BF002",
+      "BF003",
+      "BF004",
+      "FF001",
+      "FB001",
+      "BF005",
+      "BF006",
+      "BF007",
+      "BF008"
+    ],
+    "split_required": false,
+    "open_issues": [
+      "Design must resolve flat route first-match-wins when multiple page capabilities declare the same route path.",
+      "Design must resolve flat /state aggregation for page capability state key collisions.",
+      "Design must define scopeRevision source and scoped unregister API shape."
+    ]
+  },
+  "consumer_refs": {
+    "design_seed": [
+      ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-integration.md",
+      ".dev-flow/R003/analysis/2026-08-25--capability-scope-split.md",
+      ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-protocol-slice.md",
+      ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-core-slice.md",
+      ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-flutter-slice.md",
+      ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-python-mcp-slice.md",
+      ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-acceptance-slice.md"
+    ]
+  },
+  "artifact_slots": {
+    "design": [
+      ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-design.md"
+    ],
+    "test": [
+      ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-test.md"
+    ]
+  },
+  "analysis_review": {
+    "verdict": "PASS",
+    "manifest_revision": 4,
+    "manifest_digest": "caa27b26fb4321f0b0624484af9ab8c8ea949731a900c9cf7489a5e85c849ced",
+    "release_eligible": true,
+    "gate_verdicts": {
+      "Index": "PASS",
+      "Slice": "PASS",
+      "Integration": "PASS"
+    },
+    "execution_evidence": {
+      "execution_id": "xlf-subagent:R003:analysis-review:04-mermaid9",
+      "provider": "direct_subagent",
+      "isolation": "independent_context",
+      "subagent_role": "xlfoundry-analysis-review",
+      "skill_loaded": false
+    },
+    "degraded": false,
+    "degraded_reason": null,
+    "report_path": ".dev-flow/R003/analysis/reviews/2026-08-26T13-40-43-analysis-PASS.md"
+  },
+  "design_review": {
+    "verdict": "PASS",
+    "manifest_revision": 4,
+    "manifest_digest": "caa27b26fb4321f0b0624484af9ab8c8ea949731a900c9cf7489a5e85c849ced",
+    "release_eligible": true,
+    "gate_verdicts": {
+      "D1": "PASS",
+      "D2": "PASS",
+      "D3": "PASS",
+      "D4": "PASS",
+      "D5": "PASS",
+      "D6": "PASS",
+      "D7": "PASS",
+      "D8": "PASS",
+      "D9": "PASS"
+    },
+    "execution_evidence": {
+      "execution_id": "xlf-subagent:R003:design-review:03-mermaid9-r4",
+      "provider": "direct_subagent",
+      "isolation": "independent_context",
+      "subagent_role": "xlfoundry-design-review",
+      "skill_loaded": false
+    },
+    "degraded": false,
+    "degraded_reason": null,
+    "report_path": ".dev-flow/R003/analysis/reviews/2026-08-26T13-40-43-design-PASS.md"
+  },
+  "review": {
+    "verdict": "PASS",
+    "manifest_revision": 4,
+    "manifest_digest": "caa27b26fb4321f0b0624484af9ab8c8ea949731a900c9cf7489a5e85c849ced",
+    "release_eligible": true,
+    "gate_verdicts": {
+      "D1": "PASS",
+      "D2": "PASS",
+      "D3": "PASS",
+      "D4": "PASS",
+      "D5": "PASS",
+      "D6": "PASS",
+      "D7": "PASS",
+      "D8": "PASS",
+      "D9": "PASS"
+    },
+    "execution_evidence": {
+      "execution_id": "xlf-subagent:R003:design-review:03-mermaid9-r4",
+      "provider": "direct_subagent",
+      "isolation": "independent_context",
+      "subagent_role": "xlfoundry-design-review",
+      "skill_loaded": false
+    },
+    "degraded": false,
+    "degraded_reason": null,
+    "report_path": ".dev-flow/R003/analysis/reviews/2026-08-26T13-40-43-design-PASS.md"
+  },
+  "bootstrap_legacy": false
+}

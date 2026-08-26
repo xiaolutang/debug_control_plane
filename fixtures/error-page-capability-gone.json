@@ -1,0 +1,13 @@
+{
+  "_fixture_meta": {
+    "endpoint": "调用已离开的 page capability",
+    "contract_ref": "PROTOCOL.md §5.2",
+    "source_of_truth": "R003-BF001 protocol scope error contract",
+    "type": "semantic",
+    "http_status": 410,
+    "notes": "客户端收到后必须标记 capability mirror stale，重新拉取 /hello，不得重试旧工具"
+  },
+  "ok": false,
+  "code": "page_capability_gone",
+  "message": "Page capability is no longer available. Refresh /hello before invoking tools."
+}

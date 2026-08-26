@@ -224,6 +224,8 @@ runtime capability 注册表的动态镜像，供 MCP 工具层自动发现可�
   "registeredCapabilities": [
     {
       "id": "<capability id>",
+      "scope": "app",
+      "scopeRevision": 1,
       "resources": [
         { "method": "GET", "path": ["profiles", "{id}"], "description": "..." }
       ],
@@ -240,6 +242,14 @@ runtime capability 注册表的动态镜像，供 MCP 工具层自动发现可�
 - 数组元素顺序 = 注册顺序（`_capabilities` 是 LinkedHashMap，`control_plane.dart:262` docstring 明确"Insertion order is preserved"；`aggregate_capabilities_test.dart:233-234` 实证注册序输出）。
 - 每元素必有 `id`（string）、`resources`（array）、`commands`（array）三键。
 - `resources`/`commands` 每元素必有 `method`（string）、`path`（array）；`description` 在非 null 时才出现（`control_plane.dart:275,282` 的 `if (r.description != null)`）。
+- 每元素可选 `scope`（string，取值 `app` 或 `page`）。缺省等价 `app`，因此旧 capability 和旧 `fixtures/hello.json` 不需要补该字段；旧客户端忽略未知字段仍可解析既有 `id/resources/commands/description`。
+- 每元素可选 `pageId`（string）。当 `scope == "page"` 时，`pageId` 必须存在且非空；缺 `pageId` 或空字符串是无效 page capability schema。`scope == "app"` 或缺省 app scope 时不得依赖 `pageId` 做唯一性。
+- 每元素可选 `pageName`（string）。该字段仅用于展示 metadata，不参与 capability 唯一性，不要求全局唯一，也不得被拼入 capability id、MCP tool id 或 route path。
+- 每元素可选 `scopeRevision`（int）。该值代表 capability scope 镜像修订号，可用于客户端判断本地 mirror 是否过期；具体递增策略由 runtime 后续实现决定。缺省 app scope 与旧 schema 不强制输出该字段。
+- 同一 `id` 可以在不同 `pageId` 下作为多个 active page scope 同时出现在镜像中；协议唯一性由后续 selector/mirror 层结合 `id + scope + pageId` 处理，不能依赖单一 current page 或 `pageName`。
+- Scope metadata 只描述 capability 可见范围，不是 route path 前缀。`resources[].path` 与 `commands[].path` 必须继续是 JSON 数组。
+
+新增 scope 字段属于向后兼容扩展，`protocolVersion` 仍保持 `1`（见 §7）。
 
 ### 3.3 ⚠️ `path` 是 JSON 数组（跨语言坑，关键约束）
 
@@ -382,12 +392,16 @@ Connection: keep-alive
 | 其他异常 | handler 抛非 RouteFailure | `500` | `"internal_error"` | `error.toString()` | `control_plane.dart:179-185` |
 | 404 路由未命中 | 系统路由 + capability 都不匹配 | `404` | `"not_found"` | `"Endpoint was not found."` | `control_plane.dart:168-172` |
 | POST body 非法 | JSON 解析失败 / 非 object | `400` | `"invalid_request"` | `"Request body must be valid JSON object."` 或 `"Expected object."` 或 `"Expected non-empty string."` | `http_codec.dart:33-61` |
+| page capability 已离开 | 客户端调用本地 mirror 中已不存在的 page capability | `410` | `"page_capability_gone"` | `"Page capability is no longer available. Refresh /hello before invoking tools."` | R003-BF001 协议扩展 |
+| capability scope mirror 过期 | 客户端携带的 scope revision 落后于 runtime 当前镜像 | `409` | `"capability_scope_expired"` | `"Capability scope mirror expired. Refresh /hello before invoking tools."` | R003-BF001 协议扩展 |
 | capability 重复注册 | `register` 同 id | —（抛 `StateError`，**不**走 HTTP，是启动期错误） | — | `"Capability already registered: <id>"` | `control_plane.dart:70-74` |
 
 **框架内置的错误 code 枚举**（跨语言对齐用，native 必须用相同字符串）：
 - `not_found`（404）
 - `invalid_request`（400）
 - `internal_error`（500）
+- `page_capability_gone`（410）
+- `capability_scope_expired`（409）
 - `authorization_required`（401）
 - `invalid_token`（401）
 - `token_expired`（401）
@@ -398,6 +412,14 @@ Connection: keep-alive
 业务 capability 可自定义 code（如 `real_controller_active`、`profile_not_found`），但框架层只保证上表列出的框架/鉴权 code。
 
 auth 相关错误 code 由 debug plane auth gate 拥有，仍使用 §5.1 的错误体 schema；不要求业务 capability 自行生成。
+
+page scope 相关错误同样使用 §5.1 的错误体 schema：
+
+```json
+{ "ok": false, "code": "page_capability_gone", "message": "Page capability is no longer available. Refresh /hello before invoking tools." }
+```
+
+客户端收到 `page_capability_gone` 或 `capability_scope_expired` 后，必须把本地 capability mirror 标记为 stale，重新拉取 `GET /hello`，并基于新镜像重新选择工具。客户端不得对旧工具、旧 `pageId` 或旧 `scopeRevision` 做盲目重试。
 
 ### 5.3 HTTP 层错误捕获（`http_sse_transport.dart:100-114`）
 
