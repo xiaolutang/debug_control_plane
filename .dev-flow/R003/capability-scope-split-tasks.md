@@ -219,7 +219,7 @@ contextMdPaths:
 - 关键代码片段：`data class BridgeCapabilityIdentity(val scope: CapabilityScope, val capId: String)`
 - 改动理由/上下文：Android plugin 是 Flutter helper 到 Kotlin core 的桥。
 
-## R003-FB001：page helper — PageCapabilityScope 生命周期注册器 `⬜ 待处理`
+## R003-FB001：page helper — PageCapabilityScope 生命周期注册器 `✅ 已完成`
 
 - 文件：`flutter_debug_control_plane/lib/src/page_capability_scope.dart` + `flutter_debug_control_plane/lib/flutter_debug_control_plane.dart` + `flutter_debug_control_plane/test/page_capability_scope_test.dart`
 - 改动类型：新建
@@ -230,7 +230,7 @@ contextMdPaths:
 - risk_tags: [flutter, lifecycle, helper]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [FB001, FF001]
 - sourceSlices: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-flutter-slice.md]
 - sourceDesigns: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-design.md]
@@ -240,7 +240,7 @@ contextMdPaths:
 - contract_refs: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-acceptance-spec.yaml]
 - decision_refs: [DEC-R003-006]
 - blocked_files: []
-- 具体改动点：R003-FB001.1 `⬜` 新建 registration/helper；R003-FB001.2 `⬜` 维护本 page capId 列表并 dispose 清理；R003-FB001.3 `⬜` public library 导出 helper。
+- 具体改动点：R003-FB001.1 `✅` 新建 registration/helper；R003-FB001.2 `✅` 维护本 page capId 列表并 dispose 清理；R003-FB001.3 `✅` public library 导出 helper。
 - 关键代码片段：`final class PageCapabilityScope { Future<void> registerAll(List<BridgeCapability> capabilities); Future<void> dispose(); }`
 - 改动理由/上下文：业务接入不应手拼 MethodChannel payload。
 
