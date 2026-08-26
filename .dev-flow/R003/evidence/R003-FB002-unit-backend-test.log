@@ -1,0 +1,37 @@
+---
+type: test-log
+task_id: R003-FB002
+layer: unit
+domain: backend
+run_at: 2026-08-26T20:12:09Z
+status: pass
+exit_code: 0
+deferred_reason:
+---
+
+# Test Log: R003-FB002 (unit.backend gate alias)
+
+- command: bash .dev-flow/R003/test-overrides/R003-FB002/unit-flutter.sh
+- exit: 0
+
+## Segment 1: example widget tests (cd flutter_debug_control_plane/example && fvm flutter test)
+
+- passed: 50 (example 包全量：page_capability_scope_demo_test 10 用例（含 round-2 新增 production assembly 用例）+ 既有 40 用例零回归)
+- failed: 0
+- errors: 0
+- result: `00:01 +50: All tests passed!`
+
+### page_capability_scope_demo_test.dart 场景覆盖（KD-4）
+
+- stable identifiers: home open_button/refresh_tools_button 各命中一次（key + semantics label 双通道）；demo 页 close_button/page_id_text/registered_count_text 各一次（semantics label 同值断言）
+- scenario 1 page_register_on_open: tap open_button → page_id_text=page-a 可见、registered_count_text='2 registered'、`capability.register` payload scope='page'/pageId/capId 序列逐字段断言；page B 同构验证
+- scenario 2 page_unregister_on_close: tap close_button → 恰好 2 条 `capability.unregister` 且全部 {scope:'page', pageId:'page-a'}；二次进入重注册（新 scope 实例，全量 register 列表重现）；refresh_tools_button 落本地 request-log（复用既有通道、无新协议流量）
+- scenario 3 coexistence integrity: 预置 live page-b scope 后驱动 page A 关闭 → 仅 page-a scoped unregister 发出、app capability count 不变、page-b 事后 dispose 只补发 page-b payloads；390x844 视口 open/close 循环 tester.takeException()==null 无 RenderFlex overflow
+- degraded path: 独立 demo 通道 (`debug_control_plane/page_scope_demo`) 无 native 对端 → 错误文案可见、count 停留 '0 registered'、app 不崩、close 幂等收尾
+
+## Segment 2: main package regression (cd flutter_debug_control_plane && fvm flutter test)
+
+- passed: 61 (FF001 page_capability_scope_test + FF001/BF002/FF002/FF003 bridge/core/channel 测试全部绿色)
+- failed: 0
+- errors: 0
+- result: `00:00 +61: All tests passed!`

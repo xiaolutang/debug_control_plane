@@ -38,6 +38,13 @@ class AndroidNativePlane implements PlaneHost {
 
   final NativeControlPlaneBridge _bridge;
 
+  /// R003-FB002 (contract Q1): the demo pages must attach their page
+  /// capabilities to THE SAME bridge the host attached — creating a second
+  /// bridge over the one channel would steal the native reverse-invoke
+  /// handler. Read-only exposure; ownership stays with this plane
+  /// (`stop()` still disposes it).
+  NativeControlPlaneBridge get bridge => _bridge;
+
   @override
   late final AcceptancePlane plane;
 

@@ -1,0 +1,23 @@
+---
+type: test-log
+task_id: R003-FB002
+layer: integration
+domain: android
+run_at: 2026-08-26T19:53:18Z
+status: deferred
+exit_code: null
+deferred_reason: device_required
+---
+
+# Test Log: R003-FB002 (integration.android — DEFERRED)
+
+- status: deferred
+- deferred_reason: device_required
+- reason_detail: tasks.md R003-FB002 test_tasks 第二项（integration android, scenarios:
+  page_register_on_open / page_unregister_on_close on real device）需要 Android
+  真机执行 native registry 生命周期验证；按契约 Hard Gates 该项由 R003-BF008
+  真机回收（page A/page B lifecycle、visual baseline 采集同步进行）。
+- substitute_evidence: 结构层等价断言已在 unit.flutter widget test 内交付——
+  .dev-flow/R003/evidence/R003-FB002-unit-flutter-test.log 场景 1/2/3 覆盖
+  register payload、scoped unregister payload 与共存完整性；真机 native registry
+  真实删除结果 BF004/BF008 回收。

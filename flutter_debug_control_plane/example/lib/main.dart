@@ -1,6 +1,10 @@
 import 'dart:io' show Platform;
 
+import 'package:debug_control_plane/debug_control_plane.dart'
+    show Capability, Command, DebugEvent, Resource;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MethodChannel;
+import 'package:flutter_debug_control_plane/flutter_debug_control_plane.dart';
 
 import 'src/acceptance_controller.dart';
 import 'src/acceptance_plane.dart' show AcceptanceRequestLogEntry;
@@ -32,6 +36,30 @@ const List<String> acceptanceStableIdentifiers = <String>[
   'acceptance.auth_dialog.client_label',
   'acceptance.auth_dialog.approve_button',
   'acceptance.auth_dialog.deny_button',
+];
+
+/// R003-FB002: page-scope demo stable identifiers (AcceptanceSpec
+/// `acceptance.page_scope.*`, verbatim). All five widgets are delivered by
+/// this task (contract Q2 revision — refresh_tools_button included).
+const List<String> pageScopeStableIdentifiers = <String>[
+  'acceptance.page_scope.open_button',
+  'acceptance.page_scope.close_button',
+  'acceptance.page_scope.page_id_text',
+  'acceptance.page_scope.registered_count_text',
+  'acceptance.page_scope.refresh_tools_button',
+];
+
+/// Demo page identities (task definition key snippet).
+const String pageAId = 'page-a';
+const String pageBId = 'page-b';
+
+/// The fixed per-page capability ids both demo pages register. The same
+/// capIds coexisting under different page scopes is the intended BF001
+/// demonstration (contract 已知约束). Declared by [_PagePanelCapability] /
+/// [_PageFormCapability] below.
+const List<String> pageCapabilityIds = <String>[
+  'sample.page.panel',
+  'sample.page.form',
 ];
 
 /// Placeholder endpoint shown before the plane is running.
@@ -133,14 +161,48 @@ class _AcceptanceHomeHostState extends State<_AcceptanceHomeHost> {
 
   @override
   Widget build(BuildContext context) {
-    return AcceptanceHomePage(controller: _controller);
+    return AcceptanceHomePage(
+      controller: _controller,
+      resolveDemoBridge: resolveDemoBridge,
+    );
+  }
+
+  /// Resolves the bridge the demo pages attach to (contract KD-2).
+  ///
+  /// Android: reuses the host's own bridge via the new public getter — never
+  /// a second instance over the same channel. Any other platform: `DartPlaneHost`
+  /// holds no [NativeControlPlaneBridge], so the demo constructs a degraded
+  /// bridge over a DISTINCT channel name (no handler preemption); page
+  /// registration there is expected to fail and drives the demo's error path.
+  NativeControlPlaneBridge? resolveDemoBridge() {
+    final host = _controller.host;
+    if (host is AndroidNativePlane) return host.bridge;
+    return null;
   }
 }
 
 class AcceptanceHomePage extends StatelessWidget {
-  const AcceptanceHomePage({super.key, required this.controller});
+  const AcceptanceHomePage({
+    super.key,
+    required this.controller,
+    this.resolveDemoBridge,
+  });
 
   final AcceptanceController controller;
+
+  /// R003-FB002 (KD-2): resolves the bridge the demo pages attach to.
+  /// Null means non-Android mode — the page then uses its degraded
+  /// demo-channel bridge and demonstrates the registration failure path.
+  final NativeControlPlaneBridge? Function()? resolveDemoBridge;
+
+  void _openDemoPage(BuildContext context, String pageId) {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => PageScopeDemoPage(
+        pageId: pageId,
+        bridge: resolveDemoBridge?.call(),
+      ),
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,6 +229,11 @@ class AcceptanceHomePage extends StatelessWidget {
                 _RequestsSection(controller: controller),
                 const SizedBox(height: 12),
                 _ControlsSection(controller: controller),
+                const SizedBox(height: 12),
+                _PageScopeEntrySection(
+                  controller: controller,
+                  onOpenPage: (pageId) => _openDemoPage(context, pageId),
+                ),
               ],
             );
           },
@@ -345,6 +412,234 @@ class _ControlsSection extends StatelessWidget {
       ),
     );
   }
+}
+
+/// R003-FB002: home entry section for the page-scope capability demo.
+class _PageScopeEntrySection extends StatelessWidget {
+  const _PageScopeEntrySection({
+    required this.controller,
+    required this.onOpenPage,
+  });
+
+  final AcceptanceController controller;
+
+  final ValueChanged<String> onOpenPage;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Section(
+      title: 'Page Scope Demo',
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: <Widget>[
+          _ControlButton(
+            identifier: 'acceptance.page_scope.open_button',
+            icon: Icons.open_in_new,
+            label: 'Open page A',
+            onPressed: () => onOpenPage(pageAId),
+          ),
+          _ControlButton(
+            identifier: 'acceptance.page_scope.refresh_tools_button',
+            icon: Icons.refresh,
+            label: 'Refresh tools',
+            onPressed: controller.refreshToolList,
+          ),
+          OutlinedButton.icon(
+            key: const ValueKey<String>('page-b-entry'),
+            onPressed: () => onOpenPage(pageBId),
+            icon: const Icon(Icons.layers),
+            label: const Text('Open page B'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// R003-FB002: one demo page registering `sample.page.panel` / `sample.page.form`
+/// under its own [PageCapabilityScope] on open and disposing it on close
+/// (PopScope with canPop:false so BOTH the close button and the system pop
+/// converge onto [_leave] — contract Q6).
+class PageScopeDemoPage extends StatefulWidget {
+  const PageScopeDemoPage({
+    super.key,
+    required this.pageId,
+    required this.bridge,
+  });
+
+  final String pageId;
+
+  /// Host bridge in Android mode; null on other platforms — the page then
+  /// builds its degraded bridge over a distinct demo channel name.
+  final NativeControlPlaneBridge? bridge;
+
+  @override
+  State<PageScopeDemoPage> createState() => _PageScopeDemoPageState();
+}
+
+class _PageScopeDemoPageState extends State<PageScopeDemoPage> {
+  PageCapabilityScope? _scope;
+  String? _errorText;
+
+  NativeControlPlaneBridge get _effectiveBridge => widget.bridge ??
+      NativeControlPlaneBridge(
+        channel: const MethodChannel('debug_control_plane/page_scope_demo'),
+      );
+
+  @override
+  void initState() {
+    super.initState();
+    _registerAll();
+  }
+
+  Future<void> _registerAll() async {
+    final scope = PageCapabilityScope(
+      bridge: _effectiveBridge,
+      pageId: widget.pageId,
+      pageName: 'Page ${widget.pageId}',
+    );
+    // Publish the scope synchronously so page_id/registered_count render
+    // before registration resolves (fake-async safe).
+    setState(() {
+      _scope = scope;
+    });
+    String? errorText;
+    try {
+      await scope.registerAll(pageCapabilityIds
+          .map((id) => BridgeCapability(_PageCapability(id)))
+          .toList());
+    } catch (error) {
+      // Degraded path (non-Android) or bridge failure: surface the error,
+      // count stays at whatever actually registered (0), app does not crash.
+      errorText = '$error';
+    }
+    if (!mounted || !identical(scope, _scope)) return;
+    setState(() {
+      _errorText = errorText;
+    });
+    if (mounted && identical(scope, _scope)) setState(() {});
+  }
+
+  /// The single exit path (KD-2/Q6): await scoped dispose, then pop.
+  Future<void> _leave() async {
+    final scope = _scope;
+    if (scope != null) {
+      await scope.dispose();
+      if (!mounted || !identical(scope, _scope)) return;
+      setState(() => _scope = null);
+    }
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = _scope;
+    final count = scope?.registeredCount ?? 0;
+    return PopScope<Object?>(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        _leave();
+      },
+      child: Scaffold(
+        appBar: AppBar(title: Text('Page Scope Demo')),
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: <Widget>[
+              _Section(
+                title: 'Capabilities',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    _MetricRow(
+                      label: 'Page',
+                      child: _StableAnchor(
+                        identifier:
+                            'acceptance.page_scope.page_id_text',
+                        child: SelectableText(widget.pageId),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _MetricRow(
+                      label: 'Registered',
+                      child: _StableAnchor(
+                        identifier:
+                            'acceptance.page_scope.registered_count_text',
+                        child: Text('$count registered'),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (_errorText != null)
+                      Text(
+                        _errorText!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              _StableAnchor(
+                identifier: 'acceptance.page_scope.close_button',
+                child: FilledButton.icon(
+                  onPressed: _leave,
+                  icon: const Icon(Icons.close),
+                  label: const Text('Close page'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    // Safety net for teardown paths that bypass _leave (e.g. test harness);
+    // dispose is idempotent.
+    _scope?.dispose();
+    super.dispose();
+  }
+}
+
+/// Minimal placeholder page capability for the demo pages. One class covers
+/// both `sample.page.panel` / `sample.page.form` ([pageCapabilityIds]) — the
+/// two placeholders differ only in id / resource path / state key.
+class _PageCapability implements Capability {
+  const _PageCapability(this.capId);
+
+  final String capId;
+
+  @override
+  String get id => capId;
+
+  /// `sample.page.panel` → panel / `sample.page.form` → form.
+  String get _kind => capId.split('.').last;
+
+  @override
+  List<Resource> get resources => <Resource>[
+        Resource(
+          method: 'GET',
+          path: ['pages', _kind],
+          description: 'demo page $_kind state',
+          handler: (ctx) async => {'page': _kind},
+        ),
+      ];
+
+  @override
+  List<Command> get commands => <Command>[];
+
+  @override
+  Map<String, Object?> state() => <String, Object?>{_kind: true};
+
+  @override
+  Stream<DebugEvent> get events => const Stream<DebugEvent>.empty();
 }
 
 class _Section extends StatelessWidget {

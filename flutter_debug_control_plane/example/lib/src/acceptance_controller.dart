@@ -150,6 +150,23 @@ class AcceptanceController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// R003-FB002: refresh_tools_button local semantics — re-reads the
+  /// current controller state (capabilityCount) and drops one request-log
+  /// entry over the EXISTING single log channel. No new protocol fields,
+  /// no new MethodChannel traffic.
+  void refreshToolList() {
+    _requestLog.add(AcceptanceRequestLogEntry(
+      sequence: _requestLog.length,
+      timestamp: DateTime.now(),
+      method: 'GET',
+      route: '/state',
+      authResult: 'ok',
+      statusCode: 200,
+      message: 'capabilityCount=$capabilityCount',
+    ));
+    notifyListeners();
+  }
+
   /// Drives an unauthorized authorization request through the auth manager
   /// (equivalent to a desktop-side client hitting /auth/request).
   Future<void> simulateAuthRequest({
