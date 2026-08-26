@@ -1,0 +1,24 @@
+---
+type: test-log
+task_id: R003-BF004
+layer: unit
+domain: backend
+run_at: 2026-08-26T09:21:30Z
+status: pass
+exit_code: 0
+deferred_reason: 
+alias_for: .dev-flow/R003/evidence/R003-BF004-unit-android-test.log
+---
+
+# Test Log Alias: R003-BF004 (unit.backend)
+
+This task is Kotlin core backend behavior executed through the configured
+unit.android runner. The formal log is:
+
+- .dev-flow/R003/evidence/R003-BF004-unit-android-test.log
+
+Alias status:
+
+- status: pass
+- passed: 7
+- failed: 0

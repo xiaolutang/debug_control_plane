@@ -45,6 +45,7 @@ open class FakeCapability(
     private val resources: List<Resource> = emptyList(),
     private val commands: List<Command> = emptyList(),
     private val stateMap: Map<String, Any?> = emptyMap(),
+    override val scope: CapabilityScope = CapabilityScope.app(),
 ) : Capability {
 
     private val _events = MutableSharedFlow<DebugEvent>(extraBufferCapacity = 64)

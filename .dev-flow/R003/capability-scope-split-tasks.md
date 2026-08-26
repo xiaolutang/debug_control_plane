@@ -119,7 +119,7 @@ contextMdPaths:
 - 关键代码片段：`void unregisterScoped({required CapabilityScope scope, required String capabilityId});`
 - 改动理由/上下文：Dart core 是协议行为参考实现。
 
-## R003-BF004：kotlin capability model — scope 模型对齐 Dart `⬜ 待处理`
+## R003-BF004：kotlin capability model — scope 模型对齐 Dart `✅ 已完成`
 
 - 文件：`kotlin/src/main/kotlin/com/pantas/debug/controlplane/Capability.kt` + `kotlin/src/test/kotlin/com/pantas/debug/controlplane/GoldenFixtureTest.kt`
 - 改动类型：修改
@@ -130,7 +130,7 @@ contextMdPaths:
 - risk_tags: [kotlin, api, compatibility]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [BF001, BF003]
 - sourceSlices: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-core-slice.md]
 - sourceDesigns: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-design.md]
@@ -140,7 +140,7 @@ contextMdPaths:
 - contract_refs: [PROTOCOL.md]
 - decision_refs: [DEC-R003-001, DEC-R003-002]
 - blocked_files: []
-- 具体改动点：R003-BF004.1 `⬜` 新增 `CapabilityScopeType/CapabilityScope`；R003-BF004.2 `⬜` `Capability` 增加默认 scope；R003-BF004.3 `⬜` 测试 fakes 覆盖 app/page。
+- 具体改动点：R003-BF004.1 `✅` 新增 `CapabilityScopeType/CapabilityScope`；R003-BF004.2 `✅` `Capability` 增加默认 scope；R003-BF004.3 `✅` 测试 fakes 覆盖 app/page。
 - 关键代码片段：`data class CapabilityScope(val type: CapabilityScopeType = APP, val pageId: String? = null, val pageName: String? = null, val revision: Long? = null)`
 - 改动理由/上下文：Android native plugin 走 Kotlin core，模型必须同形。
 

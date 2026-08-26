@@ -5,6 +5,51 @@ import kotlinx.coroutines.flow.Flow
 // NOTE (R1): package name `com.pantas.debug.controlplane` 沿用 spike-a 遗留骨架；
 // design 文档中的 `com.xlfoundry.*` 仅为示意命名。
 
+/** Scope kind for a [Capability], with stable wire values for PROTOCOL.md §3.2. */
+enum class CapabilityScopeType(val wireValue: String) {
+    /** Application-wide capability. */
+    APP("app"),
+
+    /** Page-scoped capability. */
+    PAGE("page");
+
+    companion object {
+        fun fromWire(value: String): CapabilityScopeType = entries.firstOrNull { it.wireValue == value }
+            ?: throw IllegalArgumentException("Unknown capability scope type: $value")
+    }
+}
+
+/** Immutable scope identity for a [Capability]. */
+data class CapabilityScope(
+    val type: CapabilityScopeType = CapabilityScopeType.APP,
+    val pageId: String? = null,
+    val pageName: String? = null,
+    val revision: Long? = null,
+) {
+    init {
+        if (type == CapabilityScopeType.PAGE) {
+            require(!pageId.isNullOrBlank()) {
+                "pageId must be a non-blank string for page capability scope"
+            }
+        }
+    }
+
+    companion object {
+        fun app(): CapabilityScope = CapabilityScope()
+
+        fun page(
+            pageId: String?,
+            pageName: String? = null,
+            revision: Long? = null,
+        ): CapabilityScope = CapabilityScope(
+            type = CapabilityScopeType.PAGE,
+            pageId = pageId,
+            pageName = pageName,
+            revision = revision,
+        )
+    }
+}
+
 /**
  * Plugin contract — Kotlin mirror of Dart `capability.dart` `Capability`.
  *
@@ -22,6 +67,10 @@ interface Capability {
 
     /** Unique capability identifier (used as the registry key). */
     val id: String
+
+    /** Scope identity for this capability. Existing implementations default to app scope. */
+    val scope: CapabilityScope
+        get() = CapabilityScope.app()
 
     /** GET resources owned by this capability. */
     fun resources(): List<Resource>

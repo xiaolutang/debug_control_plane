@@ -1,0 +1,70 @@
+---
+type: test-log
+task_id: R003-BF004
+layer: unit
+domain: android
+run_at: 2026-08-26T09:14:09Z
+status: pass
+exit_code: 0
+deferred_reason: 
+---
+
+# Test Log: R003-BF004 (unit.android)
+
+## Config Source
+- file: .dev-flow/config.json
+- path: project_capabilities.tests.unit.android
+
+## Test Command Source
+- path: .dev-flow/R003/test-overrides/R003-BF004/unit-android.sh
+- command: bash .dev-flow/R003/test-overrides/R003-BF004/unit-android.sh
+
+## Setup
+- command: （跳过）
+- exit: N/A
+
+## Test
+- command: bash .dev-flow/R003/test-overrides/R003-BF004/unit-android.sh
+- exit: 0
+- passed: 7
+- failed: 0
+
+## Teardown
+- command: （跳过）
+- exit: N/A
+
+## Raw Output (tail)
+```
+Starting a Gradle Daemon, 1 busy Daemon could not be reused, use --status for details
+Configuration on demand is an incubating feature.
+> Task :checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :compileKotlin UP-TO-DATE
+> Task :compileJava NO-SOURCE
+> Task :processResources NO-SOURCE
+> Task :classes UP-TO-DATE
+> Task :jar UP-TO-DATE
+> Task :compileTestKotlin UP-TO-DATE
+> Task :compileTestJava NO-SOURCE
+> Task :processTestResources NO-SOURCE
+> Task :testClasses UP-TO-DATE
+
+> Task :test
+
+CapabilityScopeTest > fakeCapabilityCanOverrideScopeWithoutChangingId PASSED
+
+CapabilityScopeTest > pageScopeRetainsPageMetadata PASSED
+
+CapabilityScopeTest > pageScopeRejectsNullEmptyAndBlankPageId PASSED
+
+CapabilityScopeTest > helloPageScopeFixtureUsesProtocolScopeFieldsAndPathArrays PASSED
+
+CapabilityScopeTest > scopeTypeMapsFromWireValues PASSED
+
+CapabilityScopeTest > helloMultiPageScopeFixtureKeepsSameIdDistinctPageIdsAndPathArrays PASSED
+
+CapabilityScopeTest > capability_defaultsToAppScope PASSED
+
+BUILD SUCCESSFUL in 3s
+4 actionable tasks: 1 executed, 3 up-to-date
+7 passed
+```
