@@ -1,0 +1,47 @@
+---
+type: test-log
+task_id: R003-BF002
+layer: unit
+domain: flutter
+run_at: 2026-08-26T08:27:39Z
+status: pass
+exit_code: 0
+deferred_reason: 
+---
+
+# Test Log: R003-BF002 (unit.flutter)
+
+## Config Source
+- file: .dev-flow/config.json
+- path: project_capabilities.tests.unit.flutter
+
+## Test Command Source
+- path: .dev-flow/R003/test-overrides/R003-BF002/unit-flutter.sh
+- command: bash .dev-flow/R003/test-overrides/R003-BF002/unit-flutter.sh
+
+## Setup
+- command: （跳过）
+- exit: N/A
+
+## Test
+- command: bash .dev-flow/R003/test-overrides/R003-BF002/unit-flutter.sh
+- exit: 0
+- passed: all
+- failed: 0
+
+## Teardown
+- command: （跳过）
+- exit: N/A
+
+## Raw Output (tail)
+```
+00:00 +0: loading /Users/tangxiaolu/project/debug_control_plane/dart/test/capability_scope_test.dart
+00:00 +0: CapabilityScope legacy capability implementations default to app scope
+00:00 +1: CapabilityScope scoped capability implementations expose explicit page scope
+00:00 +2: CapabilityScope scope type wire names stay aligned with protocol values
+00:00 +3: CapabilityScope page scope preserves page identity metadata
+00:00 +4: CapabilityScope page scope rejects missing pageId synchronously
+00:00 +5: CapabilityScope page scope rejects blank pageId synchronously
+00:00 +6: CapabilityScope public package entrypoint exports scope types
+00:00 +7: All tests passed!
+```

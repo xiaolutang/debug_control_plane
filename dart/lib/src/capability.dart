@@ -1,5 +1,76 @@
 import 'debug_event.dart';
 
+/// Scope kind for a [Capability].
+enum CapabilityScopeType {
+  /// Application-wide capability.
+  app,
+
+  /// Page-scoped capability.
+  page,
+}
+
+/// Immutable scope identity for a [Capability].
+class CapabilityScope {
+  /// Create an application-wide scope.
+  const CapabilityScope.app()
+      : type = CapabilityScopeType.app,
+        pageId = null,
+        pageName = null,
+        revision = null;
+
+  const CapabilityScope._({
+    required this.type,
+    required this.pageId,
+    required this.pageName,
+    required this.revision,
+  });
+
+  /// Create a page-scoped capability scope.
+  factory CapabilityScope.page({
+    String? pageId,
+    String? pageName,
+    int? revision,
+  }) {
+    if (pageId == null || pageId.trim().isEmpty) {
+      throw ArgumentError.value(
+        pageId,
+        'pageId',
+        'must be a non-blank string for page capability scope',
+      );
+    }
+    return CapabilityScope._(
+      type: CapabilityScopeType.page,
+      pageId: pageId,
+      pageName: pageName,
+      revision: revision,
+    );
+  }
+
+  /// Scope kind.
+  final CapabilityScopeType type;
+
+  /// Stable page identity for [CapabilityScopeType.page].
+  final String? pageId;
+
+  /// Optional display name for page metadata.
+  final String? pageName;
+
+  /// Optional scope revision metadata.
+  final int? revision;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CapabilityScope &&
+          other.type == type &&
+          other.pageId == pageId &&
+          other.pageName == pageName &&
+          other.revision == revision;
+
+  @override
+  int get hashCode => Object.hash(type, pageId, pageName, revision);
+}
+
 /// Per-request context handed to a [Resource] / [Command] handler.
 ///
 /// Protocol-agnostic: `request` is the opaque protocol handle (cast at the
@@ -108,4 +179,23 @@ abstract interface class Capability {
 
   /// State snapshot, aggregated into the `/state` system route.
   Map<String, Object?> state();
+}
+
+/// Optional capability contract for implementations that provide explicit
+/// scope identity.
+abstract interface class ScopedCapability implements Capability {
+  /// Scope identity for this capability.
+  CapabilityScope get scope;
+}
+
+/// Default scope access for [Capability].
+extension CapabilityScopeDefault on Capability {
+  /// Existing capability implementations default to application-wide scope.
+  CapabilityScope get scope {
+    final capability = this;
+    if (capability is ScopedCapability) {
+      return capability.scope;
+    }
+    return const CapabilityScope.app();
+  }
 }

@@ -69,9 +69,9 @@ contextMdPaths:
 - 关键代码片段：`{"id":"sample.page.panel","scope":"page","pageId":"page-a","pageName":"Page A","scopeRevision":2}`
 - 改动理由/上下文：协议和 fixture 是四端字段对齐的真相源。
 
-## R003-BF002：dart capability model — CapabilityScope 数据结构 `⬜ 待处理`
+## R003-BF002：dart capability model — CapabilityScope 数据结构 `✅ 已完成`
 
-- 文件：`dart/lib/src/capability.dart` + `dart/lib/debug_control_plane.dart`
+- 文件：`dart/lib/src/capability.dart` + `dart/lib/debug_control_plane.dart` + `dart/test/capability_scope_test.dart`
 - 改动类型：修改
 - domain: backend
 - task_layer: foundation
@@ -80,7 +80,7 @@ contextMdPaths:
 - risk_tags: [dart, api, compatibility]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [BF001, BF003]
 - sourceSlices: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-core-slice.md]
 - sourceDesigns: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-design.md]
@@ -90,8 +90,8 @@ contextMdPaths:
 - contract_refs: [PROTOCOL.md]
 - decision_refs: [DEC-R003-001, DEC-R003-002]
 - blocked_files: []
-- 具体改动点：R003-BF002.1 `⬜` 新增 `CapabilityScopeType/CapabilityScope`；R003-BF002.2 `⬜` `Capability.scope` 默认 app；R003-BF002.3 `⬜` public entrypoint 导出 scope 类型。
-- 关键代码片段：`abstract interface class Capability { CapabilityScope get scope => const CapabilityScope.app(); }`
+- 具体改动点：R003-BF002.1 `✅` 新增 `CapabilityScopeType/CapabilityScope`；R003-BF002.2 `✅` `Capability.scope` 默认 app；R003-BF002.3 `✅` public entrypoint 导出 scope 类型。
+- 关键代码片段：`extension CapabilityScopeDefault on Capability { CapabilityScope get scope => const CapabilityScope.app(); }`
 - 改动理由/上下文：先定义 Dart core、Flutter bridge 和测试共用的 scope identity。
 
 ## R003-BF003：dart control plane — scoped registry 与 dispatch `⬜ 待处理`
