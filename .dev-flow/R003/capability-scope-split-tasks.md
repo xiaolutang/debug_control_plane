@@ -94,7 +94,7 @@ contextMdPaths:
 - 关键代码片段：`extension CapabilityScopeDefault on Capability { CapabilityScope get scope => const CapabilityScope.app(); }`
 - 改动理由/上下文：先定义 Dart core、Flutter bridge 和测试共用的 scope identity。
 
-## R003-BF003：dart control plane — scoped registry 与 dispatch `⬜ 待处理`
+## R003-BF003：dart control plane — scoped registry 与 dispatch `✅ 已完成`
 
 - 文件：`dart/lib/src/control_plane.dart` + `dart/test/control_plane_test.dart` + `dart/test/golden_fixture_test.dart`
 - 改动类型：修改
@@ -105,7 +105,7 @@ contextMdPaths:
 - risk_tags: [dart, registry, routing, auth]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [BF002, BF003, BF004]
 - sourceSlices: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-core-slice.md]
 - sourceDesigns: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-design.md]
@@ -115,7 +115,7 @@ contextMdPaths:
 - contract_refs: [PROTOCOL.md]
 - decision_refs: [DEC-R003-002, DEC-R003-003, DEC-R003-004, DEC-R003-005]
 - blocked_files: []
-- 具体改动点：R003-BF003.1 `⬜` 新增 `ScopedCapabilityKey`；R003-BF003.2 `⬜` register/unregister 保留旧签名并新增 scoped unregister；R003-BF003.3 `⬜` dispatch 读取 `X-DCP-*` selector；R003-BF003.4 `⬜` hello 输出 scope metadata 和 changed 事件。
+- 具体改动点：R003-BF003.1 `✅` 新增 `ScopedCapabilityKey`；R003-BF003.2 `✅` register/unregister 保留旧签名并新增 scoped unregister；R003-BF003.3 `✅` dispatch 读取 `X-DCP-*` selector；R003-BF003.4 `✅` hello 输出 scope metadata 和 changed 事件。
 - 关键代码片段：`void unregisterScoped({required CapabilityScope scope, required String capabilityId});`
 - 改动理由/上下文：Dart core 是协议行为参考实现。
 

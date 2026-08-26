@@ -1,0 +1,24 @@
+---
+type: test-log
+task_id: R003-BF003
+layer: unit
+domain: backend
+run_at: 2026-08-26T08:49:28Z
+status: pass
+exit_code: 0
+deferred_reason: 
+alias_for: .dev-flow/R003/evidence/R003-BF003-unit-flutter-test.log
+---
+
+# Test Log Alias: R003-BF003 (unit.backend)
+
+This task is Dart core backend behavior executed through the configured
+unit.flutter runner. The formal log is:
+
+- .dev-flow/R003/evidence/R003-BF003-unit-flutter-test.log
+
+Alias status:
+
+- status: pass
+- passed: 40
+- failed: 0

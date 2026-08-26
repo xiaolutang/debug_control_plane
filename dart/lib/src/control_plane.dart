@@ -48,17 +48,20 @@ class ControlPlane {
   /// Optional App-side debug auth boundary. `null` preserves bare mode.
   final DebugAuthManager? authManager;
 
-  final Map<String, Capability> _capabilities = <String, Capability>{};
+  final Map<_ScopedCapabilityKey, _CapabilityEntry> _capabilities =
+      <_ScopedCapabilityKey, _CapabilityEntry>{};
 
-  // Aggregated event subscriptions per capability (kept so unregister can
-  // cancel cleanly).
-  final Map<String, StreamSubscription<DebugEvent>> _eventSubs =
-      <String, StreamSubscription<DebugEvent>>{};
+  // Aggregated event subscriptions per scoped capability (kept so unregister
+  // can cancel cleanly without touching another app/page capability with the
+  // same public id).
+  final Map<_ScopedCapabilityKey, StreamSubscription<DebugEvent>> _eventSubs =
+      <_ScopedCapabilityKey, StreamSubscription<DebugEvent>>{};
 
   final StreamController<DebugEvent> _eventBus =
       StreamController<DebugEvent>.broadcast(sync: true);
 
   int _nextSequence = 0;
+  int _scopeRevision = 0;
 
   /// The global event bus. Transports subscribe here to encode `/events`
   /// (SSE / WS / MCP). Events flow in when capabilities emit on their
@@ -66,30 +69,57 @@ class ControlPlane {
   Stream<DebugEvent> get eventBus => _eventBus.stream;
 
   /// All registered capability ids.
-  Iterable<String> get registeredIds => _capabilities.keys;
+  Iterable<String> get registeredIds =>
+      _capabilities.values.map((entry) => entry.capability.id);
 
   // ---------------------------------------------------------------------------
   // Registry
   // ---------------------------------------------------------------------------
 
-  /// Register [cap]. Throws [StateError] if a capability with the same id is
-  /// already registered (decision D4 — runtime register/unregister is
-  /// supported, but duplicate ids are rejected).
+  /// Register [cap]. Throws [StateError] if a capability with the same scoped
+  /// identity is already registered. Legacy capabilities default to app scope.
   void register(Capability cap) {
-    if (_capabilities.containsKey(cap.id)) {
+    final scope = cap.scope;
+    final key = _ScopedCapabilityKey.from(capabilityId: cap.id, scope: scope);
+    if (_capabilities.containsKey(key)) {
       throw StateError(
-        'Capability already registered: ${cap.id}',
+        'Capability already registered: ${key.describe()}',
       );
     }
-    _capabilities[cap.id] = cap;
-    _eventSubs[cap.id] = cap.events.listen(_onCapabilityEvent);
+    final entry = _CapabilityEntry(
+      capability: cap,
+      scope: scope,
+      scopeRevision: ++_scopeRevision,
+    );
+    _capabilities[key] = entry;
+    _eventSubs[key] = cap.events.listen(_onCapabilityEvent);
+    _emitScopeChanged('registered', entry);
   }
 
-  /// Unregister the capability with the given [id]. No-op if not registered.
+  /// Unregister the app-scoped capability with the given [id].
+  ///
+  /// This preserves the legacy API: page capabilities with the same id remain
+  /// registered and must be removed with [unregisterScoped].
   void unregister(String id) {
-    final cap = _capabilities.remove(id);
-    if (cap == null) return;
-    _eventSubs.remove(id)?.cancel();
+    unregisterScoped(scope: const CapabilityScope.app(), capabilityId: id);
+  }
+
+  /// Unregister the capability identified by [scope] and [capabilityId].
+  ///
+  /// Missing scoped keys are a no-op.
+  void unregisterScoped({
+    required CapabilityScope scope,
+    required String capabilityId,
+  }) {
+    final key = _ScopedCapabilityKey.from(
+      capabilityId: capabilityId,
+      scope: scope,
+    );
+    final entry = _capabilities.remove(key);
+    if (entry == null) return;
+    _eventSubs.remove(key)?.cancel();
+    _scopeRevision += 1;
+    _emitScopeChanged('unregistered', entry, scopeRevision: _scopeRevision);
   }
 
   void _onCapabilityEvent(DebugEvent event) {
@@ -126,6 +156,7 @@ class ControlPlane {
       await sub.cancel();
     }
     _eventSubs.clear();
+    _capabilities.clear();
   }
 
   // ---------------------------------------------------------------------------
@@ -144,43 +175,19 @@ class ControlPlane {
         return RouteResult(statusCode: result.statusCode, body: result.body);
       }
 
-      // Capability routes — flat, prefix-less matching across all declared
-      // resources / commands. Resources answer GET; commands answer POST.
-      if (req.method == 'GET') {
-        for (final cap in _capabilities.values) {
-          for (final decl in cap.resources) {
-            if (decl.method != req.method) continue;
-            final pathParams = <String, String>{};
-            if (_matchPath(decl.path, req.segments, pathParams)) {
-              final denied = await _authorize(req);
-              if (denied != null) return _authDeniedResult(denied);
-              final ctx = RouteContext(
-                pathParams: pathParams,
-                body: req.body,
-                request: req.request,
-              );
-              return RouteResult.ok(await decl.handler(ctx));
-            }
-          }
-        }
-      } else if (req.method == 'POST') {
-        for (final cap in _capabilities.values) {
-          for (final decl in cap.commands) {
-            if (decl.method != req.method) continue;
-            final pathParams = <String, String>{};
-            if (_matchPath(decl.path, req.segments, pathParams)) {
-              final denied = await _authorize(req);
-              if (denied != null) return _authDeniedResult(denied);
-              final ctx = RouteContext(
-                pathParams: pathParams,
-                body: req.body,
-                request: req.request,
-              );
-              return RouteResult.ok(await decl.handler(ctx));
-            }
-          }
-        }
+      // Capability routes are sensitive. Authorize before selector parsing,
+      // scoped lookup, revision checks, or path matching so unauthenticated
+      // callers cannot infer page capability existence.
+      final denied = await _authorize(req);
+      if (denied != null) return _authDeniedResult(denied);
+
+      final selector = _CapabilitySelector.parse(req.headers);
+      if (selector.isPresent) {
+        return await _dispatchSelected(req, selector);
       }
+
+      final flat = await _dispatchFlat(req, _capabilities.values);
+      if (flat != null) return flat;
 
       return RouteResult.error(
         404,
@@ -389,7 +396,9 @@ class ControlPlane {
 
   Map<String, Object?> _aggregateState() {
     final state = <String, Object?>{};
-    for (final cap in _capabilities.values) {
+    for (final entry in _capabilities.values) {
+      if (entry.scope.type != CapabilityScopeType.app) continue;
+      final cap = entry.capability;
       final capState = cap.state();
       for (final entry in capState.entries) {
         // Capabilities own their keys; later registrations win on collision
@@ -410,28 +419,159 @@ class ControlPlane {
   /// (decision D3 — backward compatible).
   Map<String, Object?> _aggregateCapabilities() {
     return <String, Object?>{
-      'registeredCapabilities': _capabilities.values
-          .map((cap) => <String, Object?>{
-                'id': cap.id,
-                'resources': cap.resources
-                    .map((r) => <String, Object?>{
-                          'method': r.method,
-                          'path': r.path,
-                          if (r.description != null)
-                            'description': r.description,
-                        })
-                    .toList(),
-                'commands': cap.commands
-                    .map((c) => <String, Object?>{
-                          'method': c.method,
-                          'path': c.path,
-                          if (c.description != null)
-                            'description': c.description,
-                        })
-                    .toList(),
+      'registeredCapabilities':
+          _capabilities.values.map(_capabilityEntryToJson).toList(),
+    };
+  }
+
+  Map<String, Object?> _capabilityEntryToJson(_CapabilityEntry entry) {
+    final cap = entry.capability;
+    final scope = entry.scope;
+    final emitsScopeMetadata = cap is ScopedCapability;
+    return <String, Object?>{
+      'id': cap.id,
+      if (emitsScopeMetadata) 'scope': scope.type.name,
+      if (emitsScopeMetadata && scope.type == CapabilityScopeType.page)
+        'pageId': scope.pageId,
+      if (emitsScopeMetadata && scope.pageName != null)
+        'pageName': scope.pageName,
+      if (emitsScopeMetadata) 'scopeRevision': entry.scopeRevision,
+      'resources': cap.resources
+          .map((r) => <String, Object?>{
+                'method': r.method,
+                'path': r.path,
+                if (r.description != null) 'description': r.description,
+              })
+          .toList(),
+      'commands': cap.commands
+          .map((c) => <String, Object?>{
+                'method': c.method,
+                'path': c.path,
+                if (c.description != null) 'description': c.description,
               })
           .toList(),
     };
+  }
+
+  Future<RouteResult?> _dispatchFlat(
+    RouteRequest req,
+    Iterable<_CapabilityEntry> entries,
+  ) async {
+    if (req.method == 'GET') {
+      for (final entry in entries) {
+        final result = await _dispatchResources(req, entry.capability);
+        if (result != null) return result;
+      }
+    } else if (req.method == 'POST') {
+      for (final entry in entries) {
+        final result = await _dispatchCommands(req, entry.capability);
+        if (result != null) return result;
+      }
+    }
+    return null;
+  }
+
+  Future<RouteResult> _dispatchSelected(
+    RouteRequest req,
+    _CapabilitySelector selector,
+  ) async {
+    final key = selector.key;
+    if (key == null) {
+      return RouteResult.error(
+        404,
+        'not_found',
+        'Endpoint was not found.',
+      );
+    }
+
+    final entry = _capabilities[key];
+    if (entry == null && key.scope == CapabilityScopeType.page) {
+      return RouteResult.error(
+        410,
+        'page_capability_gone',
+        'Page capability is no longer available. Refresh /hello before invoking tools.',
+      );
+    }
+    if (entry == null) {
+      return RouteResult.error(
+        404,
+        'not_found',
+        'Endpoint was not found.',
+      );
+    }
+
+    final requestedRevision = selector.scopeRevision;
+    if (requestedRevision != null && requestedRevision != entry.scopeRevision) {
+      return RouteResult.error(
+        409,
+        'capability_scope_expired',
+        'Capability scope mirror expired. Refresh /hello before invoking tools.',
+      );
+    }
+
+    final result = await _dispatchFlat(req, <_CapabilityEntry>[entry]);
+    if (result != null) return result;
+    return RouteResult.error(
+      404,
+      'not_found',
+      'Endpoint was not found.',
+    );
+  }
+
+  Future<RouteResult?> _dispatchResources(
+    RouteRequest req,
+    Capability cap,
+  ) async {
+    for (final decl in cap.resources) {
+      if (decl.method != req.method) continue;
+      final pathParams = <String, String>{};
+      if (!_matchPath(decl.path, req.segments, pathParams)) continue;
+      final ctx = RouteContext(
+        pathParams: pathParams,
+        body: req.body,
+        request: req.request,
+      );
+      return RouteResult.ok(await decl.handler(ctx));
+    }
+    return null;
+  }
+
+  Future<RouteResult?> _dispatchCommands(
+    RouteRequest req,
+    Capability cap,
+  ) async {
+    for (final decl in cap.commands) {
+      if (decl.method != req.method) continue;
+      final pathParams = <String, String>{};
+      if (!_matchPath(decl.path, req.segments, pathParams)) continue;
+      final ctx = RouteContext(
+        pathParams: pathParams,
+        body: req.body,
+        request: req.request,
+      );
+      return RouteResult.ok(await decl.handler(ctx));
+    }
+    return null;
+  }
+
+  void _emitScopeChanged(
+    String change,
+    _CapabilityEntry entry, {
+    int? scopeRevision,
+  }) {
+    final scope = entry.scope;
+    _onCapabilityEvent(DebugEvent(
+      type: 'capability_scope_changed',
+      sequence: -1,
+      payload: <String, Object?>{
+        'change': change,
+        'scope': scope.type.name,
+        'capabilityId': entry.capability.id,
+        if (scope.type == CapabilityScopeType.page) 'pageId': scope.pageId,
+        if (scope.pageName != null) 'pageName': scope.pageName,
+        'scopeRevision': scopeRevision ?? entry.scopeRevision,
+      },
+    ));
   }
 
   // ---------------------------------------------------------------------------
@@ -465,4 +605,118 @@ class ControlPlane {
     }
     return true;
   }
+}
+
+final class _CapabilityEntry {
+  const _CapabilityEntry({
+    required this.capability,
+    required this.scope,
+    required this.scopeRevision,
+  });
+
+  final Capability capability;
+  final CapabilityScope scope;
+  final int scopeRevision;
+}
+
+final class _ScopedCapabilityKey {
+  const _ScopedCapabilityKey._({
+    required this.scope,
+    required this.capabilityId,
+    this.pageId,
+  });
+
+  factory _ScopedCapabilityKey.from({
+    required CapabilityScope scope,
+    required String capabilityId,
+  }) {
+    return _ScopedCapabilityKey._(
+      scope: scope.type,
+      capabilityId: capabilityId,
+      pageId: scope.type == CapabilityScopeType.page ? scope.pageId : null,
+    );
+  }
+
+  final CapabilityScopeType scope;
+  final String capabilityId;
+  final String? pageId;
+
+  String describe() {
+    if (scope == CapabilityScopeType.app) return 'app/$capabilityId';
+    return 'page/$pageId/$capabilityId';
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _ScopedCapabilityKey &&
+          other.scope == scope &&
+          other.capabilityId == capabilityId &&
+          other.pageId == pageId;
+
+  @override
+  int get hashCode => Object.hash(scope, capabilityId, pageId);
+}
+
+final class _CapabilitySelector {
+  const _CapabilitySelector._({
+    required this.isPresent,
+    required this.key,
+    required this.scopeRevision,
+  });
+
+  factory _CapabilitySelector.parse(Map<String, String> headers) {
+    final capabilityId = _header(headers, 'X-DCP-Capability-Id');
+    final scopeValue = _header(headers, 'X-DCP-Capability-Scope');
+    final pageId = _header(headers, 'X-DCP-Page-Id');
+    final revisionValue = _header(headers, 'X-DCP-Scope-Revision');
+    final present = capabilityId != null ||
+        scopeValue != null ||
+        pageId != null ||
+        revisionValue != null;
+    if (!present) {
+      return const _CapabilitySelector._(
+        isPresent: false,
+        key: null,
+        scopeRevision: null,
+      );
+    }
+
+    final scope = switch (scopeValue) {
+      'app' => CapabilityScopeType.app,
+      'page' => CapabilityScopeType.page,
+      _ => null,
+    };
+    final revision = revisionValue == null ? null : int.tryParse(revisionValue);
+    final complete = capabilityId != null &&
+        capabilityId.isNotEmpty &&
+        scope != null &&
+        (scope == CapabilityScopeType.app ||
+            (pageId != null && pageId.isNotEmpty));
+    return _CapabilitySelector._(
+      isPresent: true,
+      key: complete
+          ? _ScopedCapabilityKey._(
+              scope: scope,
+              capabilityId: capabilityId,
+              pageId: scope == CapabilityScopeType.page ? pageId : null,
+            )
+          : null,
+      scopeRevision: revision,
+    );
+  }
+
+  final bool isPresent;
+  final _ScopedCapabilityKey? key;
+  final int? scopeRevision;
+}
+
+String? _header(Map<String, String> headers, String name) {
+  final lowerName = name.toLowerCase();
+  for (final entry in headers.entries) {
+    if (entry.key.toLowerCase() != lowerName) continue;
+    final value = entry.value.trim();
+    return value.isEmpty ? null : value;
+  }
+  return null;
 }

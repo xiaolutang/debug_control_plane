@@ -121,12 +121,13 @@ class _RecordingAuthManager implements DebugAuthManager {
   }
 }
 
-class _FakeCapability implements Capability {
+class _FakeCapability implements ScopedCapability {
   _FakeCapability({
     required this.id,
     this.resources = const <Resource>[],
     this.commands = const <Command>[],
     this.initialState = const <String, Object?>{},
+    this.scope = const CapabilityScope.app(),
   });
 
   @override
@@ -139,6 +140,9 @@ class _FakeCapability implements Capability {
   final List<Command> commands;
 
   final Map<String, Object?> initialState;
+
+  @override
+  final CapabilityScope scope;
 
   final StreamController<DebugEvent> _eventSink =
       StreamController<DebugEvent>.broadcast(sync: true);
@@ -184,7 +188,7 @@ RouteRequest _post(
 
 void main() {
   group('ControlPlane register/unregister', () {
-    test('duplicate register same id throws StateError', () {
+    test('duplicate register same app id throws StateError', () {
       final plane = ControlPlane(transport: _FakeTransport());
       final cap = _FakeCapability(id: 'cap-a');
       plane.register(cap);
@@ -192,6 +196,78 @@ void main() {
         () => plane.register(_FakeCapability(id: 'cap-a')),
         throwsA(isA<StateError>()),
       );
+    });
+
+    test('app and page capabilities with the same id can coexist', () async {
+      final plane = ControlPlane(transport: _FakeTransport());
+      plane.register(_FakeCapability(id: 'shared'));
+      plane.register(_FakeCapability(
+        id: 'shared',
+        scope: CapabilityScope.page(pageId: 'page-a', pageName: 'Page A'),
+      ));
+      plane.register(_FakeCapability(
+        id: 'panel',
+        scope: CapabilityScope.page(pageId: 'page-a'),
+      ));
+      plane.register(_FakeCapability(
+        id: 'panel',
+        scope: CapabilityScope.page(pageId: 'page-b'),
+      ));
+
+      final result = await plane.dispatch(_get(const ['hello']));
+      final caps = result.body['registeredCapabilities'] as List<Object?>;
+      expect(caps, hasLength(4));
+      expect(
+        caps.map((e) => (e as Map<String, Object?>)['id']),
+        <String>['shared', 'shared', 'panel', 'panel'],
+      );
+      expect((caps[0] as Map<String, Object?>)['scope'], 'app');
+      expect((caps[1] as Map<String, Object?>)['scope'], 'page');
+      expect((caps[1] as Map<String, Object?>)['pageId'], 'page-a');
+      expect((caps[1] as Map<String, Object?>)['pageName'], 'Page A');
+      expect((caps[1] as Map<String, Object?>)['scopeRevision'], 2);
+    });
+
+    test('duplicate page scoped key throws without replacing handler',
+        () async {
+      final plane = ControlPlane(transport: _FakeTransport());
+      plane.register(_FakeCapability(
+        id: 'panel',
+        scope: CapabilityScope.page(pageId: 'page-a'),
+        resources: [
+          Resource(
+            method: 'GET',
+            path: const ['panel'],
+            handler: (_) async => const <String, Object?>{'hit': 'first'},
+          ),
+        ],
+      ));
+
+      expect(
+        () => plane.register(_FakeCapability(
+          id: 'panel',
+          scope: CapabilityScope.page(pageId: 'page-a'),
+          resources: [
+            Resource(
+              method: 'GET',
+              path: const ['panel'],
+              handler: (_) async => const <String, Object?>{'hit': 'second'},
+            ),
+          ],
+        )),
+        throwsA(isA<StateError>()),
+      );
+
+      final result = await plane.dispatch(_get(
+        const ['panel'],
+        headers: const <String, String>{
+          'X-DCP-Capability-Id': 'panel',
+          'X-DCP-Capability-Scope': 'page',
+          'X-DCP-Page-Id': 'page-a',
+        },
+      ));
+      expect(result.statusCode, 200);
+      expect(result.body['hit'], 'first');
     });
 
     test('register then unregister removes routes', () async {
@@ -219,9 +295,255 @@ void main() {
       expect(after.body['code'], 'not_found');
       expect(after.body['ok'], false);
     });
+
+    test('legacy unregister only removes app scoped capability', () async {
+      final plane = ControlPlane(transport: _FakeTransport());
+      plane.register(_FakeCapability(
+        id: 'shared',
+        resources: [
+          Resource(
+            method: 'GET',
+            path: const ['shared'],
+            handler: (_) async => const <String, Object?>{'scope': 'app'},
+          ),
+        ],
+      ));
+      plane.register(_FakeCapability(
+        id: 'shared',
+        scope: CapabilityScope.page(pageId: 'page-a'),
+        resources: [
+          Resource(
+            method: 'GET',
+            path: const ['shared'],
+            handler: (_) async => const <String, Object?>{'scope': 'page-a'},
+          ),
+        ],
+      ));
+
+      plane.unregister('shared');
+
+      final app = await plane.dispatch(_get(
+        const ['shared'],
+        headers: const <String, String>{
+          'X-DCP-Capability-Id': 'shared',
+          'X-DCP-Capability-Scope': 'app',
+        },
+      ));
+      final page = await plane.dispatch(_get(
+        const ['shared'],
+        headers: const <String, String>{
+          'X-DCP-Capability-Id': 'shared',
+          'X-DCP-Capability-Scope': 'page',
+          'X-DCP-Page-Id': 'page-a',
+        },
+      ));
+      expect(app.statusCode, 404);
+      expect(page.statusCode, 200);
+      expect(page.body['scope'], 'page-a');
+    });
+
+    test('scoped unregister removes only matching page and subscription',
+        () async {
+      final transport = _FakeTransport();
+      final plane = ControlPlane(transport: transport);
+      final app = _FakeCapability(id: 'shared');
+      final pageA = _FakeCapability(
+        id: 'shared',
+        scope: CapabilityScope.page(pageId: 'page-a'),
+      );
+      final pageB = _FakeCapability(
+        id: 'shared',
+        scope: CapabilityScope.page(pageId: 'page-b'),
+      );
+      plane.register(app);
+      plane.register(pageA);
+      plane.register(pageB);
+      transport.broadcasts.clear();
+
+      plane.unregisterScoped(
+        scope: CapabilityScope.page(pageId: 'page-a'),
+        capabilityId: 'shared',
+      );
+      pageA.emit(const DebugEvent(
+        type: 'page-a-event',
+        sequence: -1,
+        payload: <String, Object?>{},
+      ));
+      pageB.emit(const DebugEvent(
+        type: 'page-b-event',
+        sequence: -1,
+        payload: <String, Object?>{},
+      ));
+      app.emit(const DebugEvent(
+        type: 'app-event',
+        sequence: -1,
+        payload: <String, Object?>{},
+      ));
+      await Future<void>.delayed(Duration.zero);
+
+      final hello = await plane.dispatch(_get(const ['hello']));
+      final caps = hello.body['registeredCapabilities'] as List<Object?>;
+      expect(caps, hasLength(2));
+      expect(
+        caps.map((e) => (e as Map<String, Object?>)['pageId']).toList(),
+        <Object?>[null, 'page-b'],
+      );
+      expect(transport.broadcasts.map((e) => e.type), contains('page-b-event'));
+      expect(transport.broadcasts.map((e) => e.type), contains('app-event'));
+      expect(
+        transport.broadcasts.map((e) => e.type),
+        isNot(contains('page-a-event')),
+      );
+    });
   });
 
   group('ControlPlane capability dispatch', () {
+    test('legacy dispatch without selector remains first match wins', () async {
+      final plane = ControlPlane(transport: _FakeTransport());
+      plane.register(_FakeCapability(
+        id: 'shared',
+        resources: [
+          Resource(
+            method: 'GET',
+            path: const ['same'],
+            handler: (_) async => const <String, Object?>{'hit': 'app'},
+          ),
+        ],
+      ));
+      plane.register(_FakeCapability(
+        id: 'shared',
+        scope: CapabilityScope.page(pageId: 'page-a'),
+        resources: [
+          Resource(
+            method: 'GET',
+            path: const ['same'],
+            handler: (_) async => const <String, Object?>{'hit': 'page-a'},
+          ),
+        ],
+      ));
+
+      final result = await plane.dispatch(_get(const ['same']));
+      expect(result.statusCode, 200);
+      expect(result.body['hit'], 'app');
+    });
+
+    test('selector headers dispatch to the requested page capability',
+        () async {
+      final plane = ControlPlane(transport: _FakeTransport());
+      plane.register(_FakeCapability(
+        id: 'panel',
+        scope: CapabilityScope.page(pageId: 'page-a'),
+        resources: [
+          Resource(
+            method: 'GET',
+            path: const ['same'],
+            handler: (_) async => const <String, Object?>{'hit': 'page-a'},
+          ),
+        ],
+      ));
+      plane.register(_FakeCapability(
+        id: 'panel',
+        scope: CapabilityScope.page(pageId: 'page-b'),
+        resources: [
+          Resource(
+            method: 'GET',
+            path: const ['same'],
+            handler: (_) async => const <String, Object?>{'hit': 'page-b'},
+          ),
+        ],
+      ));
+
+      final result = await plane.dispatch(_get(
+        const ['same'],
+        headers: const <String, String>{
+          'X-DCP-Capability-Id': 'panel',
+          'X-DCP-Capability-Scope': 'page',
+          'X-DCP-Page-Id': 'page-b',
+        },
+      ));
+
+      expect(result.statusCode, 200);
+      expect(result.body['hit'], 'page-b');
+    });
+
+    test(
+        'selector returns gone for missing page and expired for stale revision',
+        () async {
+      final plane = ControlPlane(transport: _FakeTransport());
+      plane.register(_FakeCapability(
+        id: 'panel',
+        scope: CapabilityScope.page(pageId: 'page-a'),
+        resources: [
+          Resource(
+            method: 'GET',
+            path: const ['same'],
+            handler: (_) async => const <String, Object?>{'ok': true},
+          ),
+        ],
+      ));
+
+      final expired = await plane.dispatch(_get(
+        const ['same'],
+        headers: const <String, String>{
+          'X-DCP-Capability-Id': 'panel',
+          'X-DCP-Capability-Scope': 'page',
+          'X-DCP-Page-Id': 'page-a',
+          'X-DCP-Scope-Revision': '999',
+        },
+      ));
+      final gone = await plane.dispatch(_get(
+        const ['same'],
+        headers: const <String, String>{
+          'X-DCP-Capability-Id': 'panel',
+          'X-DCP-Capability-Scope': 'page',
+          'X-DCP-Page-Id': 'page-missing',
+        },
+      ));
+
+      expect(expired.statusCode, 409);
+      expect(expired.body['ok'], false);
+      expect(expired.body['code'], 'capability_scope_expired');
+      expect(
+        expired.body['message'],
+        'Capability scope mirror expired. Refresh /hello before invoking tools.',
+      );
+      expect(gone.statusCode, 410);
+      expect(gone.body['ok'], false);
+      expect(gone.body['code'], 'page_capability_gone');
+      expect(
+        gone.body['message'],
+        'Page capability is no longer available. Refresh /hello before invoking tools.',
+      );
+    });
+
+    test('selector target exists but path mismatch returns not_found',
+        () async {
+      final plane = ControlPlane(transport: _FakeTransport());
+      plane.register(_FakeCapability(
+        id: 'panel',
+        scope: CapabilityScope.page(pageId: 'page-a'),
+        resources: [
+          Resource(
+            method: 'GET',
+            path: const ['exists'],
+            handler: (_) async => const <String, Object?>{'ok': true},
+          ),
+        ],
+      ));
+
+      final result = await plane.dispatch(_get(
+        const ['missing'],
+        headers: const <String, String>{
+          'X-DCP-Capability-Id': 'panel',
+          'X-DCP-Capability-Scope': 'page',
+          'X-DCP-Page-Id': 'page-a',
+        },
+      ));
+
+      expect(result.statusCode, 404);
+      expect(result.body['code'], 'not_found');
+    });
+
     test('GET declared resource returns 200 + handler body', () async {
       final transport = _FakeTransport();
       final plane = ControlPlane(transport: transport);
@@ -368,6 +690,44 @@ void main() {
       expect(result.body['code'], 'internal_error');
       expect(result.body['message'], contains('Bad state: boom'));
     });
+
+    test('auth denied beats selector gone and expired checks', () async {
+      final auth = _RecordingAuthManager(
+        authorizeDecision: DebugAuth.invalidToken(),
+      );
+      final plane = ControlPlane(
+        transport: _FakeTransport(),
+        authManager: auth,
+      );
+      plane.register(_FakeCapability(
+        id: 'panel',
+        scope: CapabilityScope.page(pageId: 'page-a'),
+        resources: [
+          Resource(
+            method: 'GET',
+            path: const ['same'],
+            handler: (_) async => const <String, Object?>{'ok': true},
+          ),
+        ],
+      ));
+
+      final result = await plane.dispatch(_get(
+        const ['same'],
+        headers: const <String, String>{
+          'Authorization': 'Bearer bad-token',
+          'X-DCP-Capability-Id': 'panel',
+          'X-DCP-Capability-Scope': 'page',
+          'X-DCP-Page-Id': 'page-missing',
+          'X-DCP-Scope-Revision': '999',
+        },
+      ));
+
+      expect(result.statusCode, 401);
+      expect(result.body['code'], 'invalid_token');
+      expect(result.body['code'], isNot('page_capability_gone'));
+      expect(result.body['code'], isNot('capability_scope_expired'));
+      expect(auth.authorizeRequests.single.segments, const ['same']);
+    });
   });
 
   group('ControlPlane event bus', () {
@@ -391,14 +751,45 @@ void main() {
 
       expect(received.length, 1);
       expect(received.first.type, 'controller_state_changed');
-      expect(received.first.sequence, 0); // monotonic from 0
+      expect(received.first.sequence, 1); // register emitted sequence 0
       expect(received.first.payload, {'activeSource': 'virtual'});
       // Broadcast to transport also fired.
-      expect(transport.broadcasts.length, 1);
-      expect(transport.broadcasts.first.type, 'controller_state_changed');
-      expect(transport.broadcasts.first.sequence, 0);
+      expect(transport.broadcasts.length, 2);
+      expect(transport.broadcasts.last.type, 'controller_state_changed');
+      expect(transport.broadcasts.last.sequence, 1);
 
       await sub.cancel();
+    });
+
+    test('register and unregister emit capability_scope_changed events',
+        () async {
+      final transport = _FakeTransport();
+      final plane = ControlPlane(transport: transport);
+      final cap = _FakeCapability(
+        id: 'panel',
+        scope: CapabilityScope.page(pageId: 'page-a', pageName: 'Page A'),
+      );
+      plane.register(cap);
+
+      expect(transport.broadcasts.single.type, 'capability_scope_changed');
+      expect(transport.broadcasts.single.sequence, 0);
+      expect(transport.broadcasts.single.payload, <String, Object?>{
+        'change': 'registered',
+        'scope': 'page',
+        'capabilityId': 'panel',
+        'pageId': 'page-a',
+        'pageName': 'Page A',
+        'scopeRevision': 1,
+      });
+
+      plane.unregisterScoped(
+        scope: CapabilityScope.page(pageId: 'page-a'),
+        capabilityId: 'panel',
+      );
+
+      expect(transport.broadcasts.last.type, 'capability_scope_changed');
+      expect(transport.broadcasts.last.payload['change'], 'unregistered');
+      expect(transport.broadcasts.last.payload['scopeRevision'], 2);
     });
 
     test('multiple emits produce monotonic sequences', () async {
@@ -422,7 +813,7 @@ void main() {
       ));
       await Future<void>.delayed(Duration.zero);
 
-      expect(received.map((e) => e.sequence), [0, 1]);
+      expect(received.map((e) => e.sequence), [1, 2]);
       await sub.cancel();
     });
 
@@ -540,7 +931,7 @@ void main() {
       expect(result.body['eventsEndpoint'], '/events');
     });
 
-    test('/state aggregates every capability state() fields', () async {
+    test('/state aggregates only app capability state() fields', () async {
       final transport = _FakeTransport();
       final plane = ControlPlane(transport: transport);
       plane.register(_FakeCapability(
@@ -554,6 +945,14 @@ void main() {
         id: 'cap-b',
         initialState: const <String, Object?>{'lastError': null},
       ));
+      plane.register(_FakeCapability(
+        id: 'page-cap',
+        scope: CapabilityScope.page(pageId: 'page-a'),
+        initialState: const <String, Object?>{
+          'activeSource': 'page',
+          'pageOnly': true,
+        },
+      ));
 
       final result = await plane.dispatch(_get(const ['state']));
       expect(result.statusCode, 200);
@@ -563,6 +962,29 @@ void main() {
       expect(result.body['activeSource'], 'virtual');
       expect(result.body['profileRevision'], 1);
       expect(result.body['lastError'], null);
+      expect(result.body.containsKey('pageOnly'), isFalse);
+    });
+
+    test('/hello top-level state only includes app capabilities', () async {
+      final plane = ControlPlane(transport: _FakeTransport());
+      plane.register(_FakeCapability(
+        id: 'app',
+        initialState: const <String, Object?>{'shared': 'app'},
+      ));
+      plane.register(_FakeCapability(
+        id: 'page',
+        scope: CapabilityScope.page(pageId: 'page-a'),
+        initialState: const <String, Object?>{
+          'shared': 'page',
+          'pageOnly': true,
+        },
+      ));
+
+      final result = await plane.dispatch(_get(const ['hello']));
+
+      expect(result.body['shared'], 'app');
+      expect(result.body.containsKey('pageOnly'), isFalse);
+      expect(result.body['registeredCapabilities'], isA<List>());
     });
 
     test('/events (without transport hijack) returns 200 introspection',
