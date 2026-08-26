@@ -52,6 +52,7 @@ from debug_control_plane.mcp_plane.server import (
     _bridge_error_to_mcp,
     _device_record_to_jsonable,
     _normalize_tool_result,
+    _schemas_to_jsonable,
     _tool_spec_to_mcp,
 )
 
@@ -236,6 +237,27 @@ class TestDispatchRouting:
         assert call.args == ("dev1", "POST", ["virtual", "connect"], {"profileId": "x"})
 
     @pytest.mark.asyncio
+    async def test_invoke_command_accepts_selector_args_without_forwarding_bf007(
+        self, assembled
+    ):
+        srv, *_ = assembled
+        mock_client = assembled[2]
+        mock_client.invoke.return_value = {"result": "ok"}
+        h = srv.call_handler_for_test("invoke_command")
+        await h({
+            "device_id": "dev1",
+            "capability_id": "debug",
+            "command_path": ["virtual", "connect"],
+            "args": {},
+            "scope": "page",
+            "page_id": "page-a",
+            "scope_revision": 4,
+        })
+        assert mock_client.invoke.call_args.args == (
+            "dev1", "POST", ["virtual", "connect"], {}
+        )
+
+    @pytest.mark.asyncio
     async def test_read_resource_uses_path_segments(self, assembled):
         srv, *_ = assembled
         mock_client = assembled[2]
@@ -245,6 +267,25 @@ class TestDispatchRouting:
             "device_id": "dev1",
             "capability_id": "debug",
             "resource_path": ["profiles"],
+        })
+        assert mock_client.read.call_args.args == ("dev1", ["profiles"])
+
+    @pytest.mark.asyncio
+    async def test_read_resource_accepts_selector_args_without_forwarding_bf007(
+        self, assembled
+    ):
+        srv, *_ = assembled
+        mock_client = assembled[2]
+        mock_client.read.return_value = {"profiles": []}
+        h = srv.call_handler_for_test("read_resource")
+        await h({
+            "device_id": "dev1",
+            "capability_id": "debug",
+            "resource_path": ["profiles"],
+            "params": {"q": "x"},
+            "scope": "page",
+            "page_id": "page-a",
+            "scope_revision": 4,
         })
         assert mock_client.read.call_args.args == ("dev1", ["profiles"])
 
@@ -702,6 +743,68 @@ class TestMetaAndListChanged:
         result = await h({"device_id": "dev1"})
         assert isinstance(result, list)
         assert any(s["capability_id"] == _STUB_CAP_ID for s in result)
+
+    @pytest.mark.asyncio
+    async def test_list_capabilities_returns_scope_metadata(self, assembled):
+        srv, mirror, mock_client, _ = assembled
+        del mirror
+        nt = _make_target(registered=(
+            {
+                "id": _STUB_CAP_ID,
+                "scope": "page",
+                "pageId": "page-a",
+                "pageName": "Page A",
+                "scopeRevision": 8,
+                "resources": [{"method": "GET", "path": ["status"]}],
+                "commands": [],
+            },
+        ))
+        mock_client.hello.return_value = nt
+        h = srv.call_handler_for_test("list_capabilities")
+
+        result = await h({"device_id": "dev1"})
+
+        assert result == [{
+            "capability_id": _STUB_CAP_ID,
+            "resources": [{
+                "method": "GET",
+                "path": ("status",),
+                "description": None,
+            }],
+            "commands": [],
+            "scope": "page",
+            "pageId": "page-a",
+            "pageName": "Page A",
+            "scopeRevision": 8,
+        }]
+
+    def test_schemas_to_jsonable_includes_default_app_scope_only(self):
+        result = _schemas_to_jsonable([
+            CapabilitySchema(capability_id="legacy", resources=(), commands=())
+        ])
+        assert result == [{
+            "capability_id": "legacy",
+            "resources": [],
+            "commands": [],
+            "scope": "app",
+        }]
+
+    def test_meta_tool_input_schemas_keep_required_and_add_optional_selectors(
+        self, assembled
+    ):
+        srv, mirror, *_ = assembled
+        del srv
+        tools = {tool.name: tool for tool in mirror.build_tools(None)}
+        for name, path_key in [
+            ("invoke_command", "command_path"),
+            ("read_resource", "resource_path"),
+        ]:
+            schema = tools[name].input_schema
+            assert schema["required"] == ["device_id", "capability_id", path_key]
+            assert schema["additionalProperties"] is False
+            assert set(["scope", "page_id", "scope_revision"]).issubset(
+                schema["properties"]
+            )
 
     @pytest.mark.asyncio
     async def test_list_capabilities_bridge_error_degrades_to_empty(self, assembled):

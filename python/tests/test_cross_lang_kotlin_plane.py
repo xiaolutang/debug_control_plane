@@ -318,9 +318,10 @@ def test_bridge_client_events_stream_yields_debug_events(bridge):
     assert got.wait(timeout=10.0), "no SSE event received within 10s"
     evt = received[0]
     assert evt.event_type == "demo_event"
-    # First event of the process → sequence 0 (process-level counter, §3.1);
-    # no other /events connection precedes this test within the module.
-    assert evt.sequence == 0
+    # R003-BF005: the Kotlin smoke capability registration emits
+    # capability_scope_changed first. The demo event is still assigned by the
+    # plane's global counter, but it is now the next event in the process.
+    assert evt.sequence == 1
 
 
 # ---------------------------------------------------------------------------

@@ -129,12 +129,21 @@ class CapabilitySchema:
         resources: declared REST resources (read side).
         commands: declared commands (write side).
         description: optional capability-level description (may be absent).
+        scope: ``app`` or ``page``; missing/malformed wire values downgrade
+            locally to ``app``.
+        page_id: optional business-provided page identity for page scope.
+        page_name: optional display metadata; never participates in tool names.
+        scope_revision: optional integer mirror revision for stale detection.
     """
 
     capability_id: str
     resources: tuple[ResourceDecl, ...] = ()
     commands: tuple[CommandDecl, ...] = ()
     description: str | None = None
+    scope: str = "app"
+    page_id: str | None = None
+    page_name: str | None = None
+    scope_revision: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -249,6 +258,19 @@ _STATIC_META_TOOLS: tuple[ToolSpec, ...] = (
                     "description": "Request body (object) or null.",
                     "additionalProperties": True,
                 },
+                "scope": {
+                    "type": "string",
+                    "enum": ["app", "page"],
+                    "description": "Optional capability scope selector.",
+                },
+                "page_id": {
+                    "type": "string",
+                    "description": "Optional page id selector for page scope.",
+                },
+                "scope_revision": {
+                    "type": "integer",
+                    "description": "Optional scope revision selector.",
+                },
             },
             "required": ["device_id", "capability_id", "command_path"],
             "additionalProperties": False,
@@ -273,6 +295,19 @@ _STATIC_META_TOOLS: tuple[ToolSpec, ...] = (
                 "params": {
                     "type": ["object", "null"],
                     "additionalProperties": True,
+                },
+                "scope": {
+                    "type": "string",
+                    "enum": ["app", "page"],
+                    "description": "Optional capability scope selector.",
+                },
+                "page_id": {
+                    "type": "string",
+                    "description": "Optional page id selector for page scope.",
+                },
+                "scope_revision": {
+                    "type": "integer",
+                    "description": "Optional scope revision selector.",
                 },
             },
             "required": ["device_id", "capability_id", "resource_path"],
@@ -595,6 +630,10 @@ class CapabilityMirror:
                     resources=(),
                     commands=(),
                     description=None,
+                    scope="app",
+                    page_id=None,
+                    page_name=None,
+                    scope_revision=None,
                 )
                 for tag in target.capabilities
             ]
@@ -618,11 +657,19 @@ class CapabilityMirror:
         description = (
             description_raw if isinstance(description_raw, str) and description_raw else None
         )
+        scope = _parse_scope(cap.get("scope"))
+        page_id = _parse_optional_string(cap.get("pageId"))
+        page_name = _parse_optional_string(cap.get("pageName"))
+        scope_revision = _parse_scope_revision(cap.get("scopeRevision"))
         return CapabilitySchema(
             capability_id=cap_id,
             resources=resources,
             commands=commands,
             description=description,
+            scope=scope,
+            page_id=page_id,
+            page_name=page_name,
+            scope_revision=scope_revision,
         )
 
 
@@ -661,6 +708,23 @@ def _parse_decls(
         desc = description if isinstance(description, str) and description else None
         out.append(decl_cls(method=method, path=tuple(str(p) for p in path), description=desc))
     return tuple(out)  # type: ignore[return-value]
+
+
+def _parse_scope(raw: Any) -> str:
+    """Parse registeredCapabilities[].scope with legacy-safe downgrade."""
+    return raw if raw in ("app", "page") else "app"
+
+
+def _parse_optional_string(raw: Any) -> str | None:
+    """Return non-empty string metadata, otherwise local downgrade to None."""
+    return raw if isinstance(raw, str) and raw else None
+
+
+def _parse_scope_revision(raw: Any) -> int | None:
+    """Return real integer revisions only; bool/malformed values downgrade."""
+    if isinstance(raw, bool):
+        return None
+    return raw if isinstance(raw, int) else None
 
 
 __all__ = [

@@ -269,7 +269,7 @@ contextMdPaths:
 - 关键代码片段：`const pageAId = 'page-a'; const pageBId = 'page-b';`
 - 改动理由/上下文：example 是业务接入参考和真机验收入口。
 
-## R003-BF006：python mirror — CapabilitySchema scope 解析与 diff `⬜ 待处理`
+## R003-BF006：python mirror — CapabilitySchema scope 解析与 diff `✅ 已完成`
 
 - 文件：`python/debug_control_plane/mcp_plane/capability_mirror.py` + `python/tests/test_capability_mirror.py`
 - 改动类型：修改
@@ -280,7 +280,7 @@ contextMdPaths:
 - risk_tags: [python, mcp, schema]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [BF005]
 - sourceSlices: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-python-mcp-slice.md]
 - sourceDesigns: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-design.md]
@@ -290,7 +290,7 @@ contextMdPaths:
 - contract_refs: [PROTOCOL.md]
 - decision_refs: [DEC-R003-001, DEC-R003-007]
 - blocked_files: []
-- 具体改动点：R003-BF006.1 `⬜` 扩展 `CapabilitySchema`；R003-BF006.2 `⬜` `_parse_one` 解析 scope metadata；R003-BF006.3 `⬜` static meta tools schema 增加可选 selector 参数。
+- 具体改动点：R003-BF006.1 `✅` 扩展 `CapabilitySchema`；R003-BF006.2 `✅` `_parse_one` 解析 scope metadata；R003-BF006.3 `✅` static meta tools schema 增加可选 selector 参数。
 - 关键代码片段：`CapabilitySchema(capability_id: str, scope: str = "app", page_id: str | None = None, scope_revision: int | None = None)`
 - 改动理由/上下文：MCP 工具暴露以 Python mirror cache 为准。
 

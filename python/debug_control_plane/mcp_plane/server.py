@@ -880,9 +880,16 @@ def _schemas_to_jsonable(schemas) -> list[dict[str, Any]]:
             "capability_id": sch.capability_id,
             "resources": [dataclasses.asdict(r) for r in sch.resources],
             "commands": [dataclasses.asdict(c) for c in sch.commands],
+            "scope": sch.scope,
         }
         if sch.description is not None:
             entry["description"] = sch.description
+        if sch.page_id is not None:
+            entry["pageId"] = sch.page_id
+        if sch.page_name is not None:
+            entry["pageName"] = sch.page_name
+        if sch.scope_revision is not None:
+            entry["scopeRevision"] = sch.scope_revision
         out.append(entry)
     return out
 

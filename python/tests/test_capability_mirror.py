@@ -85,6 +85,10 @@ def _gamepad_schema_dict(
     resources: list[dict[str, Any]] | None = None,
     commands: list[dict[str, Any]] | None = None,
     description: str | None = None,
+    scope: Any = None,
+    page_id: Any = None,
+    page_name: Any = None,
+    scope_revision: Any = None,
 ) -> dict[str, Any]:
     """A registeredCapabilities entry shaped like FF002 gamepad output."""
     out: dict[str, Any] = {
@@ -94,6 +98,14 @@ def _gamepad_schema_dict(
     }
     if description is not None:
         out["description"] = description
+    if scope is not None:
+        out["scope"] = scope
+    if page_id is not None:
+        out["pageId"] = page_id
+    if page_name is not None:
+        out["pageName"] = page_name
+    if scope_revision is not None:
+        out["scopeRevision"] = scope_revision
     return out
 
 
@@ -200,6 +212,23 @@ class TestStaticFloor:
         tools = mirror.build_tools(None)
         names = [t.name for t in tools]
         assert len(names) == len(set(names))
+
+    @pytest.mark.parametrize("tool_name,path_key", [
+        ("invoke_command", "command_path"),
+        ("read_resource", "resource_path"),
+    ])
+    def test_meta_selector_schema_is_optional_and_closed(self, tool_name, path_key):
+        client = _mock_client_hello(_target())
+        mirror = CapabilityMirror(client=client)
+        tool = next(t for t in mirror.build_tools(None) if t.name == tool_name)
+        schema = tool.input_schema
+        props = schema["properties"]
+        assert "scope" in props
+        assert props["scope"]["enum"] == ["app", "page"]
+        assert "page_id" in props
+        assert "scope_revision" in props
+        assert schema["additionalProperties"] is False
+        assert schema["required"] == ["device_id", "capability_id", path_key]
 
 
 # ---------------------------------------------------------------------------
@@ -323,6 +352,10 @@ class TestLegacyDegrade:
         schema_ids = {s.capability_id for s in schemas}
         assert LEGACY_GAMEPAD_TAG in schema_ids
         assert "sse" in schema_ids
+        assert all(s.scope == "app" for s in schemas)
+        assert all(s.page_id is None for s in schemas)
+        assert all(s.page_name is None for s in schemas)
+        assert all(s.scope_revision is None for s in schemas)
         # 业务 provider 认领 virtual_input sentinel,build_tools 产 sugar。
         tools = mirror.build_tools("dev1")
         assert any(t.name == "virtual_input_stub_tool" for t in tools)
@@ -404,6 +437,55 @@ class TestListChanged:
         client.hello.return_value = _target(registered=(_gamepad_schema_dict(),))
         assert mirror.refresh("dev1") is True
         assert len(mirror.schemas("dev1")) == 1
+
+    def test_page_unregister_is_change_and_removes_schema(self):
+        page_a = _gamepad_schema_dict(
+            scope="page",
+            page_id="page-a",
+            page_name="Page A",
+            scope_revision=1,
+        )
+        page_b = _gamepad_schema_dict(
+            scope="page",
+            page_id="page-b",
+            page_name="Page B",
+            scope_revision=1,
+        )
+        client = _mock_client_hello(_target(registered=(page_a, page_b)))
+        mirror = CapabilityMirror(client=client)
+        mirror.refresh("dev1")
+
+        client.hello.return_value = _target(registered=(page_b,))
+
+        assert mirror.refresh("dev1") is True
+        schemas = mirror.schemas("dev1")
+        assert len(schemas) == 1
+        assert schemas[0].page_id == "page-b"
+
+    @pytest.mark.parametrize(
+        "field,updated",
+        [
+            ("pageName", "Page A renamed"),
+            ("pageId", "page-a2"),
+            ("scopeRevision", 2),
+        ],
+    )
+    def test_scope_metadata_change_is_diff(self, field, updated):
+        original = _gamepad_schema_dict(
+            scope="page",
+            page_id="page-a",
+            page_name="Page A",
+            scope_revision=1,
+        )
+        changed = dict(original)
+        changed[field] = updated
+        client = _mock_client_hello(_target(registered=(original,)))
+        mirror = CapabilityMirror(client=client)
+        mirror.refresh("dev1")
+
+        client.hello.return_value = _target(registered=(changed,))
+
+        assert mirror.refresh("dev1") is True
 
     def test_resource_path_change_is_change(self):
         """Change detection compares the full schema, not just capability ids."""
@@ -617,6 +699,82 @@ class TestSchemaParsing:
             CommandDecl(method="POST", path=("virtual", "connect"), description="connect"),
             CommandDecl(method="POST", path=("input",), description=None),
         )
+        assert s.scope == "app"
+        assert s.page_id is None
+        assert s.page_name is None
+        assert s.scope_revision is None
+
+    def test_parses_page_scope_metadata(self):
+        cap = _gamepad_schema_dict(
+            scope="page",
+            page_id="page-a",
+            page_name="Page A",
+            scope_revision=3,
+        )
+        client = _mock_client_hello(_target(registered=(cap,)))
+        mirror = CapabilityMirror(client=client)
+        mirror.refresh("dev1")
+
+        s = mirror.schemas("dev1")[0]
+
+        assert s.scope == "page"
+        assert s.page_id == "page-a"
+        assert s.page_name == "Page A"
+        assert s.scope_revision == 3
+
+    def test_malformed_scope_metadata_downgrades_locally(self):
+        cap = _gamepad_schema_dict(
+            scope="popup",
+            page_id=123,
+            page_name={"bad": True},
+            scope_revision=True,
+        )
+        client = _mock_client_hello(_target(registered=(cap,)))
+        mirror = CapabilityMirror(client=client)
+
+        assert mirror.refresh("dev1") is True
+        s = mirror.schemas("dev1")[0]
+        assert s.scope == "app"
+        assert s.page_id is None
+        assert s.page_name is None
+        assert s.scope_revision is None
+        assert mirror.auth_error("dev1") is None
+
+    def test_same_capability_id_under_multiple_pages_coexists(self):
+        cap_a = _gamepad_schema_dict(scope="page", page_id="page-a")
+        cap_b = _gamepad_schema_dict(scope="page", page_id="page-b")
+        client = _mock_client_hello(_target(registered=(cap_a, cap_b)))
+        mirror = CapabilityMirror(client=client)
+        mirror.refresh("dev1")
+
+        schemas = mirror.schemas("dev1")
+
+        assert len(schemas) == 2
+        assert [s.capability_id for s in schemas] == [
+            GAMEPAD_CAPABILITY_ID,
+            GAMEPAD_CAPABILITY_ID,
+        ]
+        assert {s.page_id for s in schemas} == {"page-a", "page-b"}
+
+    def test_provider_receives_full_page_schema(self):
+        cap = _gamepad_schema_dict(
+            scope="page",
+            page_id="page-a",
+            page_name="Page A",
+            scope_revision=7,
+        )
+        client = _mock_client_hello(_target(registered=(cap,)))
+        provider = _StubProvider(capability_id=GAMEPAD_CAPABILITY_ID)
+        mirror = CapabilityMirror(client=client, providers=[provider])
+        mirror.refresh("dev1")
+
+        mirror.build_tools("dev1")
+
+        assert provider.matches_calls[0].scope == "page"
+        assert provider.matches_calls[0].page_id == "page-a"
+        assert provider.matches_calls[0].page_name == "Page A"
+        assert provider.matches_calls[0].scope_revision == 7
+        assert provider.build_calls[0] == provider.matches_calls[0]
 
     def test_description_optional(self):
         cap = {"id": "bare", "resources": [{"method": "GET", "path": ["x"]}]}

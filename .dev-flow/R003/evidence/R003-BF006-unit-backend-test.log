@@ -1,0 +1,45 @@
+---
+type: test-log
+task_id: R003-BF006
+layer: unit
+domain: backend
+run_at: 2026-08-26T10:19:50Z
+status: pass
+exit_code: 0
+deferred_reason: 
+---
+
+# Test Log: R003-BF006 (unit.backend)
+
+## Config Source
+- file: .dev-flow/config.json
+- path: project_capabilities.tests.unit.backend
+
+## Test Command Source
+- path: project_capabilities.tests.unit.backend
+- command: cd python && ${PYTHON_BIN:-python3} -m pytest tests -q --no-header
+
+## Setup
+- command: python -m pip install -e './python[test]'
+- exit: 0
+
+## Test
+- command: cd python && ${PYTHON_BIN:-python3} -m pytest tests -q --no-header
+- exit: 0
+- passed: 361
+- failed: 0
+
+## Teardown
+- command: （跳过）
+- exit: N/A
+
+## Raw Output (tail)
+```
+sssss................................................................... [ 19%]
+........................................................................ [ 39%]
+........................................................................ [ 58%]
+.....................................................................ss. [ 78%]
+........................................................................ [ 97%]
+........                                                                 [100%]
+361 passed, 7 skipped in 16.77s
+```
