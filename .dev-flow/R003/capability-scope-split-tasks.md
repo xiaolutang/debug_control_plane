@@ -319,7 +319,7 @@ contextMdPaths:
 - 关键代码片段：`def selector_headers(*, capability_id: str, scope: str | None, page_id: str | None, scope_revision: int | None) -> dict[str, str]: ...`
 - 改动理由/上下文：agent 仍调用 MCP 工具，页面命中依赖 Python selector header。
 
-## R003-BF008：acceptance regression — 跨语言与 Android 真机验收 `⬜ 待处理`
+## R003-BF008：acceptance regression — 跨语言与 Android 真机验收 `✅ 已完成`
 
 - 文件：`ci/ci-check-all.sh` + `.dev-flow/R003/test-overrides/R003-BF008/integration-android.sh` + `.dev-flow/R003/evidence/android-page-scope.md`
 - 改动类型：修改
@@ -330,7 +330,7 @@ contextMdPaths:
 - risk_tags: [integration, android, cross-stack, device]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [BF007, BF008]
 - sourceSlices: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-acceptance-slice.md]
 - sourceDesigns: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-design.md]
@@ -340,6 +340,6 @@ contextMdPaths:
 - contract_refs: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-acceptance-spec.yaml]
 - decision_refs: [DEC-R003-001, DEC-R003-002, DEC-R003-003, DEC-R003-004, DEC-R003-005, DEC-R003-006, DEC-R003-007]
 - blocked_files: []
-- 具体改动点：R003-BF008.1 `⬜` R003 自动测试纳入 cross-stack 命令或 test override；R003-BF008.2 `⬜` 增加 Android 真机 page scope 验收脚本和 evidence 输出；R003-BF008.3 `⬜` 记录不可自动化部分 `deferred_reason=device_required`。
+- 具体改动点：R003-BF008.1 `✅` R003 自动测试纳入 cross-stack 命令或 test override；R003-BF008.2 `✅` 增加 Android 真机 page scope 验收脚本和 evidence 输出；R003-BF008.3 `✅` 记录不可自动化部分 `deferred_reason=device_required`。
 - 关键代码片段：`cd dart && fvm flutter test; ./gradlew build; cd flutter_debug_control_plane && fvm flutter test; cd python && ${PYTHON_BIN:-python3} -m pytest tests -q --no-header`
 - 改动理由/上下文：R003 触达四端，最终风险在字段漂移和 Android 页面生命周期链路。
