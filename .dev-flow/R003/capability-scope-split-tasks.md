@@ -194,7 +194,7 @@ contextMdPaths:
 - 关键代码片段：`Future<void> register(BridgeCapability cap, {CapabilityScope scope = const CapabilityScope.app()});`
 - 改动理由/上下文：Flutter Dart 侧必须把页面 identity 传给 native。
 
-## R003-FF002：android plugin bridge — native registry 解析 scope payload `⬜ 待处理`
+## R003-FF002：android plugin bridge — native registry 解析 scope payload `✅ 已完成`
 
 - 文件：`flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/DartCapabilityRegistry.kt` + `flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/DebugControlPlaneFlutterPlugin.kt` + `flutter_debug_control_plane/android/src/test/kotlin/com/pantas/debug/controlplane/flutter/DartCapabilityRegistryTest.kt` + `flutter_debug_control_plane/android/src/test/kotlin/com/pantas/debug/controlplane/flutter/DebugControlPlaneFlutterPluginTest.kt`
 - 改动类型：修改
@@ -205,7 +205,7 @@ contextMdPaths:
 - risk_tags: [android, flutter-plugin, methodchannel]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [FF001, BF004]
 - sourceSlices: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-flutter-slice.md, .dev-flow/R003/analysis/2026-08-25--capability-scope-split-core-slice.md]
 - sourceDesigns: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-design.md]
@@ -215,7 +215,7 @@ contextMdPaths:
 - contract_refs: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-acceptance-spec.yaml]
 - decision_refs: [DEC-R003-002, DEC-R003-006]
 - blocked_files: []
-- 具体改动点：R003-FF002.1 `⬜` `parseDecl` 读取 scope metadata；R003-FF002.2 `⬜` registry map 升级为 scoped identity；R003-FF002.3 `⬜` teardown 支持 page scoped cleanup。
+- 具体改动点：R003-FF002.1 `✅` `parseDecl` 读取 scope metadata；R003-FF002.2 `✅` registry map 升级为 scoped identity；R003-FF002.3 `✅` teardown 支持 page scoped cleanup。
 - 关键代码片段：`data class BridgeCapabilityIdentity(val scope: CapabilityScope, val capId: String)`
 - 改动理由/上下文：Android plugin 是 Flutter helper 到 Kotlin core 的桥。
 
