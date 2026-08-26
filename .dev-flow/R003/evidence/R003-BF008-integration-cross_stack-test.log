@@ -1,0 +1,384 @@
+---
+type: test-log
+task_id: R003-BF008
+layer: integration
+domain: cross_stack
+run_at: 2026-08-26T20:28:59Z
+status: pass
+exit_code: 0
+command: bash ci/ci-check-all.sh
+---
+
+
+================================================================
+>>> [1-kotlin-build-test] ./gradlew build
+================================================================
+Starting a Gradle Daemon (subsequent builds will be faster)
+Configuration on demand is an incubating feature.
+> Task :kotlin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :kotlin:processResources NO-SOURCE
+> Task :kotlin:processTestResources NO-SOURCE
+> Task :kotlin:compileKotlin
+> Task :kotlin:compileJava NO-SOURCE
+> Task :kotlin:classes UP-TO-DATE
+> Task :kotlin:jar UP-TO-DATE
+> Task :kotlin:startScripts UP-TO-DATE
+> Task :kotlin:distTar UP-TO-DATE
+> Task :kotlin:distZip UP-TO-DATE
+> Task :kotlin:assemble UP-TO-DATE
+> Task :kotlin:compileTestKotlin UP-TO-DATE
+> Task :kotlin:compileTestJava NO-SOURCE
+> Task :kotlin:testClasses UP-TO-DATE
+> Task :kotlin:test UP-TO-DATE
+> Task :kotlin:check UP-TO-DATE
+> Task :kotlin:build UP-TO-DATE
+
+BUILD SUCCESSFUL in 8s
+7 actionable tasks: 1 executed, 6 up-to-date
+>>> [1-kotlin-build-test] OK
+
+================================================================
+>>> [2-dart-test] bash -c cd dart && fvm flutter test
+================================================================
+00:00 +0: loading /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart
+00:00 +0: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: (setUpAll)
+00:00 +0: /Users/tangxiaolu/project/debug_control_plane/dart/test/capability_scope_test.dart: CapabilityScope legacy capability implementations default to app scope
+00:00 +1: /Users/tangxiaolu/project/debug_control_plane/dart/test/debug_auth_test.dart: DebugAuth route classification marks GET /hello as hello bootstrap only
+00:00 +2: /Users/tangxiaolu/project/debug_control_plane/dart/test/debug_auth_test.dart: DebugAuth route classification marks GET /hello as hello bootstrap only
+00:00 +3: /Users/tangxiaolu/project/debug_control_plane/dart/test/debug_auth_test.dart: DebugAuth route classification marks GET /hello as hello bootstrap only
+00:00 +4: /Users/tangxiaolu/project/debug_control_plane/dart/test/debug_auth_test.dart: DebugAuth route classification marks GET /hello as hello bootstrap only
+00:00 +5: /Users/tangxiaolu/project/debug_control_plane/dart/test/debug_auth_test.dart: DebugAuth route classification marks GET /hello as hello bootstrap only
+00:00 +6: /Users/tangxiaolu/project/debug_control_plane/dart/test/debug_auth_test.dart: DebugAuth route classification marks GET /hello as hello bootstrap only
+00:00 +7: /Users/tangxiaolu/project/debug_control_plane/dart/test/debug_auth_test.dart: DebugAuth route classification marks GET /hello as hello bootstrap only
+00:00 +8: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +9: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +10: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +11: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +12: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +13: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +14: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +15: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +16: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +17: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +18: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +19: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +20: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +21: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +22: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +23: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +24: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +25: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /hello vs fixtures/hello.json content matches golden (normalized)
+00:00 +26: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject parses a JSON object body
+00:00 +27: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject parses a JSON object body
+00:00 +28: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject parses a JSON object body
+00:00 +29: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport bind/listen/close listen before bind is deferred; replayed once bind resolves
+00:00 +30: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: /state vs fixtures/state-*.json with capabilities matches golden (normalized)
+00:00 +31: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject throws RouteFailure 400 invalid_request on malformed JSON
+00:00 +32: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject throws RouteFailure 400 invalid_request on malformed JSON
+00:00 +33: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) first frame is byte-identical to sse-connected.bin
+00:00 +34: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) first frame is byte-identical to sse-connected.bin
+00:00 +35: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: readObject throws RouteFailure 400 invalid_request on JSON array body
+00:00 +36: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +37: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +38: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +39: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +40: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +41: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +42: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +43: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +44: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +45: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: SSE vs fixtures/sse-*.bin (byte level) event frame is byte-identical to sse-event-frame.bin
+00:00 +46: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack null preflight preserves connected first frame
+00:00 +47: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_codec_test.dart: localIPv4Addresses returns a sorted List<String> of addresses (may be empty)
+00:00 +48: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: error contract vs fixtures/error-*.json 404 matches golden
+00:00 +49: /Users/tangxiaolu/project/debug_control_plane/dart/test/golden_fixture_test.dart: error contract vs fixtures/error-*.json 404 matches golden
+00:00 +50: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +51: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +52: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +53: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +54: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +55: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +56: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +57: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +58: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +59: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +60: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +61: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack GET /events does NOT invoke the dispatch handler
+00:00 +62: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack broadcast emits event: <type>\ndata: <json>\n\n to subscribers
+00:00 +63: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport /events hijack broadcast is a no-op when no subscribers are connected
+00:00 +64: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport serverInfo serverInfo returns {serverHost, serverPort, localIps} from bound socket
+00:00 +65: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport serverInfo serverInfo without Host header falls back to 0.0.0.0
+00:00 +66: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport serverInfo serverInfo with Host header uses Host-derived host
+00:00 +67: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport serverInfo serverInfo with non-HttpRequest returns 0.0.0.0 host
+00:00 +68: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: HttpSseTransport close close is idempotent and clears subscribers
+00:00 +69: /Users/tangxiaolu/project/debug_control_plane/dart/test/http_sse_transport_test.dart: Transport protocol-agnostic replaceability a non-HttpSseTransport still drives plane.dispatch through its handler
+00:00 +70: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: (setUpAll)
+00:00 +70: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_test.dart: ControlPlane register/unregister duplicate register same app id throws StateError
+00:00 +71: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +72: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +73: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +74: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +75: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +76: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +77: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +78: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +79: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +80: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +81: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +82: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +83: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +84: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +85: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +86: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +87: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +88: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json unauthorized hello matches hello-auth-required.json
+00:00 +89: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_test.dart: ControlPlane event bus capability emit propagates type/sequence/payload to the bus
+00:00 +90: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json authorized hello matches hello-auth-authorized.json
+00:00 +91: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json authorized hello matches hello-auth-authorized.json
+00:00 +92: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json authorized hello matches hello-auth-authorized.json
+00:00 +93: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json authorized hello matches hello-auth-authorized.json
+00:00 +94: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json authorized hello matches hello-auth-authorized.json
+00:00 +95: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json authorized hello matches hello-auth-authorized.json
+00:00 +96: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: hello bootstrap vs fixtures/hello-auth-*.json authorized hello matches hello-auth-authorized.json
+00:00 +97: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_test.dart: ControlPlane system routes /state aggregates only app capability state() fields
+00:00 +98: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: sensitive routes vs fixtures/error-401-*.json missing token on /state matches error-401-authorization-required
+00:00 +99: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: sensitive routes vs fixtures/error-401-*.json missing token on /state matches error-401-authorization-required
+00:00 +100: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: sensitive routes vs fixtures/error-401-*.json missing token on /state matches error-401-authorization-required
+00:00 +101: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: sensitive routes vs fixtures/error-401-*.json missing token on /state matches error-401-authorization-required
+00:00 +102: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_test.dart: ControlPlane auth routes unauthorized hello returns minimal bootstrap without state
+00:00 +103: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: sensitive routes vs fixtures/error-401-*.json expired token on /state matches error-401-token-expired
+00:00 +104: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: sensitive routes vs fixtures/error-401-*.json expired token on /state matches error-401-token-expired
+00:00 +105: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_test.dart: ControlPlane auth routes unauthorized state does not expose aggregate state
+00:00 +106: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: auth bootstrap routes vs fixtures denied /auth/request matches error-403-authorization-denied.json
+00:00 +107: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: auth bootstrap routes vs fixtures denied /auth/request matches error-403-authorization-denied.json
+00:00 +108: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: auth bootstrap routes vs fixtures denied /auth/request matches error-403-authorization-denied.json
+00:00 +109: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: auth bootstrap routes vs fixtures denied /auth/request matches error-403-authorization-denied.json
+00:00 +110: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_test.dart: ControlPlane auth routes direct events dispatch is sensitive when auth is enabled
+00:00 +111: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: auth bootstrap routes vs fixtures approved /auth/claim matches auth-claim-approved.json
+00:00 +112: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: auth bootstrap routes vs fixtures approved /auth/claim matches auth-claim-approved.json
+00:00 +113: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: auth bootstrap routes vs fixtures approved /auth/claim matches auth-claim-approved.json
+00:00 +114: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_test.dart: RouteResult factories ok wraps body with 200
+00:00 +115: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: SSE /events unauthorized (R001-BF008.2) returns JSON 401 before any SSE frame and registers no subscriber
+00:00 +116: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: SSE /events unauthorized (R001-BF008.2) returns JSON 401 before any SSE frame and registers no subscriber
+00:00 +117: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: SSE /events unauthorized (R001-BF008.2) authorized /events keeps the SSE stream (bare first frame)
+00:00 +118: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: auth disabled keeps existing golden fixture behavior bare /hello adds no auth keys when authManager is null
+00:00 +119: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_auth_test.dart: (tearDownAll)
+00:00 +119: All tests passed!
+>>> [2-dart-test] OK
+
+================================================================
+>>> [3-plugin-test] bash -c cd flutter_debug_control_plane && fvm flutter test
+================================================================
+00:00 +0: loading /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart
+00:00 +0: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: registration serialization (FF001-1 Decl schema) register serializes decls with path as JSON array (List<String>)
+00:00 +1: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: registration serialization (FF001-1 Decl schema) duplicate register throws StateError locally, channel untouched
+00:00 +2: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: registration serialization (FF001-1 Decl schema) register also pushes the eager state snapshot
+00:00 +3: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: PageCapabilityScope construction blank pageId throws ArgumentError before any channel traffic
+00:00 +4: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: PageCapabilityScope construction blank pageId throws ArgumentError before any channel traffic
+00:00 +5: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: PageCapabilityScope construction blank pageId throws ArgumentError before any channel traffic
+00:00 +6: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: PageCapabilityScope construction blank pageId throws ArgumentError before any channel traffic
+00:00 +7: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: reverse invoke (native -> Dart capability.invoke) routeIndex resource hit: handler runs, result filled by reqId
+00:00 +8: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: reverse invoke (native -> Dart capability.invoke) routeIndex resource hit: handler runs, result filled by reqId
+00:00 +9: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: registerAll payloads sends capability.register with scope=page/pageId/pageName per cap
+00:00 +10: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: registerAll payloads sends capability.register with scope=page/pageId/pageName per cap
+00:00 +11: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: registerAll payloads sends capability.register with scope=page/pageId/pageName per cap
+00:00 +12: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/bridge_capability_test.dart: BridgeCapability forwards id/resources/commands/state from inner
+00:00 +13: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/bridge_capability_test.dart: BridgeCapability forwards id/resources/commands/state from inner
+00:00 +14: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/bridge_capability_test.dart: BridgeCapability forwards id/resources/commands/state from inner
+00:00 +15: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/bridge_capability_test.dart: BridgeCapability forwards id/resources/commands/state from inner
+00:00 +16: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/bridge_capability_test.dart: BridgeCapability forwards id/resources/commands/state from inner
+00:00 +17: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/bridge_capability_test.dart: BridgeCapability forwards id/resources/commands/state from inner
+00:00 +18: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/bridge_capability_test.dart: BridgeCapability forwards id/resources/commands/state from inner
+00:00 +19: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/bridge_capability_test.dart: BridgeCapability forwards id/resources/commands/state from inner
+00:00 +20: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/bridge_capability_test.dart: BridgeCapability forwards id/resources/commands/state from inner
+00:00 +21: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/bridge_capability_test.dart: BridgeCapability forwards id/resources/commands/state from inner
+00:00 +22: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/bridge_capability_test.dart: BridgeCapability forwards id/resources/commands/state from inner
+00:00 +23: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: (setUpAll)
+00:00 +24: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: (setUpAll)
+00:00 +25: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: (setUpAll)
+00:00 +26: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: (setUpAll)
+00:00 +27: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: (setUpAll)
+00:00 +28: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: (setUpAll)
+00:00 +28: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: idempotence and pre-check errors (KD-2) identical capId sequence replay is a no-op (zero messages)
+00:00 +29: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: idempotence and pre-check errors (KD-2) identical capId sequence replay is a no-op (zero messages)
+00:00 +30: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: idempotence and pre-check errors (KD-2) identical capId sequence replay is a no-op (zero messages)
+00:00 +31: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: idempotence and pre-check errors (KD-2) identical capId sequence replay is a no-op (zero messages)
+00:00 +32: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: idempotence and pre-check errors (KD-2) identical capId sequence replay is a no-op (zero messages)
+00:00 +33: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: channel names aligned
+00:00 +34: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: authorization bridge approve sends payload and maps non-null/null claims
+00:00 +35: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: idempotence and pre-check errors (KD-2) reordered or extended sequences throw StateError with zero messages
+00:00 +36: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: forward methods (Dart -> native) aligned
+00:00 +37: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: authorization bridge deny revoke and status use auth methods with typed status reply
+00:00 +38: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: authorization bridge deny revoke and status use auth methods with typed status reply
+00:00 +39: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: authorization bridge deny revoke and status use auth methods with typed status reply
+00:00 +40: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: routeKind literals aligned
+00:00 +41: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: idempotence and pre-check errors (KD-2) input overlapping registered list throws in pre-check (zero messages)
+00:00 +42: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: idempotence and pre-check errors (KD-2) input overlapping registered list throws in pre-check (zero messages)
+00:00 +43: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: idempotence and pre-check errors (KD-2) input overlapping registered list throws in pre-check (zero messages)
+00:00 +44: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) register page scope payload carries scope/pageId/pageName
+00:00 +45: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: idempotence and pre-check errors (KD-2) registerAll after dispose throws StateError (zero messages)
+00:00 +46: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) page scope with blank pageId rejects locally, no channel traffic
+00:00 +47: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: idempotence and pre-check errors (KD-2) second dispose is a no-op with zero messages
+00:00 +48: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) duplicate scope-aware key throws StateError, single register sent
+00:00 +49: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: send-phase bridge failure (partial registration accepted) failure on second cap wraps StateError listing registered capIds; list stays consistent
+00:00 +50: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: send-phase bridge failure (partial registration accepted) failure on second cap wraps StateError listing registered capIds; list stays consistent
+00:00 +51: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) different pageIds with same capId coexist
+00:00 +52: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/page_capability_scope_test.dart: registeredCount / isDisposed consistency (KD-5 data source) tracks full lifecycle step by step
+00:00 +53: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) legacy unregister(id) deletes only the app entry
+00:00 +54: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) scoped unregister sends scope/pageId and removes only that key
+00:00 +55: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) scoped unregister cancels only that event pump
+00:00 +56: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) events.emit and state.update payloads carry scope identity
+00:00 +57: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) reverse invoke routes by scope; legacy format hits app; unknown 404
+00:00 +58: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) BridgeCapability exposes the registration-bound scope
+00:00 +59: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: event pump lifecycle unregister stops the events upstream pump
+00:00 +60: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: event pump lifecycle dispose stops all event pumps
+00:00 +61: All tests passed!
+>>> [3-plugin-test] OK
+
+================================================================
+>>> [4a-fetch-flutter-artifacts] bash flutter_debug_control_plane/tool/fetch_flutter_artifacts.sh
+================================================================
+fetched flutter-debug.jar
+fetched flutter-profile.jar
+fetched flutter-release.jar
+>>> [4a-fetch-flutter-artifacts] OK
+
+================================================================
+>>> [4-plugin-android-jvm-test] bash -c cd flutter_debug_control_plane/android && ../../kotlin/gradlew -p . testDebugUnitTest
+================================================================
+Configuration on demand is an incubating feature.
+Invalid https.proxyPort '', using default 443
+> Task :kotlin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :preBuild UP-TO-DATE
+> Task :preDebugBuild UP-TO-DATE
+> Task :generateDebugResValues UP-TO-DATE
+> Task :generateDebugResources UP-TO-DATE
+> Task :packageDebugResources UP-TO-DATE
+> Task :parseDebugLocalResources UP-TO-DATE
+> Task :generateDebugRFile UP-TO-DATE
+> Task :javaPreCompileDebug UP-TO-DATE
+> Task :preDebugUnitTestBuild UP-TO-DATE
+> Task :generateDebugUnitTestStubRFile UP-TO-DATE
+> Task :javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :kotlin:processResources NO-SOURCE
+> Task :kotlin:compileKotlin
+> Task :kotlin:compileJava NO-SOURCE
+> Task :kotlin:classes UP-TO-DATE
+> Task :kotlin:jar UP-TO-DATE
+> Task :compileDebugKotlin UP-TO-DATE
+> Task :compileDebugJavaWithJavac NO-SOURCE
+> Task :bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :bundleLibCompileToJarDebug UP-TO-DATE
+> Task :compileDebugUnitTestKotlin UP-TO-DATE
+> Task :compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :processDebugJavaRes UP-TO-DATE
+> Task :processDebugUnitTestJavaRes UP-TO-DATE
+> Task :testDebugUnitTest UP-TO-DATE
+
+BUILD SUCCESSFUL in 4s
+17 actionable tasks: 1 executed, 16 up-to-date
+>>> [4-plugin-android-jvm-test] OK
+
+================================================================
+>>> [5-python-pytest] bash -c cd python && "$PYTHON_BIN" -m pytest tests -q --no-header
+================================================================
+sssss................................................................... [ 18%]
+........................................................................ [ 37%]
+........................................................................ [ 55%]
+........................................................................ [ 74%]
+..ss.................................................................... [ 93%]
+..........................                                               [100%]
+379 passed, 7 skipped in 19.41s
+>>> [5-python-pytest] OK
+
+================================================================
+>>> [6-zero-business-dep] bash ci/zero-business-dep-check.sh
+================================================================
+REPO_ROOT=/Users/tangxiaolu/project/debug_control_plane
+PY_BIN=/usr/local/bin/python3.13
+
+=== [1/5] dart analyze(dart package)===
+Analyzing dart...                                               
+No issues found! (ran in 1.4s)
+[1/5] dart analyze OK
+
+=== [2/5] python 依赖白名单(AST 只允许标准库 + 声明依赖 + 自身)===
+[2/5] python 依赖白名单 OK(17 py 文件仅依赖标准库+声明依赖 ['anyio', 'httpx', 'mcp'])
+
+=== [3/5] python ruff(致命级 E9/F401/F811)===
+All checks passed!
+[3/5] python ruff(致命级)OK
+
+=== [4/5] kotlin 源码 import 白名单(kotlin/ + 插件 android/src)===
+[4/5] kotlin 源码 import 白名单 OK
+[4b/5] kotlin 核心 FQN 绕过扫描 OK
+
+=== [5/5] kotlin gradle 依赖白名单(build.gradle.kts 静态扫描)===
+[5/5] kotlin gradle 依赖白名单 OK
+
+================================================================
+PASS: control_plane repo 级零业务依赖门(五件套全过)
+================================================================
+>>> [6-zero-business-dep] OK
+
+================================================================
+>>> [7-protocol-version] bash ci/protocol-version-guard.sh
+================================================================
+kotlin  PROTOCOL_VERSION              = 1
+dart    kDebugControlPlaneProtocolVersion = 1
+fixture hello.json protocolVersion     = 1
+fixture discovery-python protocolVersion = 1
+PASS: protocolVersion=1 (kotlin/dart/hello.json/discovery-python.json 四点一致)
+>>> [7-protocol-version] OK
+
+================================================================
+>>> [8-gradle-publish-check] bash ci/gradle-publish-check.sh
+================================================================
+[1/5] maven-publish plugin 显式启用 OK
+[2/5] publication 声明(create<MavenPublication>)OK
+[3/5] java-library plugin 启用(api/implementation 发布语义)OK
+[4/5] 公开 ABI 依赖(NanoHTTPD/coroutines-core)作为 api 暴露 OK
+[5/5] 根 settings.gradle.kts include(":kotlin") OK
+[5/5] 根 gradle wrapper 存在(JitPack 推荐用 wrapper 构建)OK
+PASS: gradle 发布配置守卫(JitPack 前置条件 5 项全过;注意:R025-C 决策本次不打 tag,仅备好通道)
+>>> [8-gradle-publish-check] OK
+
+================================================================
+>>> [9-r003-scope-cross-stack] bash .dev-flow/R003/test-overrides/R003-BF008/integration-cross-stack.sh
+================================================================
+--- [cross-stack guard 1/4] 四端 scope 测试资产存在性断言 ---
+  OK: dart/test/capability_scope_test.dart
+  OK: kotlin/src/test/kotlin/com/pantas/debug/controlplane/CapabilityScopeTest.kt
+  OK: flutter_debug_control_plane/test/page_capability_scope_test.dart
+  OK: flutter_debug_control_plane/example/test/page_capability_scope_demo_test.dart
+  OK: python/tests/test_capability_mirror.py
+>>> 存在性断言通过(5 个资产)
+
+--- [cross-stack guard 2/4] dart 单文件定向回归 ---
+00:00 +0: loading /Users/tangxiaolu/project/debug_control_plane/dart/test/capability_scope_test.dart
+00:00 +0: CapabilityScope legacy capability implementations default to app scope
+00:00 +1: CapabilityScope scoped capability implementations expose explicit page scope
+00:00 +2: CapabilityScope scope type wire names stay aligned with protocol values
+00:00 +3: CapabilityScope page scope preserves page identity metadata
+00:00 +4: CapabilityScope page scope rejects missing pageId synchronously
+00:00 +5: CapabilityScope page scope rejects blank pageId synchronously
+00:00 +6: CapabilityScope public package entrypoint exports scope types
+00:00 +7: All tests passed!
+
+--- [cross-stack guard 3/4] python 定向 pytest 子集 ---
+........................................................................ [ 97%]
+..                                                                       [100%]
+74 passed, 312 deselected in 0.92s
+
+--- [cross-stack guard 4/4] 结论 ---
+PASS: R003-BF008 cross-stack 定向 scope 回归(存在性断言 + dart/python 定向)
+附注: kotlin(CapabilityScopeTest.kt)与 flutter plugin/example scope 测试的
+全量执行由 ci-check-all [1-kotlin-build-test] / [3-plugin-test] 步承担并已通过;
+integration-android.sh 的设备缺失分支(deferred exit 0 + evidence 双写)行为已于
+同日单独验证,记录于 R003-BF008-integration-android-test.log。
+>>> [9-r003-scope-cross-stack] OK
+
+================================================================
+PASS: R025 CI 全量守卫(9 步全过)
+================================================================

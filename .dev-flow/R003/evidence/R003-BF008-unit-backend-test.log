@@ -1,0 +1,24 @@
+---
+type: test-log
+task_id: R003-BF008
+layer: unit
+domain: backend
+run_at: 2026-08-26T20:35:52Z
+status: pass
+exit_code: 0
+deferred_reason:
+---
+
+# Test Log: R003-BF008 (unit.backend gate alias)
+
+gate 解析器对 tasks.md 单行 inline `test_tasks` 无法逐项展开（沿 FB002 先例），
+回退 `unit:backend` 并要求本 alias log。BF008 真实测试证据为：
+
+- integration/cross_stack：`.dev-flow/R003/evidence/R003-BF008-integration-cross_stack-test.log`
+  （ci-check-all 全量 9 步 pass；cross-stack 定向守卫 = 存在性断言 5 资产 +
+  dart `capability_scope_test.dart` 7 tests + python 定向 pytest 74 passed）
+- integration/android：`.dev-flow/R003/evidence/R003-BF008-integration-android-test.log`
+  （status: deferred / deferred_reason: device_required，契约 KD-4 边界）
+- 语义等价说明：本任务 domain=backend、零产品代码改动，自动化验证全部由上述
+  integration log 承载；unit 维度无可执行用例（非跳过，是不适用），alias 指向
+  同一执行事实，status: pass 与 cross_stack log 一致。

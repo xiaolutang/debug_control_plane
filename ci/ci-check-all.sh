@@ -23,6 +23,10 @@
 #                                    + [4/5]kotlin gradle 白名单(R025 扩展)
 #   [7] protocol-version-guard.sh  — protocolVersion 四点同值守卫
 #   [8] gradle-publish-check.sh    — JitPack 发版前置条件静态守卫
+#   [9] r003-scope-cross-stack     — R003 scope 跨语言定向回归守卫(test
+#                                    override:存在性断言 + dart/python 定向;
+#                                    page/capability scope 全量由 [1][2][3][5]
+#                                    步承担,见 R003-BF008 契约 KD-1)
 #
 # 环境要求
 #   - JDK 17(kotlin jvmToolchain)
@@ -33,6 +37,11 @@
 #
 # 退出码
 #   0 = 全过;非 0 = 第一个失败套件的退出码
+#
+# R003 scope 标注(R003-BF008):page/capability scope 回归覆盖 —
+#   dart capability_scope_test.dart → [2];kotlin CapabilityScopeTest → [1];
+#   flutter plugin/example page_capability_scope_test → [3];
+#   python test_capability_mirror/selector/stale → [5];定向守卫 → [9]。
 #
 # 本地跑
 #   bash ci/ci-check-all.sh
@@ -103,7 +112,11 @@ run_step "7-protocol-version" bash ci/protocol-version-guard.sh
 # --- [8] JitPack 发布前置条件 ------------------------------------------------
 run_step "8-gradle-publish-check" bash ci/gradle-publish-check.sh
 
+# --- [9] R003 scope 跨语言定向回归守卫(R003-BF008)---------------------------
+run_step "9-r003-scope-cross-stack" \
+  bash .dev-flow/R003/test-overrides/R003-BF008/integration-cross-stack.sh
+
 echo ""
 echo "================================================================"
-echo "PASS: R025 CI 全量守卫(8 步全过)"
+echo "PASS: R025 CI 全量守卫(9 步全过)"
 echo "================================================================"
