@@ -1,0 +1,87 @@
+---
+type: test-log
+task_id: R003-FF001
+layer: unit
+domain: flutter
+run_at: 2026-08-26T14:59:40Z
+status: pass
+exit_code: 0
+deferred_reason: 
+---
+
+# Test Log: R003-FF001 (unit.flutter)
+
+## Config Source
+- file: .dev-flow/config.json
+- path: project_capabilities.tests.unit.flutter
+
+## Test Command Source
+- path: .dev-flow/R003/test-overrides/R003-FF001/unit-flutter.sh
+- command: bash .dev-flow/R003/test-overrides/R003-FF001/unit-flutter.sh
+
+## Setup
+- command: （跳过）
+- exit: N/A
+
+## Test
+- command: bash .dev-flow/R003/test-overrides/R003-FF001/unit-flutter.sh
+- exit: 0
+- passed: all
+- failed: 0
+
+## Teardown
+- command: （跳过）
+- exit: N/A
+
+## Raw Output (tail)
+```
+00:00 +0: loading /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart
+00:00 +0: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: registration serialization (FF001-1 Decl schema) register serializes decls with path as JSON array (List<String>)
+00:00 +1: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/bridge_capability_test.dart: BridgeCapability forwards id/resources/commands/state from inner
+00:00 +2: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/bridge_capability_test.dart: BridgeCapability forwards id/resources/commands/state from inner
+00:00 +3: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/bridge_capability_test.dart: BridgeCapability forwards id/resources/commands/state from inner
+00:00 +4: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: (setUpAll)
+00:00 +5: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: (setUpAll)
+00:00 +6: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: (setUpAll)
+00:00 +7: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: (setUpAll)
+00:00 +8: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: (setUpAll)
+00:00 +9: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: (setUpAll)
+00:00 +10: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: (setUpAll)
+00:00 +10: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: reverse invoke (native -> Dart capability.invoke) routeIndex resource hit: handler runs, result filled by reqId
+00:00 +11: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: channel names aligned
+00:00 +12: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: reverse invoke (native -> Dart capability.invoke) routeIndex command hit: handler receives body
+00:00 +13: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: forward methods (Dart -> native) aligned
+00:00 +14: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: reverse invoke (native -> Dart capability.invoke) handler RouteFailure fills error {statusCode, code, message}
+00:00 +15: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: reverse invoke (native -> Dart capability.invoke) handler RouteFailure fills error {statusCode, code, message}
+00:00 +16: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: routeKind literals aligned
+00:00 +17: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: reverse invoke (native -> Dart capability.invoke) unknown routeIndex fills 500 internal_error
+00:00 +18: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: reverse invoke (native -> Dart capability.invoke) unknown routeIndex fills 500 internal_error
+00:00 +19: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/channel_protocol_alignment_test.dart: (tearDownAll)
+00:00 +19: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: reverse invoke (native -> Dart capability.invoke) unknown capId fills 404 not_registered (kErrorCodeNotRegistered)
+00:00 +20: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: reverse invoke (native -> Dart capability.invoke) unknown routeKind fills 500 internal_error
+00:00 +21: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: reverse invoke (native -> Dart capability.invoke) state pull fills capability.state.result with current state
+00:00 +22: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: attach contract second attach throws StateError; dispose re-allows attach
+00:00 +23: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: attach contract invoke before attach (no handler installed) is not answered
+00:00 +24: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: authorization bridge auth.request reaches auth handler without capability result fill
+00:00 +25: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: authorization bridge clearing auth handler makes later auth.request a no-op
+00:00 +26: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: authorization bridge auth handler failures are contained
+00:00 +27: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: authorization bridge malformed auth.request is ignored with no capability fill
+00:00 +28: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: authorization bridge DTOs parse optional fields and keep status token-free
+00:00 +29: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: authorization bridge approve sends payload and maps non-null/null claims
+00:00 +30: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: authorization bridge deny revoke and status use auth methods with typed status reply
+00:00 +31: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) register default app payload has scope=app and no pageId/pageName
+00:00 +32: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) register page scope payload carries scope/pageId/pageName
+00:00 +33: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) page scope with blank pageId rejects locally, no channel traffic
+00:00 +34: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) duplicate scope-aware key throws StateError, single register sent
+00:00 +35: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) app and page with same capId coexist; both payloads carry scope
+00:00 +36: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) different pageIds with same capId coexist
+00:00 +37: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) legacy unregister(id) deletes only the app entry
+00:00 +38: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) scoped unregister sends scope/pageId and removes only that key
+00:00 +39: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) scoped unregister cancels only that event pump
+00:00 +40: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) events.emit and state.update payloads carry scope identity
+00:00 +41: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) reverse invoke routes by scope; legacy format hits app; unknown 404
+00:00 +42: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: scope identity passthrough (R003-FF001) BridgeCapability exposes the registration-bound scope
+00:00 +43: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: event pump lifecycle unregister stops the events upstream pump
+00:00 +44: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/test/native_control_plane_bridge_test.dart: event pump lifecycle dispose stops all event pumps
+00:00 +45: All tests passed!
+```

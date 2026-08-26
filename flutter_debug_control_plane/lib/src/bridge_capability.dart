@@ -18,6 +18,21 @@ class BridgeCapability implements Capability {
 
   final Capability _inner;
   bool _eventsTaken = false;
+  CapabilityScope? _boundScope;
+
+  /// The scope this capability was registered under (R003-FF001 KD-3).
+  ///
+  /// `null` until [NativeControlPlaneBridge.register] binds it — the wrapper
+  /// itself stays scope-free (inner capability keeps the BF002
+  /// `CapabilityScopeDefault` semantics); the scope identity is attached by
+  /// the bridge at registration time.
+  CapabilityScope? get boundScope => _boundScope;
+
+  /// Bind the registration-time scope. Called by
+  /// [NativeControlPlaneBridge.register]; not part of the public contract.
+  void bindScope(CapabilityScope scope) {
+    _boundScope = scope;
+  }
 
   @override
   String get id => _inner.id;

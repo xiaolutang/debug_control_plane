@@ -114,20 +114,30 @@ class NativeControlPlaneBridge {
 
   final MethodChannel _channel;
 
-  final Map<String, _RegisteredCapability> _caps =
-      <String, _RegisteredCapability>{};
+  /// Scope-aware local registry (R003-FF001 KD-1): key =
+  /// `(scope, pageId?, capId)` — field-for-field isomorphic with the
+  /// R003-BF005 Kotlin `ScopedCapabilityKey`. App key = `(app, null, id)`,
+  /// page key = `(page, pageId, id)` — app and page entries sharing a capId,
+  /// and page entries with different pageIds sharing a capId, coexist.
+  final Map<_ScopedCapabilityKey, _RegisteredCapability> _caps =
+      <_ScopedCapabilityKey, _RegisteredCapability>{};
 
-  /// Per-capability event pump subscriptions (unregister/dispose cancels
-  /// them — otherwise the `await for` loops outlive the registration and
-  /// keep forwarding frames for an unregistered capId).
-  final Map<String, StreamSubscription<DebugEvent>> _eventPumps =
-      <String, StreamSubscription<DebugEvent>>{};
+  /// Per-capability event pump subscriptions keyed by the same scope-aware
+  /// key as [_caps] (unregister/dispose cancels them — otherwise the
+  /// `await for` loops outlive the registration and keep forwarding frames
+  /// for an unregistered capId).
+  final Map<_ScopedCapabilityKey, StreamSubscription<DebugEvent>> _eventPumps =
+      <_ScopedCapabilityKey, StreamSubscription<DebugEvent>>{};
 
+  /// Legacy app-only debug view (R003-FF001 KD-2): contains ONLY app
+  /// capability ids. Not a scoped identity source — scoped lookups go
+  /// through [_caps] exclusively.
   final Set<String> _registeredIds = <String>{};
   bool _attached = false;
   DebugAuthRequestHandler? _authRequestHandler;
 
-  /// All registered capability ids, in registration order.
+  /// Registered app capability ids, in registration order (legacy app-only
+  /// debug view — page capability ids are NOT listed; see KD-2).
   Set<String> get registeredIds => Set<String>.unmodifiable(_registeredIds);
 
   /// Install the native → Dart reverse-invoke handler (`capability.invoke`
@@ -195,9 +205,22 @@ class NativeControlPlaneBridge {
   /// collected once (D2) — each frame is forwarded upstream via
   /// `events.emit`. Its current `state()` snapshot is pushed eagerly so the
   /// native cached aggregate is warm from the start (§3.2.4).
-  Future<void> register(BridgeCapability cap) async {
-    if (_caps.containsKey(cap.id)) {
-      throw StateError('Capability already registered: ${cap.id}');
+  Future<void> register(BridgeCapability cap,
+      {CapabilityScope scope = const CapabilityScope.app()}) async {
+    // Defensive pageId guard (R003-FF001 KD-3): validation proper lives in
+    // the `CapabilityScope.page()` factory (BF002) — this only rejects a
+    // malformed page scope before any channel traffic.
+    if (scope.type == CapabilityScopeType.page &&
+        (scope.pageId == null || scope.pageId!.trim().isEmpty)) {
+      throw ArgumentError.value(
+        scope.pageId,
+        'pageId',
+        'must be a non-blank string for page capability scope',
+      );
+    }
+    final key = _ScopedCapabilityKey.fromScope(scope, cap.id);
+    if (_caps.containsKey(key)) {
+      throw StateError('Capability already registered: $key');
     }
     final resources = cap.resources
         .map((r) => <String, Object?>{
@@ -218,50 +241,104 @@ class NativeControlPlaneBridge {
       'capId': cap.id,
       'resources': resources,
       'commands': commands,
+      'scope': scope.type.name,
+      if (scope.pageId != null) 'pageId': scope.pageId,
+      if (scope.pageName != null) 'pageName': scope.pageName,
     });
 
-    _caps[cap.id] = _RegisteredCapability(
+    _caps[key] = _RegisteredCapability(
       id: cap.id,
       resources: cap.resources,
       commands: cap.commands,
       state: cap.state,
     );
-    _registeredIds.add(cap.id);
+    // KD-2: legacy app-only debug view — page capability ids never enter.
+    if (scope.type == CapabilityScopeType.app) {
+      _registeredIds.add(cap.id);
+    }
 
-    _startEventPump(cap);
-    unawaited(pushState(cap.id, cap.state()));
+    cap.bindScope(scope);
+    _startEventPump(cap, key);
+    unawaited(pushState(cap.id, cap.state(), scope: scope));
   }
 
   /// Unregister the capability with [id] (`capability.unregister`).
-  Future<void> unregister(String id) async {
-    await _channel
-        .invokeMethod<void>(kMethodCapabilityUnregister, {'capId': id});
-    _caps.remove(id);
-    _registeredIds.remove(id);
-    await _cancelEventPumps([id]);
+  ///
+  /// [scope] defaults to app-only (KD-4): the legacy `unregister(id)` call
+  /// removes ONLY the `(app, id)` entry — a page capability sharing the same
+  /// capId is never touched. Passing a page scope removes exactly that
+  /// scope-aware key.
+  Future<void> unregister(String id, {CapabilityScope? scope}) async {
+    final effective = scope ?? const CapabilityScope.app();
+    final key = _ScopedCapabilityKey.fromScope(effective, id);
+    await _channel.invokeMethod<void>(kMethodCapabilityUnregister, {
+      'capId': id,
+      'scope': effective.type.name,
+      if (effective.pageId != null) 'pageId': effective.pageId,
+    });
+    _caps.remove(key);
+    if (effective.type == CapabilityScopeType.app) {
+      _registeredIds.remove(id);
+    }
+    await _cancelEventPumps([key]);
   }
 
   /// Forward one event frame upstream (`events.emit`).
   ///
   /// The Dart-side `sequence` value is discarded — the native bus assigns the
-  /// global monotonic sequence (PROTOCOL.md §3.1).
-  Future<void> emitEvent(String capId, DebugEvent event) async {
+  /// global monotonic sequence (PROTOCOL.md §3.1). [scope] overrides the
+  /// registration-time scope snapshot; when omitted, the first registration
+  /// matching [capId] (app entries first) supplies the scope identity.
+  Future<void> emitEvent(String capId, DebugEvent event,
+      {CapabilityScope? scope}) async {
+    final effective = scope ?? _scopeFor(capId) ?? const CapabilityScope.app();
     await _channel.invokeMethod<void>(kMethodEventsEmit, {
       'capId': capId,
       'event': {
         'type': event.type,
         'payload': event.payload,
       },
+      'scope': effective.type.name,
+      if (effective.pageId != null) 'pageId': effective.pageId,
     });
   }
 
   /// Push a state snapshot into the native cached aggregate
   /// (`capability.state.update`, design §3.2.4 — no runBlocking pull).
-  Future<void> pushState(String capId, Map<String, Object?> state) async {
+  ///
+  /// [scope] overrides the registration-time scope snapshot; when omitted,
+  /// the first registration matching [capId] (app entries first) supplies the
+  /// scope identity.
+  Future<void> pushState(String capId, Map<String, Object?> state,
+      {CapabilityScope? scope}) async {
+    final effective = scope ?? _scopeFor(capId) ?? const CapabilityScope.app();
     await _channel.invokeMethod<void>(kMethodCapabilityStateUpdate, {
       'capId': capId,
       'state': state,
+      'scope': effective.type.name,
+      if (effective.pageId != null) 'pageId': effective.pageId,
     });
+  }
+
+  /// Resolve the registration-time scope for [capId] (app entries win over
+  /// page entries — the eager state push and event pump both target app
+  /// registration first). Returns `null` for an unregistered capId.
+  CapabilityScope? _scopeFor(String capId) {
+    for (final entry in _caps.entries) {
+      if (entry.value.id != capId) continue;
+      final key = entry.key;
+      if (key.scopeType == CapabilityScopeType.app) {
+        return const CapabilityScope.app();
+      }
+    }
+    for (final entry in _caps.entries) {
+      if (entry.value.id != capId) continue;
+      final key = entry.key;
+      if (key.pageId case final pageId?) {
+        return CapabilityScope.page(pageId: pageId);
+      }
+    }
+    return null;
   }
 
   // ---------------------------------------------------------------------------
@@ -352,6 +429,10 @@ class NativeControlPlaneBridge {
     final capId = args['capId'] as String;
     final routeKind = args['routeKind'] as String;
     final routeIndex = args['routeIndex'] as int;
+    // KD-4: a missing `scope` field is the legacy format — routed as the app
+    // key. `scope='page'` with `pageId` routes to the page entry.
+    final scopeName = args['scope'] as String?;
+    final pageId = args['pageId'] as String?;
     final pathParamsRaw = args['pathParams'] as Map<Object?, Object?>?;
     final pathParams = (pathParamsRaw ?? const <Object?, Object?>{})
         .map((k, v) => MapEntry(k as String, v as String));
@@ -359,7 +440,7 @@ class NativeControlPlaneBridge {
     final body = bodyRaw?.cast<String, Object?>() ?? const <String, Object?>{};
 
     try {
-      final cap = _caps[capId];
+      final cap = _caps[_routeKeyFromPayload(scopeName, pageId, capId)];
       if (cap == null) {
         throw RouteFailure(404, 'not_registered',
             'Capability not registered on the Dart side: $capId');
@@ -418,12 +499,29 @@ class NativeControlPlaneBridge {
         (call.arguments as Map<Object?, Object?>).cast<String, Object?>();
     final reqId = args['reqId'] as int;
     final capId = args['capId'] as String;
-    final state = _caps[capId]?.state() ?? const <String, Object?>{};
+    // Same legacy-compatible routing as `capability.invoke` (KD-4): missing
+    // `scope` reads the app entry.
+    final scopeName = args['scope'] as String?;
+    final pageId = args['pageId'] as String?;
+    final state = _caps[_routeKeyFromPayload(scopeName, pageId, capId)]?.state() ??
+        const <String, Object?>{};
     await _channel.invokeMethod<void>(kMethodCapabilityStateResult, {
       'reqId': reqId,
       'state': state,
     });
     return null;
+  }
+
+  /// Build the lookup key from a native→Dart payload (KD-4): a missing
+  /// `scope` field is the legacy format — routed as the app key.
+  /// `scope='page'` with `pageId` routes to the page entry.
+  _ScopedCapabilityKey _routeKeyFromPayload(
+      String? scopeName, String? pageId, String capId) {
+    return (scopeName == CapabilityScopeType.page.name)
+        ? _ScopedCapabilityKey(
+            scopeType: CapabilityScopeType.page, pageId: pageId, capId: capId)
+        : _ScopedCapabilityKey(
+            scopeType: CapabilityScopeType.app, pageId: null, capId: capId);
   }
 
   R _handlerAt<R>(List<R> list, int index, String capId) {
@@ -439,11 +537,13 @@ class NativeControlPlaneBridge {
   /// Subscription-based (not a bare `await for`): unregister/dispose cancels
   /// it via [_cancelEventPumps], so frames stop crossing the channel for an
   /// unregistered capId and the capability's source stream can be released.
-  void _startEventPump(BridgeCapability cap) {
+  void _startEventPump(BridgeCapability cap, _ScopedCapabilityKey key) {
     late final StreamSubscription<DebugEvent> subscription;
     try {
+      final boundScope = cap.boundScope;
       subscription = cap.events.listen(
-        (event) => unawaited(emitEvent(cap.id, event)),
+        (event) => unawaited(
+            emitEvent(cap.id, event, scope: boundScope ?? const CapabilityScope.app())),
       );
     } on StateError {
       // D2 single-subscription: the producer's events stream was already
@@ -451,14 +551,53 @@ class NativeControlPlaneBridge {
       // nothing to forward, not a bridge failure.
       return;
     }
-    _eventPumps[cap.id] = subscription;
+    _eventPumps[key] = subscription;
   }
 
-  Future<void> _cancelEventPumps(List<String> capIds) async {
-    for (final capId in capIds) {
-      await _eventPumps.remove(capId)?.cancel();
+  Future<void> _cancelEventPumps(List<_ScopedCapabilityKey> keys) async {
+    for (final key in keys) {
+      await _eventPumps.remove(key)?.cancel();
     }
   }
+}
+
+/// Scope-aware local registry key (R003-FF001 KD-1) — field-for-field
+/// isomorphic with the R003-BF005 Kotlin `ScopedCapabilityKey(scope,
+/// pageId?, capabilityId)`. App key = `(app, null, id)`; page key =
+/// `(page, pageId, id)`. `pageName` is NOT part of the key (display metadata
+/// only).
+class _ScopedCapabilityKey {
+  const _ScopedCapabilityKey({
+    required this.scopeType,
+    required this.pageId,
+    required this.capId,
+  });
+
+  factory _ScopedCapabilityKey.fromScope(CapabilityScope scope, String capId) =>
+      _ScopedCapabilityKey(
+        scopeType: scope.type,
+        pageId: scope.pageId,
+        capId: capId,
+      );
+
+  final CapabilityScopeType scopeType;
+  final String? pageId;
+  final String capId;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _ScopedCapabilityKey &&
+          other.scopeType == scopeType &&
+          other.pageId == pageId &&
+          other.capId == capId;
+
+  @override
+  int get hashCode => Object.hash(scopeType, pageId, capId);
+
+  @override
+  String toString() =>
+      '(scope: ${scopeType.name}, pageId: $pageId, capId: $capId)';
 }
 
 /// Registration-time snapshot backing reverse-invoke lookup.

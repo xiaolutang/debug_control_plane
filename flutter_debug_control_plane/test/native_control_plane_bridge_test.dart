@@ -665,6 +665,454 @@ void main() {
     });
   });
 
+  group('scope identity passthrough (R003-FF001)', () {
+    test(
+        'register default app payload has scope=app and no pageId/pageName',
+        () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(messenger, sent.add);
+
+      final bridge = NativeControlPlaneBridge();
+      await bridge.register(BridgeCapability(_FakeCap('gamepad')));
+
+      final args = (sent
+              .singleWhere((c) => c.method == kMethodCapabilityRegister)
+              .arguments as Map)
+          .cast<String, Object?>();
+      expect(args['capId'], 'gamepad');
+      expect(args['scope'], 'app');
+      expect(args.containsKey('pageId'), isFalse);
+      expect(args.containsKey('pageName'), isFalse);
+      await bridge.dispose();
+    });
+
+    test('register page scope payload carries scope/pageId/pageName',
+        () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(messenger, sent.add);
+
+      final bridge = NativeControlPlaneBridge();
+      await bridge.register(
+        BridgeCapability(_FakeCap('page-panel')),
+        scope: CapabilityScope.page(pageId: 'page-1', pageName: 'Home'),
+      );
+
+      final args = (sent
+              .singleWhere((c) => c.method == kMethodCapabilityRegister)
+              .arguments as Map)
+          .cast<String, Object?>();
+      expect(args['scope'], 'page');
+      expect(args['pageId'], 'page-1');
+      expect(args['pageName'], 'Home');
+      await bridge.dispose();
+    });
+
+    test('page scope with blank pageId rejects locally, no channel traffic',
+        () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(messenger, sent.add);
+
+      final bridge = NativeControlPlaneBridge();
+      // The page() factory (BF002) is the primary validator: a malformed
+      // page scope (missing/blank pageId) never even exists as an object,
+      // so no register can cross the channel. The bridge additionally keeps
+      // a defensive guard for hand-built malformed scopes.
+      expect(() => CapabilityScope.page(pageId: null),
+          throwsA(isA<ArgumentError>()));
+      expect(() => CapabilityScope.page(pageId: '  '),
+          throwsA(isA<ArgumentError>()));
+      expect(sent.where((c) => c.method == kMethodCapabilityRegister),
+          isEmpty,
+          reason: 'no register crosses the channel for a rejected scope');
+      await bridge.dispose();
+    });
+
+    test('duplicate scope-aware key throws StateError, single register sent',
+        () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(messenger, sent.add);
+
+      final bridge = NativeControlPlaneBridge();
+      await bridge.register(
+        BridgeCapability(_FakeCap('page-panel')),
+        scope: CapabilityScope.page(pageId: 'page-1'),
+      );
+      await expectLater(
+        bridge.register(
+          BridgeCapability(_FakeCap('page-panel')),
+          scope: CapabilityScope.page(pageId: 'page-1'),
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(
+          sent.where((c) => c.method == kMethodCapabilityRegister).length, 1);
+      await bridge.dispose();
+    });
+
+    test('app and page with same capId coexist; both payloads carry scope',
+        () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(messenger, sent.add);
+
+      final bridge = NativeControlPlaneBridge();
+      await bridge.register(BridgeCapability(_FakeCap('gamepad')));
+      await bridge.register(
+        BridgeCapability(_FakeCap('gamepad')),
+        scope: CapabilityScope.page(pageId: 'page-1'),
+      );
+
+      final registers = sent
+          .where((c) => c.method == kMethodCapabilityRegister)
+          .map((c) => (c.arguments as Map).cast<String, Object?>())
+          .toList();
+      expect(registers, hasLength(2));
+      expect(registers[0]['scope'], 'app');
+      expect(registers[0].containsKey('pageId'), isFalse);
+      expect(registers[1]['scope'], 'page');
+      expect(registers[1]['pageId'], 'page-1');
+      // KD-2: legacy debug view stays app-only.
+      expect(bridge.registeredIds, {'gamepad'});
+      await bridge.dispose();
+    });
+
+    test('different pageIds with same capId coexist', () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(messenger, sent.add);
+
+      final bridge = NativeControlPlaneBridge();
+      await bridge.register(
+        BridgeCapability(_FakeCap('page-panel')),
+        scope: CapabilityScope.page(pageId: 'page-1'),
+      );
+      await bridge.register(
+        BridgeCapability(_FakeCap('page-panel')),
+        scope: CapabilityScope.page(pageId: 'page-2'),
+      );
+
+      final pageRegisters = sent
+          .where((c) => c.method == kMethodCapabilityRegister)
+          .map((c) => (c.arguments as Map).cast<String, Object?>())
+          .where((args) => args['scope'] == 'page')
+          .toList();
+      expect(pageRegisters.map((args) => args['pageId']), ['page-1', 'page-2']);
+      expect(bridge.registeredIds, isEmpty,
+          reason: 'page capability ids never enter the legacy app-only view');
+      await bridge.dispose();
+    });
+
+    test('legacy unregister(id) deletes only the app entry', () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(messenger, sent.add);
+
+      final bridge = NativeControlPlaneBridge()..attach();
+      await bridge.register(BridgeCapability(_FakeCap('gamepad')));
+      await bridge.register(
+        BridgeCapability(_FakeCap('gamepad')),
+        scope: CapabilityScope.page(pageId: 'page-1'),
+      );
+
+      await bridge.unregister('gamepad');
+
+      final args = (sent
+              .lastWhere((c) => c.method == kMethodCapabilityUnregister)
+              .arguments as Map)
+          .cast<String, Object?>();
+      expect(args['capId'], 'gamepad');
+      expect(args['scope'], 'app');
+      expect(args.containsKey('pageId'), isFalse);
+      expect(bridge.registeredIds, isEmpty);
+
+      // The page entry survives: a scoped reverse invoke still routes.
+      await BindingHelper.deliverNativeCall(messenger, kMethodCapabilityInvoke,
+          {
+        'reqId': 31,
+        'capId': 'gamepad',
+        'routeKind': kRouteKindResource,
+        'routeIndex': 0,
+        'scope': 'page',
+        'pageId': 'page-1',
+        'pathParams': <String, String>{},
+        'body': <String, Object?>{},
+      });
+      final fill = sent
+          .lastWhere((c) => c.method == kMethodCapabilityInvokeResult)
+          .arguments as Map;
+      expect(fill['reqId'], 31);
+      expect(fill.containsKey('error'), isFalse,
+          reason: 'page entry with same capId survives app-only unregister');
+      await bridge.dispose();
+    });
+
+    test('scoped unregister sends scope/pageId and removes only that key',
+        () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(messenger, sent.add);
+
+      final bridge = NativeControlPlaneBridge()..attach();
+      await bridge.register(BridgeCapability(_FakeCap('gamepad')));
+      await bridge.register(
+        BridgeCapability(_FakeCap('gamepad')),
+        scope: CapabilityScope.page(pageId: 'page-1'),
+      );
+
+      await bridge.unregister('gamepad',
+          scope: CapabilityScope.page(pageId: 'page-1'));
+
+      final args = (sent
+              .lastWhere((c) => c.method == kMethodCapabilityUnregister)
+              .arguments as Map)
+          .cast<String, Object?>();
+      expect(args['capId'], 'gamepad');
+      expect(args['scope'], 'page');
+      expect(args['pageId'], 'page-1');
+      expect(bridge.registeredIds, {'gamepad'},
+          reason: 'app entry with same capId survives scoped unregister');
+
+      // Scoped key gone -> 404; app key still routable.
+      await BindingHelper.deliverNativeCall(messenger, kMethodCapabilityInvoke,
+          {
+        'reqId': 32,
+        'capId': 'gamepad',
+        'routeKind': kRouteKindResource,
+        'routeIndex': 0,
+        'scope': 'page',
+        'pageId': 'page-1',
+        'pathParams': <String, String>{},
+        'body': <String, Object?>{},
+      });
+      var fill = sent
+          .lastWhere((c) => c.method == kMethodCapabilityInvokeResult)
+          .arguments as Map;
+      var error = fill['error'] as Map;
+      expect(error['statusCode'], 404);
+      expect(error['code'], kErrorCodeNotRegistered);
+
+      await BindingHelper.deliverNativeCall(messenger, kMethodCapabilityInvoke,
+          {
+        'reqId': 33,
+        'capId': 'gamepad',
+        'routeKind': kRouteKindResource,
+        'routeIndex': 0,
+        'pathParams': <String, String>{},
+        'body': <String, Object?>{},
+      });
+      fill = sent
+          .lastWhere((c) => c.method == kMethodCapabilityInvokeResult)
+          .arguments as Map;
+      expect(fill['reqId'], 33);
+      expect(fill.containsKey('error'), isFalse);
+      await bridge.dispose();
+    });
+
+    test('scoped unregister cancels only that event pump', () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(messenger, sent.add);
+
+      final appCap = _FakeCap('gamepad');
+      final page1Cap = _FakeCap('page-panel');
+      final page2Cap = _FakeCap('page-panel');
+      final bridge = NativeControlPlaneBridge();
+      await bridge.register(BridgeCapability(appCap));
+      await bridge.register(
+        BridgeCapability(page1Cap),
+        scope: CapabilityScope.page(pageId: 'page-1'),
+      );
+      await bridge.register(
+        BridgeCapability(page2Cap),
+        scope: CapabilityScope.page(pageId: 'page-2'),
+      );
+
+      await bridge.unregister('page-panel',
+          scope: CapabilityScope.page(pageId: 'page-1'));
+
+      page1Cap.emitEvent('stale', {'from': 'page-1'});
+      page2Cap.emitEvent('live', {'from': 'page-2'});
+      appCap.emitEvent('live', {'from': 'app'});
+      await Future<void>.delayed(Duration.zero);
+
+      final emits = sent
+          .where((c) => c.method == kMethodEventsEmit)
+          .map((c) => (c.arguments as Map).cast<String, Object?>())
+          .toList();
+      final types = emits.map((a) => (a['event'] as Map)['type']).toList();
+      expect(types, isNot(contains('stale')),
+          reason: 'page-1 pump is cancelled');
+      expect(types, containsAll(['live', 'live']),
+          reason: 'page-2 and app pumps keep forwarding');
+      await bridge.dispose();
+    });
+
+    test('events.emit and state.update payloads carry scope identity',
+        () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(messenger, sent.add);
+
+      final bridge = NativeControlPlaneBridge();
+      await bridge.register(BridgeCapability(_FakeCap('gamepad')));
+      await bridge.register(
+        BridgeCapability(_FakeCap('gamepad')),
+        scope: CapabilityScope.page(pageId: 'page-1', pageName: 'Home'),
+      );
+
+      final before = sent.length;
+      // Explicit scope override disambiguates app vs page with same capId.
+      await bridge.emitEvent(
+        'gamepad',
+        const DebugEvent(type: 'pressed', sequence: 0, payload: {'k': 1}),
+        scope: CapabilityScope.page(pageId: 'page-1'),
+      );
+      await bridge.pushState('gamepad', {'connected': false},
+          scope: CapabilityScope.page(pageId: 'page-1'));
+      // Omitted scope resolves from registration (app entry wins).
+      await bridge.emitEvent(
+        'gamepad',
+        const DebugEvent(type: 'pressed', sequence: 0, payload: {'k': 2}),
+      );
+      await bridge.pushState('gamepad', {'connected': true});
+      // Skip the two eager state pushes emitted by register itself.
+      final after = sent.sublist(before);
+
+      final emitPage = (after
+              .firstWhere((c) => c.method == kMethodEventsEmit)
+              .arguments as Map)
+          .cast<String, Object?>();
+      expect(emitPage['scope'], 'page');
+      expect(emitPage['pageId'], 'page-1');
+      final statePage = (after
+              .firstWhere((c) => c.method == kMethodCapabilityStateUpdate)
+              .arguments as Map)
+          .cast<String, Object?>();
+      expect(statePage['scope'], 'page');
+      expect(statePage['pageId'], 'page-1');
+
+      final emitApp = (after
+              .lastWhere((c) => c.method == kMethodEventsEmit)
+              .arguments as Map)
+          .cast<String, Object?>();
+      expect(emitApp['scope'], 'app');
+      expect(emitApp.containsKey('pageId'), isFalse);
+      final stateApp = (after
+              .lastWhere((c) => c.method == kMethodCapabilityStateUpdate)
+              .arguments as Map)
+          .cast<String, Object?>();
+      expect(stateApp['scope'], 'app');
+      expect(stateApp.containsKey('pageId'), isFalse);
+      await bridge.dispose();
+    });
+
+    test('reverse invoke routes by scope; legacy format hits app; unknown 404',
+        () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final sent = <MethodCall>[];
+      BindingHelper.captureOutgoing(messenger, sent.add);
+
+      final appCap = _FakeCap('gamepad');
+      final pageCap = _FakeCap('gamepad');
+      final bridge = NativeControlPlaneBridge()..attach();
+      await bridge.register(BridgeCapability(appCap));
+      await bridge.register(
+        BridgeCapability(pageCap),
+        scope: CapabilityScope.page(pageId: 'page-1'),
+      );
+
+      // Scoped payload routes to the page handler.
+      await BindingHelper.deliverNativeCall(messenger, kMethodCapabilityInvoke,
+          {
+        'reqId': 41,
+        'capId': 'gamepad',
+        'routeKind': kRouteKindCommand,
+        'routeIndex': 0,
+        'scope': 'page',
+        'pageId': 'page-1',
+        'pathParams': <String, String>{},
+        'body': {'from': 'page'},
+      });
+      expect(pageCap.commandCalls, [
+        {'from': 'page'}
+      ]);
+      expect(appCap.commandCalls, isEmpty);
+
+      // Legacy format (no scope field) routes to the app handler.
+      await BindingHelper.deliverNativeCall(messenger, kMethodCapabilityInvoke,
+          {
+        'reqId': 42,
+        'capId': 'gamepad',
+        'routeKind': kRouteKindCommand,
+        'routeIndex': 0,
+        'pathParams': <String, String>{},
+        'body': {'from': 'app'},
+      });
+      expect(appCap.commandCalls, [
+        {'from': 'app'}
+      ]);
+      expect(pageCap.commandCalls, hasLength(1));
+
+      // Unknown scope-aware key keeps the 404 not_registered fill.
+      await BindingHelper.deliverNativeCall(messenger, kMethodCapabilityInvoke,
+          {
+        'reqId': 43,
+        'capId': 'gamepad',
+        'routeKind': kRouteKindCommand,
+        'routeIndex': 0,
+        'scope': 'page',
+        'pageId': 'ghost-page',
+        'pathParams': <String, String>{},
+        'body': <String, Object?>{},
+      });
+      final fill = sent
+          .lastWhere((c) => c.method == kMethodCapabilityInvokeResult)
+          .arguments as Map;
+      final error = fill['error'] as Map;
+      expect(error['statusCode'], 404);
+      expect(error['code'], kErrorCodeNotRegistered);
+      await bridge.dispose();
+    });
+
+    test('BridgeCapability exposes the registration-bound scope', () async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      BindingHelper.captureOutgoing(messenger, (_) {});
+
+      final appCap = BridgeCapability(_FakeCap('gamepad'));
+      final pageCap = BridgeCapability(_FakeCap('gamepad'));
+      final bridge = NativeControlPlaneBridge();
+      expect(appCap.boundScope, isNull,
+          reason: 'scope-free until registration binds it');
+      await bridge.register(appCap);
+      await bridge.register(
+        pageCap,
+        scope: CapabilityScope.page(pageId: 'page-1', pageName: 'Home'),
+      );
+      expect(appCap.boundScope, const CapabilityScope.app());
+      expect(pageCap.boundScope?.type, CapabilityScopeType.page);
+      expect(pageCap.boundScope?.pageId, 'page-1');
+      expect(pageCap.boundScope?.pageName, 'Home');
+      await bridge.dispose();
+    });
+  });
+
   group('event pump lifecycle', () {
     test('unregister stops the events upstream pump', () async {
       final messenger =

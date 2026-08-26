@@ -169,7 +169,7 @@ contextMdPaths:
 - 关键代码片段：`data class ScopedCapabilityKey(val scope: CapabilityScopeType, val pageId: String?, val capabilityId: String)`
 - 改动理由/上下文：Kotlin core 是 Android 真机链路的执行端。
 
-## R003-FF001：flutter bridge — MethodChannel 透传 scope identity `⬜ 待处理`
+## R003-FF001：flutter bridge — MethodChannel 透传 scope identity `✅ 已完成`
 
 - 文件：`flutter_debug_control_plane/lib/src/bridge_capability.dart` + `flutter_debug_control_plane/lib/src/native_control_plane_bridge.dart` + `flutter_debug_control_plane/test/native_control_plane_bridge_test.dart`
 - 改动类型：修改
@@ -180,7 +180,7 @@ contextMdPaths:
 - risk_tags: [flutter, methodchannel, compatibility]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [FF001]
 - sourceSlices: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-flutter-slice.md]
 - sourceDesigns: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-design.md]
@@ -190,7 +190,7 @@ contextMdPaths:
 - contract_refs: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-acceptance-spec.yaml]
 - decision_refs: [DEC-R003-002, DEC-R003-006]
 - blocked_files: []
-- 具体改动点：R003-FF001.1 `⬜` `BridgeCapability` 暴露 inner scope；R003-FF001.2 `⬜` channel payload 增加 scope；R003-FF001.3 `⬜` reverse invoke 按 scope-aware local key 查 handler。
+- 具体改动点：R003-FF001.1 `✅` `BridgeCapability` 暴露 inner scope；R003-FF001.2 `✅` channel payload 增加 scope；R003-FF001.3 `✅` reverse invoke 按 scope-aware local key 查 handler。
 - 关键代码片段：`Future<void> register(BridgeCapability cap, {CapabilityScope scope = const CapabilityScope.app()});`
 - 改动理由/上下文：Flutter Dart 侧必须把页面 identity 传给 native。
 

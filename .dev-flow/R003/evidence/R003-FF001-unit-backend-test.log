@@ -1,0 +1,29 @@
+---
+type: test-log
+task_id: R003-FF001
+layer: unit
+domain: backend
+run_at: 2026-08-26T15:04:50Z
+status: pass
+exit_code: 0
+deferred_reason:
+---
+
+# Test Log: R003-FF001 (unit.backend gate alias)
+
+The task source declares `test_tasks` inline with `layer: unit` and
+`domain: flutter`; the formal executed log is:
+
+- `.dev-flow/R003/evidence/R003-FF001-unit-flutter-test.log`
+
+This alias exists for `scripts/xlfoundry-commit-gate.sh`, whose current
+line-oriented parser falls back to `unit.backend` for inline `test_tasks`.
+
+## Test
+
+- command: `bash scripts/run-tests.sh R003-FF001 unit flutter`
+- exit: 0
+- passed: 45
+- failed: 0
+- errors: 0
+- result: `00:00 +45: All tests passed!`
