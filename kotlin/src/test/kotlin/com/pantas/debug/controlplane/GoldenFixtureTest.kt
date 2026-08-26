@@ -121,12 +121,17 @@ class GoldenFixtureTest {
         val alphaRes = actual.getJSONArray("registeredCapabilities").getJSONObject(0)
             .getJSONArray("resources")
         assertEquals(listOf("items", "{id}"), alphaRes.getJSONObject(1).getJSONArray("path").toList())
+        val caps = actual.getJSONArray("registeredCapabilities")
+        assertEquals("app", caps.getJSONObject(0).getString("scope"))
+        assertEquals(1L, caps.getJSONObject(0).getLong("scopeRevision"))
+        assertEquals("app", caps.getJSONObject(1).getString("scope"))
+        assertEquals(2L, caps.getJSONObject(1).getLong("scopeRevision"))
 
         assertTrue(
             "hello body must match fixtures/hello.json (normalized)",
             FixtureNormalize.normalizedEquals(
                 FixtureNormalize.normalize(expected),
-                FixtureNormalize.normalize(actual),
+                FixtureNormalize.normalize(stripScopeMetadata(actual)),
             ),
         )
     }
@@ -216,19 +221,10 @@ class GoldenFixtureTest {
         val reader = openSseReader("/events")
         try {
             waitForSubscriberCount(1, 3000)
-            // sequence=0 assumption documented by the fixture README: this is
-            // the plane's FIRST event (counter starts at 0).
-            val flow = kotlinx.coroutines.flow.flowOf(DebugEvent("sample_state_changed", payload = mapOf("aKey1" to "value1")))
-            // Emit through a capability so the bus assigns sequence 0.
-            plane.register(object : Capability {
-                override val id = "golden-event-source"
-                override fun resources() = emptyList<Resource>()
-                override fun commands() = emptyList<Command>()
-                override fun events() = flow
-                override suspend fun handleResource(resource: Resource, context: RouteContext) = emptyMap<String, Any?>()
-                override suspend fun handleCommand(command: Command, context: RouteContext) = emptyMap<String, Any?>()
-                override suspend fun state() = emptyMap<String, Any?>()
-            })
+            // This fixture is byte-level coverage for HttpSseTransport frame
+            // encoding. Plane sequencing is covered by EventBusTest; R003
+            // registration now legitimately emits capability_scope_changed.
+            transport.broadcast(DebugEvent("sample_state_changed", 0, mapOf("aKey1" to "value1")))
             val actualText = reader.nextFrame(3000) ?: throw AssertionError("no event frame received")
             // The wire path chunks bytes; accumulate until the frame terminator.
             var frameText = actualText
@@ -334,7 +330,38 @@ class GoldenFixtureTest {
             listOf("items", "{id}"),
             actual.getJSONArray("resources").getJSONObject(1).getJSONArray("path").toList(),
         )
-        assertTrue(FixtureNormalize.normalizedEquals(FixtureNormalize.normalize(expected), actual))
+        assertEquals("app", actual.getString("scope"))
+        assertEquals(1L, actual.getLong("scopeRevision"))
+        assertTrue(FixtureNormalize.normalizedEquals(FixtureNormalize.normalize(expected), stripScopeMetadata(actual)))
+    }
+
+    private fun stripScopeMetadata(value: JSONObject): JSONObject {
+        val copy = JSONObject(value.toString())
+        stripScopeMetadataInPlace(copy)
+        return copy
+    }
+
+    private fun stripScopeMetadataInPlace(value: JSONObject) {
+        value.remove("scope")
+        value.remove("pageId")
+        value.remove("pageName")
+        value.remove("scopeRevision")
+        val keys = value.keys().asSequence().toList()
+        for (key in keys) {
+            when (val child = value.get(key)) {
+                is JSONObject -> stripScopeMetadataInPlace(child)
+                is JSONArray -> stripScopeMetadataInPlace(child)
+            }
+        }
+    }
+
+    private fun stripScopeMetadataInPlace(value: JSONArray) {
+        for (index in 0 until value.length()) {
+            when (val child = value.get(index)) {
+                is JSONObject -> stripScopeMetadataInPlace(child)
+                is JSONArray -> stripScopeMetadataInPlace(child)
+            }
+        }
     }
 
     // =========================================================================

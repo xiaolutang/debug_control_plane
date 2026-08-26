@@ -110,13 +110,19 @@ class EventBusTest {
         kotlinx.coroutines.yield()
 
         cap.emit(DebugEvent("controller_state_changed", payload = mapOf("aKey1" to "value1")))
-        withTimeout(2000) { while (transport.broadcasts.isEmpty()) kotlinx.coroutines.delay(10) }
+        withTimeout(2000) {
+            while (transport.broadcasts.none { it.type == "controller_state_changed" }) {
+                kotlinx.coroutines.delay(10)
+            }
+        }
 
-        val event = transport.broadcasts.first()
+        val event = transport.broadcasts.single { it.type == "controller_state_changed" }
         // §3.1: the plane assigns the global sequence; the raw value (0 default
-        // here, but 99 below proves discard) is discarded.
+        // here, but 99 below proves discard) is discarded. R003-BF005
+        // register emits capability_scope_changed first, so this capability
+        // event is the second global event.
         assertEquals("controller_state_changed", event.type)
-        assertEquals(0L, event.sequence)
+        assertEquals(1L, event.sequence)
         assertEquals(mapOf<String, Any?>("aKey1" to "value1"), event.payload)
     }
 
@@ -171,10 +177,15 @@ class EventBusTest {
         kotlinx.coroutines.yield()
         cap.emit(DebugEvent("fanout"))
         withTimeout(2000) {
-            while (transport.broadcasts.isEmpty() || busSeen.isEmpty()) kotlinx.coroutines.delay(10)
+            while (
+                transport.broadcasts.none { it.type == "fanout" } ||
+                busSeen.none { it.type == "fanout" }
+            ) {
+                kotlinx.coroutines.delay(10)
+            }
         }
-        assertEquals("transport.broadcast saw it", 1, transport.broadcasts.size)
-        assertEquals("bus collector saw it", listOf("fanout"), busSeen.map { it.type })
+        assertTrue("transport.broadcast saw it", transport.broadcasts.any { it.type == "fanout" })
+        assertTrue("bus collector saw it", busSeen.any { it.type == "fanout" })
         collector.cancel()
     }
 

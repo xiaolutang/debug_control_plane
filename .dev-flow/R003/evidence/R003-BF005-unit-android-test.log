@@ -1,0 +1,88 @@
+---
+type: test-log
+task_id: R003-BF005
+layer: unit
+domain: android
+run_at: 2026-08-26T09:42:08Z
+status: pass
+exit_code: 0
+deferred_reason: 
+---
+
+# Test Log: R003-BF005 (unit.android)
+
+## Config Source
+- file: .dev-flow/config.json
+- path: project_capabilities.tests.unit.android
+
+## Test Command Source
+- path: project_capabilities.tests.unit.android
+- command: ./gradlew build
+
+## Setup
+- command: （跳过）
+- exit: N/A
+
+## Test
+- command: ./gradlew build
+- exit: 0
+- passed: 400
+- failed: 0
+
+## Teardown
+- command: （跳过）
+- exit: N/A
+
+## Raw Output (tail)
+```
+
+SseAndRoutingIntegrationTest > sse_headersMatchContract PASSED
+
+SseAndRoutingIntegrationTest > sse_authAuthorizedKeepsByteExactFirstFrame PASSED
+
+SseAndRoutingIntegrationTest > hello_trailingSlashEquivalent PASSED
+
+SseAndRoutingIntegrationTest > sse_multipleClientsBothReceiveBroadcast PASSED
+
+SseAndRoutingIntegrationTest > routing_postInvalidBodyIs400InvalidRequest PASSED
+
+SseAndRoutingIntegrationTest > sse_firstFrameIsByteExactPerFixture PASSED
+
+SseAndRoutingIntegrationTest > sse_eventFrameMatchesFixtureShape PASSED
+
+SseAndRoutingIntegrationTest > sse_scopedUnregisterCleansOnlyTargetSubscriptionAndEmitsScopeChanged PASSED
+
+SseAndRoutingIntegrationTest > state_returnsFlatAggregationNoOk PASSED
+
+SseAndRoutingIntegrationTest > sse_authForbiddenReturnsJsonAndDoesNotSubscribe PASSED
+
+SseAndRoutingIntegrationTest > sse_connectionPersistsAcrossBroadcasts PASSED
+
+SseAndRoutingIntegrationTest > events_overHttpIsSseNotIntrospectionFallback PASSED
+
+SseAndRoutingIntegrationTest > sse_authMalformedBearerReturnsAuthorizationRequiredJson PASSED
+
+SseAndRoutingIntegrationTest > routing_literalProfileList PASSED
+
+SseAndRoutingIntegrationTest > routing_multiSegmentWithTwoPlaceholders PASSED
+
+SseAndRoutingIntegrationTest > hello_returnsProtocolVersionAndRegisteredCapabilities PASSED
+
+SseAndRoutingIntegrationTest > sse_authDisabledStillAllowsBareEvents PASSED
+
+SseAndRoutingIntegrationTest > routing_singleSegmentPlaceholderExtractsId PASSED
+
+UriProbeTest > queryParameters_doNotPollutePathRouting PASSED
+
+UriProbeTest > trailingSlash_systemRouteEquivalent PASSED
+
+UriProbeTest > percentEncodedSegment_decodedBeforeMatch PASSED
+
+UriProbeTest > trailingSlash_capabilityRouteEquivalent PASSED
+
+> Task :kotlin:check
+> Task :kotlin:build
+
+BUILD SUCCESSFUL in 6s
+7 actionable tasks: 3 executed, 4 up-to-date
+```

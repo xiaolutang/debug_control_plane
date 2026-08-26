@@ -144,7 +144,7 @@ contextMdPaths:
 - 关键代码片段：`data class CapabilityScope(val type: CapabilityScopeType = APP, val pageId: String? = null, val pageName: String? = null, val revision: Long? = null)`
 - 改动理由/上下文：Android native plugin 走 Kotlin core，模型必须同形。
 
-## R003-BF005：kotlin control plane — scoped registry 与状态事件 `⬜ 待处理`
+## R003-BF005：kotlin control plane — scoped registry 与状态事件 `✅ 已完成`
 
 - 文件：`kotlin/src/main/kotlin/com/pantas/debug/controlplane/ControlPlane.kt` + `kotlin/src/test/kotlin/com/pantas/debug/controlplane/ControlPlaneTest.kt` + `kotlin/src/test/kotlin/com/pantas/debug/controlplane/SseAndRoutingIntegrationTest.kt`
 - 改动类型：修改
@@ -155,7 +155,7 @@ contextMdPaths:
 - risk_tags: [kotlin, routing, lifecycle, auth]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [BF002, BF003, BF004]
 - sourceSlices: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-core-slice.md]
 - sourceDesigns: [.dev-flow/R003/analysis/2026-08-25--capability-scope-split-design.md]
@@ -165,7 +165,7 @@ contextMdPaths:
 - contract_refs: [PROTOCOL.md]
 - decision_refs: [DEC-R003-002, DEC-R003-003, DEC-R003-004, DEC-R003-005]
 - blocked_files: []
-- 具体改动点：R003-BF005.1 `⬜` `_capabilities/_eventSubscriptions` 改为 scoped key；R003-BF005.2 `⬜` hello 聚合 scope metadata，state 只聚合 app；R003-BF005.3 `⬜` sensitive route 授权通过后 scoped match。
+- 具体改动点：R003-BF005.1 `✅` `_capabilities/_eventSubscriptions` 改为 scoped key；R003-BF005.2 `✅` hello 聚合 scope metadata，state 只聚合 app；R003-BF005.3 `✅` sensitive route 授权通过后 scoped match。
 - 关键代码片段：`data class ScopedCapabilityKey(val scope: CapabilityScopeType, val pageId: String?, val capabilityId: String)`
 - 改动理由/上下文：Kotlin core 是 Android 真机链路的执行端。
 

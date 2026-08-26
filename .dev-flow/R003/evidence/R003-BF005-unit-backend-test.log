@@ -1,0 +1,26 @@
+---
+type: test-log
+task_id: R003-BF005
+layer: unit
+domain: backend
+run_at: 2026-08-26T09:42:08Z
+status: pass
+exit_code: 0
+deferred_reason:
+alias_for: .dev-flow/R003/evidence/R003-BF005-unit-android-test.log
+---
+
+# Test Log Alias: R003-BF005 (unit.backend)
+
+This task is Kotlin/Android backend core work, but the legacy commit gate parser
+also requests `unit.backend` for inline `test_tasks`. The authoritative test run
+is `unit.android`.
+
+## Test
+- command: ./gradlew build
+- exit: 0
+- passed: 400
+- failed: 0
+
+## Source Evidence
+- `.dev-flow/R003/evidence/R003-BF005-unit-android-test.log`

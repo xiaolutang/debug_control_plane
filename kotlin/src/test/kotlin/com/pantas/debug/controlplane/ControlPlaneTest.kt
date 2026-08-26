@@ -4,6 +4,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -37,14 +39,31 @@ class ControlPlaneTest {
         scope.cancel()
     }
 
-    private fun get(path: String): RouteResult =
-        kotlinx.coroutines.runBlocking {
-            transport.dispatch(RouteRequest(method = "GET", segments = path.trim('/').split('/').filter { it.isNotEmpty() }))
+    private fun get(path: String, vararg headers: Pair<String, String>): RouteResult =
+        runBlocking {
+            transport.dispatch(
+                RouteRequest(
+                    method = "GET",
+                    segments = path.trim('/').split('/').filter { it.isNotEmpty() },
+                    headers = mapOf(*headers),
+                ),
+            )
         }
 
-    private fun post(path: String, body: Map<String, Any?> = emptyMap()): RouteResult =
-        kotlinx.coroutines.runBlocking {
-            transport.dispatch(RouteRequest(method = "POST", segments = path.trim('/').split('/').filter { it.isNotEmpty() }, body = body))
+    private fun post(
+        path: String,
+        body: Map<String, Any?> = emptyMap(),
+        vararg headers: Pair<String, String>,
+    ): RouteResult =
+        runBlocking {
+            transport.dispatch(
+                RouteRequest(
+                    method = "POST",
+                    segments = path.trim('/').split('/').filter { it.isNotEmpty() },
+                    body = body,
+                    headers = mapOf(*headers),
+                ),
+            )
         }
 
     // ---- Registry -----------------------------------------------------------
@@ -64,13 +83,115 @@ class ControlPlaneTest {
             plane.register(FakeCapability("alpha"))
             throw AssertionError("expected IllegalArgumentException")
         } catch (e: IllegalArgumentException) {
-            assertTrue(e.message!!.contains("Capability already registered: alpha"))
+            assertTrue(e.message!!.contains("Capability already registered: app/alpha"))
         }
     }
 
     @Test
     fun unregisterUnknownIsNoOp() {
         plane.unregister("nope") // must not throw
+    }
+
+    @Test
+    fun scopedRegistry_allowsAppAndMultiplePagesWithSameId() {
+        plane.register(FakeCapability("shared", stateMap = mapOf("appKey" to "app")))
+        plane.register(FakeCapability("shared", scope = CapabilityScope.page("page-a", "Page A")))
+        plane.register(FakeCapability("shared", scope = CapabilityScope.page("page-b", "Page B")))
+
+        val caps = registeredCapabilities()
+
+        assertEquals(listOf("app", "page", "page"), caps.map { it["scope"] })
+        assertEquals(listOf(null, "page-a", "page-b"), caps.map { it["pageId"] })
+        assertEquals(listOf(1L, 2L, 3L), caps.map { it["scopeRevision"] })
+        assertEquals(setOf("shared"), plane.registeredIds)
+    }
+
+    @Test
+    fun scopedRegistry_duplicateKeyThrowsAndOriginalHandlerRemainsActive() {
+        val original = FakeCapability(
+            "shared",
+            resources = listOf(Resource("GET", listOf("selected"))),
+            scope = CapabilityScope.page("page-a", "Page A"),
+        )
+        original.onResource = { _, _ -> mapOf("winner" to "original") }
+        val replacement = FakeCapability(
+            "shared",
+            resources = listOf(Resource("GET", listOf("selected"))),
+            scope = CapabilityScope.page("page-a", "Replacement"),
+        )
+        replacement.onResource = { _, _ -> mapOf("winner" to "replacement") }
+
+        plane.register(original)
+        try {
+            plane.register(replacement)
+            throw AssertionError("expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message!!.contains("Capability already registered: page/page-a/shared"))
+        }
+
+        val body = get(
+            "/selected",
+            "X-DCP-Capability-Id" to "shared",
+            "X-DCP-Capability-Scope" to "page",
+            "X-DCP-Page-Id" to "page-a",
+        ) as RouteResult.Ok
+        assertEquals("original", body.body["winner"])
+    }
+
+    @Test
+    fun legacyUnregisterRemovesOnlyAppScope() {
+        plane.register(FakeCapability("shared", stateMap = mapOf("appKey" to "app")))
+        plane.register(
+            FakeCapability(
+                "shared",
+                resources = listOf(Resource("GET", listOf("page"))),
+                scope = CapabilityScope.page("page-a", "Page A"),
+            ),
+        )
+
+        plane.unregister("shared")
+
+        val state = get("/state") as RouteResult.Ok
+        assertFalse(state.body.containsKey("appKey"))
+        val page = get(
+            "/page",
+            "X-DCP-Capability-Id" to "shared",
+            "X-DCP-Capability-Scope" to "page",
+            "X-DCP-Page-Id" to "page-a",
+        ) as RouteResult.Ok
+        assertEquals(true, page.body["ok"])
+    }
+
+    @Test
+    fun unregisterScopedRemovesOnlyTargetAndMissingIsNoOp() {
+        plane.register(FakeCapability("shared", resources = listOf(Resource("GET", listOf("app")))))
+        plane.register(FakeCapability("shared", resources = listOf(Resource("GET", listOf("page-a"))), scope = CapabilityScope.page("page-a")))
+        plane.register(FakeCapability("shared", resources = listOf(Resource("GET", listOf("page-b"))), scope = CapabilityScope.page("page-b")))
+
+        plane.unregisterScoped(CapabilityScope.page("page-a"), "shared")
+        plane.unregisterScoped(CapabilityScope.page("missing"), "shared")
+
+        val gone = get(
+            "/page-a",
+            "X-DCP-Capability-Id" to "shared",
+            "X-DCP-Capability-Scope" to "page",
+            "X-DCP-Page-Id" to "page-a",
+        ) as RouteResult.Error
+        val app = get(
+            "/app",
+            "X-DCP-Capability-Id" to "shared",
+            "X-DCP-Capability-Scope" to "app",
+        ) as RouteResult.Ok
+        val pageB = get(
+            "/page-b",
+            "X-DCP-Capability-Id" to "shared",
+            "X-DCP-Capability-Scope" to "page",
+            "X-DCP-Page-Id" to "page-b",
+        ) as RouteResult.Ok
+
+        assertEquals(410, gone.statusCode)
+        assertEquals(true, app.body["ok"])
+        assertEquals(true, pageB.body["ok"])
     }
 
     // ---- /state aggregation (fixtures/state-*.json semantics) ----------------
@@ -102,6 +223,26 @@ class ControlPlaneTest {
         plane.register(FakeCapability("beta", stateMap = mapOf("k" to "second")))
         val body = get("/state") as RouteResult.Ok
         assertEquals("second", body.body["k"])
+    }
+
+    @Test
+    fun stateAndHelloAggregateAppScopeOnly() {
+        plane.register(FakeCapability("app-cap", stateMap = mapOf("appKey" to "app")))
+        plane.register(
+            FakeCapability(
+                "page-cap",
+                stateMap = mapOf("pageKey" to "page"),
+                scope = CapabilityScope.page("page-a", "Page A"),
+            ),
+        )
+
+        val state = get("/state") as RouteResult.Ok
+        val hello = get("/hello") as RouteResult.Ok
+
+        assertEquals("app", state.body["appKey"])
+        assertFalse(state.body.containsKey("pageKey"))
+        assertEquals("app", hello.body["appKey"])
+        assertFalse(hello.body.containsKey("pageKey"))
     }
 
     // ---- /hello aggregation (fixtures/hello.json semantics) ------------------
@@ -203,6 +344,26 @@ class ControlPlaneTest {
         assertFalse((betaRes[0] as Map<*, *>).containsKey("description"))
     }
 
+    @Test
+    fun hello_registeredCapabilitiesIncludesScopeMetadataAndRegistrationOrder() {
+        plane.register(FakeCapability("app-cap"))
+        plane.register(FakeCapability("page-cap", scope = CapabilityScope.page("page-a", "Page A")))
+
+        val caps = registeredCapabilities()
+        val app = caps[0]
+        val page = caps[1]
+
+        assertEquals("app-cap", app["id"])
+        assertEquals("app", app["scope"])
+        assertEquals(1L, app["scopeRevision"])
+        assertFalse(app.containsKey("pageId"))
+        assertEquals("page-cap", page["id"])
+        assertEquals("page", page["scope"])
+        assertEquals("page-a", page["pageId"])
+        assertEquals("Page A", page["pageName"])
+        assertEquals(2L, page["scopeRevision"])
+    }
+
     // ---- /events introspection fallback (unreachable over SSE transport) ------
 
     @Test
@@ -247,6 +408,119 @@ class ControlPlaneTest {
         plane.register(second)
         val body = get("/same") as RouteResult.Ok
         assertEquals("first", body.body["winner"])
+    }
+
+    @Test
+    fun dispatch_selectorHeadersTargetAppAndPagesExactly() {
+        val app = FakeCapability("shared", resources = listOf(Resource("GET", listOf("same"))))
+        app.onResource = { _, _ -> mapOf("scope" to "app") }
+        val pageA = FakeCapability("shared", resources = listOf(Resource("GET", listOf("same"))), scope = CapabilityScope.page("page-a"))
+        pageA.onResource = { _, _ -> mapOf("scope" to "page-a") }
+        val pageB = FakeCapability("shared", resources = listOf(Resource("GET", listOf("same"))), scope = CapabilityScope.page("page-b"))
+        pageB.onResource = { _, _ -> mapOf("scope" to "page-b") }
+        plane.register(app)
+        plane.register(pageA)
+        plane.register(pageB)
+
+        assertEquals("app", (get("/same", "X-DCP-Capability-Id" to "shared", "X-DCP-Capability-Scope" to "app") as RouteResult.Ok).body["scope"])
+        assertEquals("page-a", (get("/same", "X-DCP-Capability-Id" to "shared", "X-DCP-Capability-Scope" to "page", "X-DCP-Page-Id" to "page-a") as RouteResult.Ok).body["scope"])
+        assertEquals("page-b", (get("/same", "X-DCP-Capability-Id" to "shared", "X-DCP-Capability-Scope" to "page", "X-DCP-Page-Id" to "page-b") as RouteResult.Ok).body["scope"])
+    }
+
+    @Test
+    fun dispatch_selectorGoneExpiredAndPathMismatchContracts() {
+        plane.register(FakeCapability("shared", resources = listOf(Resource("GET", listOf("exists"))), scope = CapabilityScope.page("page-a")))
+        val revision = (registeredCapabilities().single()["scopeRevision"] as Long).toString()
+
+        val gone = get(
+            "/exists",
+            "X-DCP-Capability-Id" to "shared",
+            "X-DCP-Capability-Scope" to "page",
+            "X-DCP-Page-Id" to "missing",
+        ) as RouteResult.Error
+        val expired = get(
+            "/exists",
+            "X-DCP-Capability-Id" to "shared",
+            "X-DCP-Capability-Scope" to "page",
+            "X-DCP-Page-Id" to "page-a",
+            "X-DCP-Scope-Revision" to (revision.toLong() + 1).toString(),
+        ) as RouteResult.Error
+        val mismatch = get(
+            "/missing-path",
+            "X-DCP-Capability-Id" to "shared",
+            "X-DCP-Capability-Scope" to "page",
+            "X-DCP-Page-Id" to "page-a",
+            "X-DCP-Scope-Revision" to revision,
+        ) as RouteResult.Error
+
+        assertEquals(410, gone.statusCode)
+        assertEquals("page_capability_gone", gone.code)
+        assertEquals("Page capability is no longer available. Refresh /hello before invoking tools.", gone.message)
+        assertEquals(409, expired.statusCode)
+        assertEquals("capability_scope_expired", expired.code)
+        assertEquals("Capability scope mirror expired. Refresh /hello before invoking tools.", expired.message)
+        assertEquals(404, mismatch.statusCode)
+        assertEquals("not_found", mismatch.code)
+    }
+
+    @Test
+    fun dispatch_incompleteSelectorIsStable404WithoutPartialScopedLookup() {
+        plane.register(FakeCapability("shared", resources = listOf(Resource("GET", listOf("exists"))), scope = CapabilityScope.page("page-a")))
+
+        val result = get(
+            "/exists",
+            "X-DCP-Capability-Id" to "shared",
+            "X-DCP-Capability-Scope" to "page",
+        ) as RouteResult.Error
+
+        assertEquals(404, result.statusCode)
+        assertEquals("not_found", result.code)
+    }
+
+    @Test
+    fun dispatch_authDeniedBeforeSelectorLookupGoneExpiredOrPathMatch() {
+        val auth = object : DebugAuthManager {
+            var authorizeCalls = 0
+            override suspend fun authorize(request: DebugAuthRequest): DebugAuthDecision {
+                authorizeCalls += 1
+                return DebugAuth.invalidToken()
+            }
+
+            override suspend fun helloAuthState(token: String?): Map<String, Any?> = emptyMap()
+        }
+        val planeWithAuth = ControlPlane(transport = transport, scope = scope, authManager = auth)
+        val counting = object : FakeCapability(
+            "shared",
+            resources = listOf(Resource("GET", listOf("exists"))),
+            scope = CapabilityScope.page("page-a"),
+        ) {
+            var calls = 0
+            override suspend fun handleResource(resource: Resource, context: RouteContext): Map<String, Any?> {
+                calls += 1
+                return super.handleResource(resource, context)
+            }
+        }
+        planeWithAuth.register(counting)
+
+        val result = runBlocking {
+            planeWithAuth.dispatch(
+                RouteRequest(
+                    method = "GET",
+                    segments = listOf("exists"),
+                    headers = mapOf(
+                        "X-DCP-Capability-Id" to "shared",
+                        "X-DCP-Capability-Scope" to "page",
+                        "X-DCP-Page-Id" to "missing",
+                        "X-DCP-Scope-Revision" to "999",
+                    ),
+                ),
+            )
+        } as RouteResult.Error
+
+        assertEquals(401, result.statusCode)
+        assertEquals("invalid_token", result.code)
+        assertEquals(1, auth.authorizeCalls)
+        assertEquals(0, counting.calls)
     }
 
     @Test
@@ -344,5 +618,48 @@ class ControlPlaneTest {
         // fixtures/error-404.json: {ok:false, code:"not_found", message:"Endpoint was not found."}
         assertEquals("not_found", err.code)
         assertEquals("Endpoint was not found.", err.message)
+    }
+
+    @Test
+    fun capabilityScopeChangedEmitsOnVisibleRegistryChanges() {
+        val events = mutableListOf<DebugEvent>()
+        val job = scope.launch { plane.eventBus.collect { events += it } }
+        try {
+            plane.register(FakeCapability("page-cap", scope = CapabilityScope.page("page-a", "Page A")))
+            plane.unregisterScoped(CapabilityScope.page("page-a"), "page-cap")
+        } finally {
+            job.cancel()
+        }
+
+        assertEquals(2, events.size)
+        assertEquals("capability_scope_changed", events[0].type)
+        assertEquals("registered", events[0].payload["change"])
+        assertEquals("page", events[0].payload["scope"])
+        assertEquals("page-cap", events[0].payload["capabilityId"])
+        assertEquals("page-a", events[0].payload["pageId"])
+        assertEquals("Page A", events[0].payload["pageName"])
+        assertEquals(1L, events[0].payload["scopeRevision"])
+        assertEquals("unregistered", events[1].payload["change"])
+        assertEquals(2L, events[1].payload["scopeRevision"])
+    }
+
+    @Test
+    fun stopClearsRegistryAndCancelsSubscriptions() {
+        runBlocking { plane.start(0) }
+        val cap = FakeCapability("app-cap")
+        plane.register(cap)
+
+        runBlocking { plane.stop() }
+        cap.emit(DebugEvent("after.stop", 0, mapOf("ok" to true)))
+        Thread.sleep(50)
+
+        assertTrue(plane.registeredIds.isEmpty())
+        assertFalse(transport.broadcasts.any { it.type == "after.stop" })
+    }
+
+    private fun registeredCapabilities(): List<Map<*, *>> {
+        val body = get("/hello") as RouteResult.Ok
+        @Suppress("UNCHECKED_CAST")
+        return body.body["registeredCapabilities"] as List<Map<*, *>>
     }
 }

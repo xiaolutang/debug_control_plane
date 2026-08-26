@@ -305,6 +305,51 @@ class SseAndRoutingIntegrationTest {
         conn.disconnect()
     }
 
+    @Test
+    fun sse_scopedUnregisterCleansOnlyTargetSubscriptionAndEmitsScopeChanged() {
+        val reader = openSseBlocking("/events")
+        val app = FakeCapability("scoped-events")
+        val pageA = FakeCapability("scoped-events", scope = CapabilityScope.page("page-a", "Page A"))
+        val pageB = FakeCapability("scoped-events", scope = CapabilityScope.page("page-b", "Page B"))
+        try {
+            waitForSubscriberCount(1, timeoutMs = 3000)
+            plane.register(app)
+            plane.register(pageA)
+            plane.register(pageB)
+
+            val registeredFrames = listOf(
+                reader.nextFrame(timeoutMs = 3000),
+                reader.nextFrame(timeoutMs = 3000),
+                reader.nextFrame(timeoutMs = 3000),
+            )
+            assertTrue(registeredFrames.all { it?.startsWith("event: capability_scope_changed\n") == true })
+            assertTrue(registeredFrames[1]?.contains("\"scope\":\"page\"") == true)
+            assertTrue(registeredFrames[1]?.contains("\"pageId\":\"page-a\"") == true)
+            assertTrue(registeredFrames[1]?.contains("\"pageName\":\"Page A\"") == true)
+
+            plane.unregisterScoped(CapabilityScope.page("page-a", "Page A"), "scoped-events")
+            val unregistered = reader.nextFrame(timeoutMs = 3000)
+            assertTrue(unregistered?.startsWith("event: capability_scope_changed\n") == true)
+            assertTrue(unregistered?.contains("\"change\":\"unregistered\"") == true)
+            assertTrue(unregistered?.contains("\"pageId\":\"page-a\"") == true)
+
+            pageA.emit(DebugEvent("page-a.event", 0, mapOf("source" to "page-a")))
+            pageB.emit(DebugEvent("page-b.event", 0, mapOf("source" to "page-b")))
+            app.emit(DebugEvent("app.event", 0, mapOf("source" to "app")))
+
+            val remainingFrames = listOf(
+                reader.nextFrame(timeoutMs = 3000),
+                reader.nextFrame(timeoutMs = 3000),
+            )
+            assertTrue(remainingFrames.any { it?.startsWith("event: page-b.event\n") == true })
+            assertTrue(remainingFrames.any { it?.startsWith("event: app.event\n") == true })
+            assertFalse(remainingFrames.any { it?.startsWith("event: page-a.event\n") == true })
+            assertEquals(null, reader.nextFrame(timeoutMs = 300))
+        } finally {
+            reader.disconnect()
+        }
+    }
+
     // =========================================================================
     // System routes through the production ControlPlane
     // =========================================================================

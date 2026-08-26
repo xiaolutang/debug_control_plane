@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicLong
  * (PROTOCOL.md is the authoritative spec).
  *
  * Composition:
- *  - capability registry (insertion-ordered; duplicate ids rejected),
+ *  - capability registry (insertion-ordered; duplicate scoped ids rejected),
  *  - system routes `/hello` `/state` `/events` (§1, plane-owned, GET-only,
  *    win over capability declarations),
  *  - flat prefix-less dispatch with `{name}` single-segment placeholders,
@@ -45,10 +45,10 @@ class ControlPlane(
     private var appMeta: (suspend () -> Map<String, Any?>)? = appMeta
 
     /** Insertion-ordered registry (PROTOCOL.md §2.2: registeredCapabilities order = registration order). */
-    private val _capabilities = LinkedHashMap<String, Capability>()
+    private val _capabilities = LinkedHashMap<ScopedCapabilityKey, CapabilityEntry>()
 
     /** Per-capability event collection jobs (unregister cancels cleanly). */
-    private val _eventSubscriptions = LinkedHashMap<String, Job>()
+    private val _eventSubscriptions = LinkedHashMap<ScopedCapabilityKey, Job>()
 
     /** Global event bus (BF002-4). */
     private val bus = EventBus()
@@ -88,12 +88,15 @@ class ControlPlane(
     /** Process-wide monotonic sequence counter, shared across capabilities, starts at 0 (§3.1). */
     private val nextSequence = AtomicLong(0L)
 
+    /** Monotonic registry mirror revision for scope-aware capability metadata. */
+    private var scopeRevision: Long = 0L
+
     /** The global event bus hot stream (transports / tests collect). */
     val eventBus: kotlinx.coroutines.flow.SharedFlow<DebugEvent> get() = bus.shared
 
-    /** All registered capability ids, in registration order. */
+    /** All registered capability ids, in registration order. Legacy/debug view only. */
     val registeredIds: Set<String>
-        get() = synchronized(lock) { _capabilities.keys.toSet() }
+        get() = synchronized(lock) { _capabilities.values.map { it.capability.id }.toSet() }
 
     // -------------------------------------------------------------------------
     // Registry
@@ -101,9 +104,9 @@ class ControlPlane(
 
     /**
      * Register [cap]. Throws [IllegalArgumentException] if a capability with
-     * the same id is already registered (Dart throws StateError; Kotlin
-     * convention maps it to require/IlegalArgumentException — same startup-
-     * time semantics, not an HTTP error).
+     * the same scoped identity is already registered (Dart throws StateError;
+     * Kotlin convention maps it to require/IllegalArgumentException — same
+     * startup-time semantics, not an HTTP error).
      */
     fun register(cap: Capability) {
         // BF002-4: one collection job per capability, forwarding into the
@@ -111,25 +114,42 @@ class ControlPlane(
         // Job created + stored inside the same lock as the registry insert,
         // so a concurrent unregister of the same id can never miss it (an
         // orphaned, uncancelled collection job would leak the capability).
-        synchronized(lock) {
-            require(!_capabilities.containsKey(cap.id)) {
-                "Capability already registered: ${cap.id}"
+        val entry = synchronized(lock) {
+            val key = ScopedCapabilityKey.from(cap.scope, cap.id)
+            require(!_capabilities.containsKey(key)) {
+                "Capability already registered: ${key.describe()}"
             }
-            _capabilities[cap.id] = cap
-            _eventSubscriptions[cap.id] = scope.launch {
+            val inserted = CapabilityEntry(
+                capability = cap,
+                scope = cap.scope,
+                scopeRevision = ++scopeRevision,
+            )
+            _capabilities[key] = inserted
+            _eventSubscriptions[key] = scope.launch {
                 cap.events().collect { raw ->
                     bus.emit(raw.copy(sequence = nextSequence.getAndIncrement()))
                 }
             }
+            inserted
         }
+        emitScopeChanged("registered", entry)
     }
 
-    /** Unregister the capability with [id]. No-op if not registered. */
+    /** Unregister the app-scoped capability with [id]. No-op if not registered. */
     fun unregister(id: String) {
-        synchronized(lock) {
-            _capabilities.remove(id) ?: return
-            _eventSubscriptions.remove(id)?.cancel()
+        unregisterScoped(CapabilityScope.app(), id)
+    }
+
+    /** Unregister one scoped capability. Missing scoped keys are a no-op. */
+    fun unregisterScoped(scope: CapabilityScope, capabilityId: String) {
+        val removed = synchronized(lock) {
+            val key = ScopedCapabilityKey.from(scope, capabilityId)
+            val entry = _capabilities.remove(key) ?: return
+            _eventSubscriptions.remove(key)?.cancel()
+            scopeRevision += 1
+            entry to scopeRevision
         }
+        emitScopeChanged("unregistered", removed.first, removed.second)
     }
 
     // -------------------------------------------------------------------------
@@ -279,36 +299,11 @@ class ControlPlane(
                 }
             }
 
-            // Capability routes — flat, prefix-less, first-match-wins in
-            // registration order then declaration order (§2.4).
-            val segments = req.segments
-            val caps = synchronized(lock) { _capabilities.values.toList() }
-            if (req.method == "GET") {
-                for (cap in caps) {
-                    for (decl in cap.resources()) {
-                        if (decl.method != req.method) continue
-                        // Fresh map per declaration (Dart control_plane.dart
-                        // L150): a partially-matched earlier declaration must
-                        // not leak its {name} captures into the next one.
-                        val pathParams = mutableMapOf<String, String>()
-                        if (RoutePath.match(decl.path, segments, pathParams)) {
-                            val ctx = RouteContext(pathParams, req.body, req.request)
-                            return RouteResult.ok(cap.handleResource(decl, ctx))
-                        }
-                    }
-                }
-            } else if (req.method == "POST") {
-                for (cap in caps) {
-                    for (decl in cap.commands()) {
-                        if (decl.method != req.method) continue
-                        val pathParams = mutableMapOf<String, String>()
-                        if (RoutePath.match(decl.path, segments, pathParams)) {
-                            val ctx = RouteContext(pathParams, req.body, req.request)
-                            return RouteResult.ok(cap.handleCommand(decl, ctx))
-                        }
-                    }
-                }
-            }
+            val selector = CapabilitySelector.parse(req.headers)
+            if (selector.isPresent) return dispatchSelected(req, selector)
+
+            val flat = dispatchFlat(req, synchronized(lock) { _capabilities.values.toList() })
+            if (flat != null) return flat
 
             RouteResult.error(404, "not_found", "Endpoint was not found.")
         } catch (error: RouteFailure) {
@@ -477,15 +472,17 @@ class ControlPlane(
         )
 
     /**
-     * Flat aggregate state: every capability's [Capability.state] entries
+     * Flat aggregate state: every app capability's [Capability.state] entries
      * spread into the top level; later registrations win on key collision
      * (§1.3). Empty object when no capability is registered.
      * Private like Dart `_aggregateState` — reach it via `/state` / `/hello`.
      */
     private suspend fun aggregateState(): Map<String, Any?> {
         val state = LinkedHashMap<String, Any?>()
-        val caps = synchronized(lock) { _capabilities.values.toList() }
-        for (cap in caps) {
+        val entries = synchronized(lock) { _capabilities.values.toList() }
+        for (entry in entries) {
+            if (entry.scope.type != CapabilityScopeType.APP) continue
+            val cap = entry.capability
             for ((key, value) in cap.state()) {
                 state[key] = value
             }
@@ -500,22 +497,119 @@ class ControlPlane(
      * is a JSON array (§2.3 cross-language pitfall).
      */
     private fun aggregateCapabilities(): Map<String, Any?> {
-        val caps = synchronized(lock) { _capabilities.values.toList() }
+        val entries = synchronized(lock) { _capabilities.values.toList() }
         return mapOf(
-            "registeredCapabilities" to caps.map { cap ->
-                mapOf(
-                    "id" to cap.id,
-                    "resources" to cap.resources().map { it.toDeclMap() },
-                    "commands" to cap.commands().map { it.toDeclMap() },
-                )
-            },
+            "registeredCapabilities" to entries.map { it.toCapabilityMap() },
         )
+    }
+
+    private fun CapabilityEntry.toCapabilityMap(): Map<String, Any?> = buildMap {
+        put("id", capability.id)
+        put("scope", scope.type.wireValue)
+        if (scope.type == CapabilityScopeType.PAGE) put("pageId", scope.pageId)
+        if (scope.pageName != null) put("pageName", scope.pageName)
+        put("scopeRevision", scopeRevision)
+        put("resources", capability.resources().map { it.toDeclMap() })
+        put("commands", capability.commands().map { it.toDeclMap() })
     }
 
     private fun RouteDecl.toDeclMap(): Map<String, Any?> = buildMap {
         put("method", method)
         put("path", path)
         if (description != null) put("description", description)
+    }
+
+    private suspend fun dispatchSelected(req: RouteRequest, selector: CapabilitySelector): RouteResult {
+        val key = selector.key
+            ?: return RouteResult.error(404, "not_found", "Endpoint was not found.")
+
+        val entry = synchronized(lock) { _capabilities[key] }
+        if (entry == null && key.scope == CapabilityScopeType.PAGE) {
+            return RouteResult.error(
+                410,
+                "page_capability_gone",
+                "Page capability is no longer available. Refresh /hello before invoking tools.",
+            )
+        }
+        if (entry == null) {
+            return RouteResult.error(404, "not_found", "Endpoint was not found.")
+        }
+
+        val requestedRevision = selector.scopeRevision
+        if (requestedRevision != null && requestedRevision != entry.scopeRevision) {
+            return RouteResult.error(
+                409,
+                "capability_scope_expired",
+                "Capability scope mirror expired. Refresh /hello before invoking tools.",
+            )
+        }
+
+        val result = dispatchFlat(req, listOf(entry))
+        return result ?: RouteResult.error(404, "not_found", "Endpoint was not found.")
+    }
+
+    private suspend fun dispatchFlat(req: RouteRequest, entries: List<CapabilityEntry>): RouteResult? {
+        return when (req.method) {
+            "GET" -> {
+                for (entry in entries) {
+                    dispatchResources(req, entry.capability)?.let { return it }
+                }
+                null
+            }
+            "POST" -> {
+                for (entry in entries) {
+                    dispatchCommands(req, entry.capability)?.let { return it }
+                }
+                null
+            }
+            else -> null
+        }
+    }
+
+    private suspend fun dispatchResources(req: RouteRequest, cap: Capability): RouteResult? {
+        for (decl in cap.resources()) {
+            if (decl.method != req.method) continue
+            val pathParams = mutableMapOf<String, String>()
+            if (RoutePath.match(decl.path, req.segments, pathParams)) {
+                val ctx = RouteContext(pathParams, req.body, req.request)
+                return RouteResult.ok(cap.handleResource(decl, ctx))
+            }
+        }
+        return null
+    }
+
+    private suspend fun dispatchCommands(req: RouteRequest, cap: Capability): RouteResult? {
+        for (decl in cap.commands()) {
+            if (decl.method != req.method) continue
+            val pathParams = mutableMapOf<String, String>()
+            if (RoutePath.match(decl.path, req.segments, pathParams)) {
+                val ctx = RouteContext(pathParams, req.body, req.request)
+                return RouteResult.ok(cap.handleCommand(decl, ctx))
+            }
+        }
+        return null
+    }
+
+    private fun emitScopeChanged(
+        change: String,
+        entry: CapabilityEntry,
+        scopeRevision: Long = entry.scopeRevision,
+    ) {
+        val scope = entry.scope
+        bus.emit(
+            DebugEvent(
+                type = "capability_scope_changed",
+                sequence = nextSequence.getAndIncrement(),
+                payload = buildMap {
+                    put("change", change)
+                    put("scope", scope.type.wireValue)
+                    put("capabilityId", entry.capability.id)
+                    if (scope.type == CapabilityScopeType.PAGE) put("pageId", scope.pageId)
+                    if (scope.pageName != null) put("pageName", scope.pageName)
+                    put("scopeRevision", scopeRevision)
+                },
+            ),
+        )
     }
 
     companion object {
@@ -533,5 +627,80 @@ class ControlPlane(
         )
 
         private val HELLO_BOOTSTRAP_META_KEYS = setOf("app", "deviceId", "deviceName", "platform")
+    }
+}
+
+private data class CapabilityEntry(
+    val capability: Capability,
+    val scope: CapabilityScope,
+    val scopeRevision: Long,
+)
+
+private data class ScopedCapabilityKey(
+    val scope: CapabilityScopeType,
+    val pageId: String?,
+    val capabilityId: String,
+) {
+    fun describe(): String =
+        if (scope == CapabilityScopeType.APP) "app/$capabilityId" else "page/$pageId/$capabilityId"
+
+    companion object {
+        fun from(scope: CapabilityScope, capabilityId: String): ScopedCapabilityKey =
+            ScopedCapabilityKey(
+                scope = scope.type,
+                pageId = if (scope.type == CapabilityScopeType.PAGE) scope.pageId else null,
+                capabilityId = capabilityId,
+            )
+    }
+}
+
+private data class CapabilitySelector(
+    val isPresent: Boolean,
+    val key: ScopedCapabilityKey?,
+    val scopeRevision: Long?,
+) {
+    companion object {
+        fun parse(headers: Map<String, String>): CapabilitySelector {
+            val capabilityId = header(headers, "X-DCP-Capability-Id")
+            val scopeValue = header(headers, "X-DCP-Capability-Scope")
+            val pageId = header(headers, "X-DCP-Page-Id")
+            val revisionValue = header(headers, "X-DCP-Scope-Revision")
+            val present = capabilityId != null || scopeValue != null || pageId != null || revisionValue != null
+            if (!present) return CapabilitySelector(isPresent = false, key = null, scopeRevision = null)
+
+            val scope = when (scopeValue) {
+                CapabilityScopeType.APP.wireValue -> CapabilityScopeType.APP
+                CapabilityScopeType.PAGE.wireValue -> CapabilityScopeType.PAGE
+                else -> null
+            }
+            val complete = capabilityId != null &&
+                capabilityId.isNotEmpty() &&
+                scope != null &&
+                (scope == CapabilityScopeType.APP || !pageId.isNullOrEmpty())
+
+            return CapabilitySelector(
+                isPresent = true,
+                key = if (complete) {
+                    ScopedCapabilityKey(
+                        scope = scope,
+                        pageId = if (scope == CapabilityScopeType.PAGE) pageId else null,
+                        capabilityId = capabilityId,
+                    )
+                } else {
+                    null
+                },
+                scopeRevision = revisionValue?.toLongOrNull(),
+            )
+        }
+
+        private fun header(headers: Map<String, String>, name: String): String? {
+            val lowerName = name.lowercase()
+            for ((key, rawValue) in headers) {
+                if (key.lowercase() != lowerName) continue
+                val value = rawValue.trim()
+                return value.ifEmpty { null }
+            }
+            return null
+        }
     }
 }
