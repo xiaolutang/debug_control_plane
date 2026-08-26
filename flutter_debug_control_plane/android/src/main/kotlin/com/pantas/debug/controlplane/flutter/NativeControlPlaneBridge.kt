@@ -1,5 +1,6 @@
 package com.pantas.debug.controlplane.flutter
 
+import com.pantas.debug.controlplane.CapabilityScopeType
 import com.pantas.debug.controlplane.ControlPlane
 import com.pantas.debug.controlplane.DebugAuthManager
 import com.pantas.debug.controlplane.DebugEvent
@@ -9,10 +10,8 @@ import com.pantas.debug.controlplane.RouteFailure
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
@@ -22,21 +21,23 @@ import java.util.concurrent.atomic.AtomicLong
  * FF001-2: reverse-invoke machinery — the native side of the Dart handlers.
  *
  * MethodChannel reverse invokes (native -> Dart):
- *  - `capability.invoke` `{reqId, capId, routeKind, routeIndex, pathParams,
- *    body}` — Dart runs the handler and fills `capability.invoke.result`.
- *  - `capability.state.pull` `{reqId, capId}` — Dart fills
+ *  - `capability.invoke` `{reqId, capId, routeKind, routeIndex, scope,
+ *    pageId?, pathParams, body}` — Dart runs the handler and fills
+ *    `capability.invoke.result`, routing by the scope-aware key (R003-FF002
+ *    KD-4 / FF001 KD-4).
+ *  - `capability.state.pull` `{reqId, capId, scope, pageId?}` — Dart fills
  *    `capability.state.result`.
  *
  * reqId correlation: every reverse call registers a [CompletableDeferred]
- * (capId-tagged, see [OwnedDeferred]) in [pending] before invoking; the Dart
- * fill-in completes it. B4 timeout:
- * no fill-in within [ChannelProtocol.INVOKE_TIMEOUT_MS] (30s) resolves as a
- * 500 `internal_error` [RouteFailure].
+ * (identity-tagged, see [OwnedDeferred]) in [pending] before invoking; the
+ * Dart fill-in completes it. B4 timeout: no fill-in within
+ * [ChannelProtocol.INVOKE_TIMEOUT_MS] (30s) resolves as a 500
+ * `internal_error` [RouteFailure].
  *
  * `events.emit` frames land in [eventFlows] — one [MutableSharedFlow] per
- * capId, feeding the matching [BridgeCapability.events] (the plane collects
- * it once and assigns the global sequence; Dart-side sequences are
- * discarded, PROTOCOL.md §3.1).
+ * scoped identity (R003-FF002 KD-4), feeding the matching
+ * [BridgeCapability.events] (the plane collects it once and assigns the
+ * global sequence; Dart-side sequences are discarded, PROTOCOL.md §3.1).
  *
  * Injectable [channel] + [scope] + [mainExecutor] keep this
  * JVM-unit-testable with a fake channel (no io.flutter engine).
@@ -69,8 +70,8 @@ open class NativeControlPlaneBridge(
     /** In-flight reverse invokes, keyed by reqId. */
     val pending = ConcurrentHashMap<Long, OwnedDeferred>()
 
-    /** Per-capability hot event flows (Dart -> native upstream). */
-    val eventFlows = ConcurrentHashMap<String, MutableSharedFlow<DebugEvent>>()
+    /** Per-scoped-key hot event flows (Dart -> native upstream) — R003-FF002 KD-4. */
+    val eventFlows = ConcurrentHashMap<BridgeCapabilityIdentity, MutableSharedFlow<DebugEvent>>()
 
     /** Monotonic reqId allocator (starts at 1; 0 is never a valid reqId). */
     private val nextReqId = AtomicLong(1)
@@ -78,31 +79,36 @@ open class NativeControlPlaneBridge(
     /** Reverse-invoke timeout override for tests (default 30s, B4). */
     var invokeTimeoutMs: Long = ChannelProtocol.INVOKE_TIMEOUT_MS
 
-    override fun eventFlow(capId: String): MutableSharedFlow<DebugEvent> =
-        eventFlows.getOrPut(capId) {
+    override fun eventFlow(identity: BridgeCapabilityIdentity): MutableSharedFlow<DebugEvent> =
+        eventFlows.getOrPut(identity) {
             MutableSharedFlow(extraBufferCapacity = 64)
         }
 
     /**
-     * The already-registered event flow for [capId], or null.
+     * The already-registered event flow for [identity], or null.
      *
-     * M3: `events.emit` for an unknown capId must not `getOrPut` — that
+     * M3: `events.emit` for an unknown scoped key must not `getOrPut` — that
      * would create a permanent, never-collected entry (unbounded growth).
      */
-    fun registeredEventFlow(capId: String): MutableSharedFlow<DebugEvent>? =
-        eventFlows[capId]
+    fun registeredEventFlow(identity: BridgeCapabilityIdentity): MutableSharedFlow<DebugEvent>? =
+        eventFlows[identity]
 
-    /** Drop a capability's event flow + fail **its own** pending invokes (unregister path). */
-    fun teardownCapability(capId: String) {
-        eventFlows.remove(capId)
-        // Only the invokes belonging to [capId] fail — killing every pending
-        // entry here would also abort in-flight reverse invokes of unrelated
-        // capabilities. The plane's error funnel maps these to 500.
-        val doomed = pending.entries.filter { it.value.ownerCapId == capId }
+    /**
+     * Drop a capability's event flow + fail **its own** pending invokes
+     * (unregister path), keyed by the full scoped [identity] — R003-FF002
+     * KD-4: an app teardown must not touch a page capability sharing the
+     * same capId, and vice versa.
+     */
+    fun teardownCapability(identity: BridgeCapabilityIdentity) {
+        eventFlows.remove(identity)
+        // Only the invokes belonging to this scoped key fail — killing every
+        // pending entry here would also abort in-flight reverse invokes of
+        // unrelated capabilities. The plane's error funnel maps these to 500.
+        val doomed = pending.entries.filter { it.value.owner == identity }
         doomed.forEach { (reqId, deferred) ->
             if (pending.remove(reqId, deferred) && !deferred.isCompleted) {
                 deferred.completeExceptionally(
-                    RouteFailure(500, "internal_error", "capability $capId torn down"),
+                    RouteFailure(500, "internal_error", "capability $identity torn down"),
                 )
             }
         }
@@ -113,14 +119,13 @@ open class NativeControlPlaneBridge(
     // -------------------------------------------------------------------------
 
     override suspend fun invokeHandler(
-        capId: String,
+        identity: BridgeCapabilityIdentity,
         routeKind: String,
         routeIndex: Int,
         context: RouteContext,
     ): Map<String, Any?> = reverseInvoke(
         ChannelProtocol.CAPABILITY_INVOKE,
-        mapOf(
-            "capId" to capId,
+        scopeAwarePayload(identity) + mapOf(
             "routeKind" to routeKind,
             "routeIndex" to routeIndex,
             "pathParams" to context.pathParams,
@@ -132,9 +137,9 @@ open class NativeControlPlaneBridge(
     // Reverse invoke: state pull (rare — Dart pushes eagerly, §3.2.4)
     // -------------------------------------------------------------------------
 
-    override suspend fun pullState(capId: String): Map<String, Any?> = reverseInvoke(
+    override suspend fun pullState(identity: BridgeCapabilityIdentity): Map<String, Any?> = reverseInvoke(
         ChannelProtocol.CAPABILITY_STATE_PULL,
-        mapOf("capId" to capId),
+        scopeAwarePayload(identity),
     )
 
     /**
@@ -164,8 +169,8 @@ open class NativeControlPlaneBridge(
 
     private suspend fun reverseInvoke(method: String, args: Map<String, Any?>): Map<String, Any?> {
         val reqId = nextReqId.getAndIncrement()
-        val capId = args["capId"] as? String ?: ""
-        val deferred = OwnedDeferred(capId)
+        val owner = reverseInvokeOwner(args)
+        val deferred = OwnedDeferred(owner)
         // Register BEFORE the post: a fill-in racing back on the main thread
         // must already find its reqId here (never "unknown reqId").
         pending[reqId] = deferred
@@ -219,6 +224,14 @@ open class NativeControlPlaneBridge(
         }
     }
 
+    /** Derive the owning scoped identity from a reverse-invoke payload (teardown filtering). */
+    private fun reverseInvokeOwner(args: Map<String, Any?>): BridgeCapabilityIdentity =
+        BridgeCapabilityIdentity(
+            args["scope"]?.let { CapabilityScopeType.fromWire(it as String) } ?: CapabilityScopeType.APP,
+            args["pageId"] as? String,
+            args["capId"] as? String ?: "",
+        )
+
     // -------------------------------------------------------------------------
     // Dart fill-ins (called from the plugin's onMethodCall)
     // -------------------------------------------------------------------------
@@ -242,14 +255,22 @@ open class NativeControlPlaneBridge(
     }
 }
 
+/** Reverse-invoke payload head shared by `capability.invoke` / `capability.state.pull` (KD-4): capId + scope, pageId only for a page key. */
+private fun scopeAwarePayload(identity: BridgeCapabilityIdentity): Map<String, Any?> = buildMap {
+    put("capId", identity.capId)
+    put("scope", identity.type.wireValue)
+    if (identity.pageId != null) put("pageId", identity.pageId)
+}
+
 /**
- * Pending reverse invoke tagged with its owning capId, so
+ * Pending reverse invoke tagged with its owning scoped identity, so
  * [NativeControlPlaneBridge.teardownCapability] only fails the invokes that
- * belong to the unregistered capability (previously it killed every entry).
+ * belong to the unregistered `(scope, pageId?, capId)` key (previously it
+ * killed every entry; KD-4 narrows that to the exact scoped key).
  */
 class OwnedDeferred(
-    /** The capId the reverse invoke was issued for ("" for unknown). */
-    val ownerCapId: String,
+    /** The scoped identity the reverse invoke was issued for. */
+    val owner: BridgeCapabilityIdentity,
 ) : CompletableDeferred<Map<String, Any?>> by CompletableDeferred()
 
 /**
@@ -269,22 +290,22 @@ private fun Any?.asRouteFailure(): RouteFailure {
 /**
  * Reverse-invoke surface consumed by [DartCapabilityRegistry] /
  * [BridgeCapability] (kept interface-typed so the registry stays testable
- * without io.flutter).
+ * without io.flutter). All routes carry the scoped identity (R003-FF002 KD-4).
  */
 interface DartReverseInvoker {
-    /** The per-capability hot event flow fed by `events.emit`. */
-    fun eventFlow(capId: String): MutableSharedFlow<DebugEvent>
+    /** The per-scoped-key hot event flow fed by `events.emit`. */
+    fun eventFlow(identity: BridgeCapabilityIdentity): MutableSharedFlow<DebugEvent>
 
     /** Reverse-invoke a Dart resource/command handler by routeIndex. */
     suspend fun invokeHandler(
-        capId: String,
+        identity: BridgeCapabilityIdentity,
         routeKind: String,
         routeIndex: Int,
         context: RouteContext,
     ): Map<String, Any?>
 
     /** Reverse-invoke a Dart state pull (rare fallback, §3.2.4). */
-    suspend fun pullState(capId: String): Map<String, Any?>
+    suspend fun pullState(identity: BridgeCapabilityIdentity): Map<String, Any?>
 }
 
 /**

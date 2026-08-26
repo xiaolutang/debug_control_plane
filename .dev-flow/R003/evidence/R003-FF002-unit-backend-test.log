@@ -1,0 +1,31 @@
+---
+type: test-log
+task_id: R003-FF002
+layer: unit
+domain: backend
+run_at: 2026-08-26T15:39:30Z
+status: pass
+exit_code: 0
+deferred_reason:
+---
+
+# Test Log: R003-FF002 (unit.backend gate alias)
+
+The task declares its formal test entry with `layer: unit` /
+`domain: android`; the formal executed log is:
+
+- `.dev-flow/R003/evidence/R003-FF002-unit-android-test.log`
+
+This alias exists for `scripts/xlfoundry-commit-gate.sh`, whose current
+line-oriented parser falls back to `unit.backend` for inline `test_tasks`
+(same convention as the R003-FF001 alias log).
+
+## Test
+
+- command: `bash .dev-flow/R003/test-overrides/R003-FF002/unit-android.sh`
+  (= `cd flutter_debug_control_plane/android && ../../kotlin/gradlew -p . testDebugUnitTest`)
+- exit: 0
+- passed: 70
+- failed: 0
+- errors: 0
+- result: `BUILD SUCCESSFUL` — 70 tests, 0 failures, 0 errors

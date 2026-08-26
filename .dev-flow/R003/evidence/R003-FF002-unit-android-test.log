@@ -1,0 +1,55 @@
+---
+type: test-log
+task_id: R003-FF002
+layer: unit
+domain: android
+run_at: 2026-08-26T16:00:56Z
+status: pass
+exit_code: 0
+deferred_reason:
+---
+
+# R003-FF002 Android plugin unit test log
+
+## Command (CI fact)
+
+```bash
+bash .dev-flow/R003/test-overrides/R003-FF002/unit-android.sh
+# equivalently:
+cd flutter_debug_control_plane/android && ../../kotlin/gradlew -p . testDebugUnitTest
+```
+
+## Result
+
+- exit_code: 0
+- BUILD SUCCESSFUL
+- Total: **70 tests, 0 failures, 0 errors** (per class below)
+
+| Test class | tests | failures | errors |
+|---|---|---|---|
+| ChannelProtocolAlignmentTest | 5 | 0 | 0 |
+| DartCapabilityRegistryTest | 10 | 0 | 0 |
+| DebugControlPlaneFlutterPluginTest | 22 | 0 | 0 |
+| DebugControlPlanePluginOwnershipTest | 6 | 0 | 0 |
+| FlutterWireTest | 4 | 0 | 0 |
+| NativeControlPlaneBridgeTest | 18 | 0 | 0 |
+| PluginDebugAuthManagerTest | 5 | 0 | 0 |
+
+## BF005 遗留修复说明（KD-5）
+
+`DartCapabilityRegistryTest` 的「events emit reaches the plane event bus with native sequence assignment」在干净 HEAD 上稳定失败（编排器已验证：`expected:<1> broadcasts but was:<2>`——BF005 为 `ControlPlane.register` 增加了 `capability_scope_changed` bus 广播）。本任务按契约 KD-5 拾取该遗留：
+
+1. 断言改为按 event type 过滤：`transport.broadcasts.filter { it.type == "pressed" }` 断言单例——BF005 的 `capability_scope_changed` 不再干扰计数。
+2. 序列断言相应修正：scope_changed 广播先消耗 sequence 0，`pressed` 帧获得后续单调值；断言由「== 0L」改为「native 重赋值的单调区间」——仍证明 Dart 侧 sequence=42 被丢弃、由 native 赋值。
+
+这是拾取 BF005 遗留失败，不是 FF002 引入的回归。既有 FF001 13 个测试场景全部保留且零回归。
+
+## Tail of the passing run
+
+```text
+> Task :testDebugUnitTest
+BUILD SUCCESSFUL in 4s
+17 actionable tasks: 17 executed   (simplify 后全量 --rerun-tasks，2026-08-26T16:00Z)
+```
+
+Alias log `.dev-flow/R003/evidence/R003-FF002-unit-backend-test.log` points here for the commit-gate unit:backend fallback parser.

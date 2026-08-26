@@ -1,5 +1,7 @@
 package com.pantas.debug.controlplane.flutter
 
+import com.pantas.debug.controlplane.CapabilityScope
+import com.pantas.debug.controlplane.CapabilityScopeType
 import com.pantas.debug.controlplane.Command
 import com.pantas.debug.controlplane.ControlPlane
 import com.pantas.debug.controlplane.DebugEvent
@@ -166,8 +168,8 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
                     return
                 }
                 try {
-                    val cap = pluginRegistry.register(capId, decl)
-                    plane.register(cap)
+                    val cap = pluginRegistry.register(capId, decl, decl.scope)
+                    plane.register(cap) // derives ScopedCapabilityKey from cap.scope (BF005)
                     result.success(null)
                 } catch (e: IllegalArgumentException) {
                     result.error(ChannelProtocol.ERROR_DUPLICATE, e.message, null)
@@ -180,9 +182,18 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
                     result.error("invalid_request", "missing capId", null)
                     return
                 }
-                pluginRegistry.remove(capId)?.let { cap ->
-                    PlaneCarrier.plane?.unregister(cap.id)
-                    pluginBridge.teardownCapability(capId)
+                // KD-3: scope/pageId default to app-only — a legacy
+                // unregister(id) never touches page entries sharing the capId.
+                val scope = try {
+                    parseScope(call)
+                } catch (e: IllegalArgumentException) {
+                    result.error("invalid_request", e.message, null)
+                    return
+                }
+                val identity = identityOf(scope, capId)
+                pluginRegistry.remove(scope, capId)?.let { cap ->
+                    PlaneCarrier.plane?.unregisterScoped(cap.scope, cap.id)
+                    pluginBridge.teardownCapability(identity)
                 }
                 result.success(null)
             }
@@ -197,11 +208,26 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
                 }
                 @Suppress("UNCHECKED_CAST")
                 val payload = (event["payload"] as? Map<String, Any?>) ?: emptyMap<String, Any?>()
-                // M3: an unregistered capId must not getOrPut a permanent
+                // KD-3: explicit scope/pageId selects the scoped key directly;
+                // omitted fields mirror FF001 Dart `_scopeFor` — the app entry
+                // for capId wins, falling back to its first registered key.
+                val hasExplicitScope =
+                    call.argument<Any?>("scope") != null || call.argument<Any?>("pageId") != null
+                val target = if (!hasExplicitScope) {
+                    pluginRegistry.resolveEmitTarget(capId)
+                } else {
+                    try {
+                        identityOf(parseScope(call), capId)
+                    } catch (e: IllegalArgumentException) {
+                        result.error("invalid_request", e.message, null)
+                        return
+                    }
+                }
+                // M3: an unregistered scoped key must not getOrPut a permanent
                 // flow entry (unbounded eventFlows growth) — reject instead.
-                val flow = pluginBridge.registeredEventFlow(capId)
+                val flow = pluginBridge.registeredEventFlow(target)
                 if (flow == null) {
-                    result.error("not_started", "capability $capId not registered", null)
+                    result.error("not_started", "capability $target not registered", null)
                     return
                 }
                 flow.tryEmit(
@@ -357,8 +383,41 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
                 description = raw["description"] as? String,
             )
         }
-        return CapabilityDecl(resources, commands)
+        return CapabilityDecl(resources, commands, parseScope(call, validatePageId = true))
     }
+
+    /**
+     * KD-2: parse the optional `scope`/`pageId` channel fields. Missing
+     * `scope` defaults to app (legacy Dart versions / hand-built payloads);
+     * unknown wire values and page scopes without a non-blank pageId throw
+     * IAE (mapped to `invalid_request` upstream). `pageName` is display
+     * metadata only — never part of the identity.
+     */
+    private fun parseScope(call: MethodCall, validatePageId: Boolean = true): CapabilityScope {
+        val rawScope = call.argument<Any?>("scope")
+        val type = if (rawScope == null) {
+            CapabilityScopeType.APP
+        } else {
+            CapabilityScopeType.fromWire(rawScope as String)
+        }
+        val pageId = call.argument<String>("pageId")?.trim()?.takeIf { it.isNotEmpty() }
+        if (validatePageId && type == CapabilityScopeType.PAGE && pageId == null) {
+            throw IllegalArgumentException("scope=page requires a non-blank pageId")
+        }
+        return when (type) {
+            CapabilityScopeType.APP -> CapabilityScope.app()
+            CapabilityScopeType.PAGE ->
+                CapabilityScope.page(
+                    pageId = pageId,
+                    pageName = call.argument<String>("pageName"),
+                )
+        }
+    }
+
+    private fun identityOf(
+        scope: CapabilityScope,
+        capId: String,
+    ): BridgeCapabilityIdentity = BridgeCapabilityIdentity(scope.type, scope.pageId, capId)
 
     private fun parsePath(raw: Any?, where: String): List<String> {
         if (raw is List<*>) {

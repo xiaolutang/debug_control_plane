@@ -8,6 +8,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -21,8 +22,12 @@ class NativeControlPlaneBridgeTest {
     private fun newBridge(channel: FakeMethodChannel): NativeControlPlaneBridge =
         NativeControlPlaneBridge(channel, FakeMethodChannel.scope)
 
+    private fun appIdentity(capId: String) = BridgeCapabilityIdentity.app(capId)
+
+    private fun pageIdentity(pageId: String, capId: String) = BridgeCapabilityIdentity.page(pageId, capId)
+
     @Test
-    fun `reverse invoke carries reqId capId routeKind routeIndex pathParams body`() = runBlocking {
+    fun `reverse invoke carries reqId capId scope routeKind routeIndex pathParams body`() = runBlocking {
         val channel = FakeMethodChannel()
         val bridge = newBridge(channel)
         channel.dartAnswer = { record ->
@@ -35,7 +40,7 @@ class NativeControlPlaneBridgeTest {
         }
 
         val result = bridge.invokeHandler(
-            "gamepad",
+            appIdentity("gamepad"),
             ChannelProtocol.ROUTE_KIND_COMMAND,
             3,
             RouteContext(pathParams = mapOf("id" to "left"), body = mapOf("button" to "A")),
@@ -45,6 +50,8 @@ class NativeControlPlaneBridgeTest {
         val invoke = channel.invokes.single()
         assertEquals(ChannelProtocol.CAPABILITY_INVOKE, invoke.method)
         assertEquals("gamepad", invoke.capId)
+        assertEquals("app", invoke.arguments["scope"]) // KD-4: reverse payload carries scope
+        assertFalse(invoke.arguments.containsKey("pageId")) // app key — no pageId field
         assertEquals("command", invoke.arguments["routeKind"])
         assertEquals(3, invoke.arguments["routeIndex"])
         assertEquals(mapOf("id" to "left"), invoke.arguments["pathParams"])
@@ -54,13 +61,48 @@ class NativeControlPlaneBridgeTest {
     }
 
     @Test
+    fun `reverse invoke payload carries pageId for a page identity`() = runBlocking {
+        val channel = FakeMethodChannel()
+        val bridge = newBridge(channel)
+        channel.dartAnswer = { record -> bridge.completeInvoke(record.reqId, mapOf("result" to emptyMap<String, Any?>())) }
+
+        bridge.invokeHandler(pageIdentity("p1", "gamepad"), ChannelProtocol.ROUTE_KIND_RESOURCE, 0, RouteContext())
+
+        val args = channel.invokes.single().arguments
+        assertEquals("page", args["scope"])
+        assertEquals("p1", args["pageId"])
+        assertEquals("gamepad", args["capId"])
+    }
+
+    @Test
+    fun `pull state reverse invoke payload carries scope and pageId`() = runBlocking {
+        val channel = FakeMethodChannel()
+        val bridge = newBridge(channel)
+        channel.dartAnswer = { record ->
+            if (record.method == ChannelProtocol.CAPABILITY_STATE_PULL) {
+                bridge.completeState(record.reqId, mapOf("connected" to true))
+            }
+        }
+
+        bridge.pullState(appIdentity("stateless"))
+        bridge.pullState(pageIdentity("p2", "gamepad"))
+
+        val appPull = channel.invokes.first { it.method == ChannelProtocol.CAPABILITY_STATE_PULL && it.capId == "stateless" }
+        assertEquals("app", appPull.arguments["scope"])
+        assertFalse(appPull.arguments.containsKey("pageId"))
+        val pagePull = channel.invokes.first { it.capId == "gamepad" }
+        assertEquals("page", pagePull.arguments["scope"])
+        assertEquals("p2", pagePull.arguments["pageId"])
+    }
+
+    @Test
     fun `timeout resolves 500 internal_error`() = runBlocking {
         val channel = FakeMethodChannel()
         val bridge = newBridge(channel).apply { invokeTimeoutMs = 50 }
         channel.dartAnswer = { /* Dart never fills in */ }
 
         try {
-            bridge.invokeHandler("gamepad", ChannelProtocol.ROUTE_KIND_RESOURCE, 0, RouteContext())
+            bridge.invokeHandler(appIdentity("gamepad"), ChannelProtocol.ROUTE_KIND_RESOURCE, 0, RouteContext())
             fail("expected RouteFailure")
         } catch (e: RouteFailure) {
             assertEquals(500, e.statusCode)
@@ -88,7 +130,7 @@ class NativeControlPlaneBridgeTest {
         }
 
         try {
-            bridge.invokeHandler("gamepad", ChannelProtocol.ROUTE_KIND_RESOURCE, 0, RouteContext())
+            bridge.invokeHandler(appIdentity("gamepad"), ChannelProtocol.ROUTE_KIND_RESOURCE, 0, RouteContext())
             fail("expected RouteFailure")
         } catch (e: RouteFailure) {
             assertEquals(409, e.statusCode)
@@ -105,7 +147,7 @@ class NativeControlPlaneBridgeTest {
 
         val job = async {
             try {
-                bridge.invokeHandler("gamepad", ChannelProtocol.ROUTE_KIND_RESOURCE, 0, RouteContext())
+                bridge.invokeHandler(appIdentity("gamepad"), ChannelProtocol.ROUTE_KIND_RESOURCE, 0, RouteContext())
             } catch (e: RouteFailure) {
                 // timeout path (50ms below)
             }
@@ -121,7 +163,8 @@ class NativeControlPlaneBridgeTest {
         val channel = FakeMethodChannel()
         val bridge = newBridge(channel)
 
-        val flow = bridge.eventFlow("gamepad")
+        val identity = appIdentity("gamepad")
+        val flow = bridge.eventFlow(identity)
         val collected = mutableListOf<Long>()
         val collector = FakeMethodChannel.scope.launch {
             flow.collect { collected += it.sequence }
@@ -129,7 +172,7 @@ class NativeControlPlaneBridgeTest {
         delay(50) // let the collector subscribe
 
         // Plugin EVENTS_EMIT path logic: type + payload, sequence forced 0.
-        bridge.eventFlow("gamepad").tryEmit(
+        flow.tryEmit(
             com.pantas.debug.controlplane.DebugEvent(
                 type = "pressed",
                 sequence = 0L,
@@ -143,7 +186,35 @@ class NativeControlPlaneBridgeTest {
     }
 
     @Test
-    fun `state pull reverse invoke correlates via capability state result`() = runBlocking {        val channel = FakeMethodChannel()
+    fun `registeredEventFlow for an unregistered scoped key returns null and creates no entry`() {
+        val channel = FakeMethodChannel()
+        val bridge = newBridge(channel)
+        bridge.eventFlow(appIdentity("gamepad")) // reserve the app key only
+
+        assertNull(bridge.registeredEventFlow(pageIdentity("p1", "gamepad")))
+        assertNull("no flow entry created for an unknown scoped key", bridge.eventFlows[pageIdentity("p1", "gamepad")])
+    }
+
+    @Test
+    fun `teardown of one scoped key keeps same-capId flows on other keys alive`() = runBlocking {
+        val channel = FakeMethodChannel()
+        val bridge = newBridge(channel)
+        val doomedPage = pageIdentity("p1", "gamepad")
+        val survivorPage = pageIdentity("p2", "gamepad")
+        val appFlow = bridge.eventFlow(appIdentity("gamepad"))
+        val doomedFlow = bridge.eventFlow(doomedPage)
+        val survivorFlow = bridge.eventFlow(survivorPage)
+
+        bridge.teardownCapability(doomedPage)
+
+        assertNull("torn-down scoped key loses its flow", bridge.eventFlows[doomedPage])
+        assertEquals("same capId app key untouched", appFlow, bridge.eventFlows[appIdentity("gamepad")])
+        assertEquals("other page key untouched", survivorFlow, bridge.eventFlows[survivorPage])
+    }
+
+    @Test
+    fun `state pull reverse invoke correlates via capability state result`() = runBlocking {
+        val channel = FakeMethodChannel()
         val bridge = newBridge(channel)
         channel.dartAnswer = { record ->
             if (record.method == ChannelProtocol.CAPABILITY_STATE_PULL) {
@@ -151,10 +222,11 @@ class NativeControlPlaneBridgeTest {
             }
         }
 
-        val state = bridge.pullState("gamepad")
+        val state = bridge.pullState(appIdentity("gamepad"))
         assertEquals(mapOf("connected" to true), state)
         assertEquals(ChannelProtocol.CAPABILITY_STATE_PULL, channel.invokes.single().method)
     }
+
 
     @Test
     fun `auth request invokes Dart without capability pending entry`() {
@@ -233,7 +305,7 @@ class NativeControlPlaneBridgeTest {
         // Simulate the production caller: a non-main worker thread (the
         // NanoHTTPD request processor) issues the reverse invoke.
         val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            bridge.invokeHandler("gamepad", ChannelProtocol.ROUTE_KIND_RESOURCE, 0, RouteContext())
+            bridge.invokeHandler(appIdentity("gamepad"), ChannelProtocol.ROUTE_KIND_RESOURCE, 0, RouteContext())
         }
         assertEquals(mapOf("ok" to true), result)
 
@@ -271,7 +343,7 @@ class NativeControlPlaneBridgeTest {
             bridge.completeState(record.reqId, mapOf("connected" to true))
         }
 
-        val state = bridge.pullState("gamepad")
+        val state = bridge.pullState(appIdentity("gamepad"))
         assertEquals(mapOf("connected" to true), state)
         // At executor-run time (post already dispatched) the reqId was
         // registered — and the fill-in above answered from `pending` (the
@@ -293,7 +365,7 @@ class NativeControlPlaneBridgeTest {
         val bridge = NativeControlPlaneBridge(channel, FakeMethodChannel.scope, rejectingExecutor)
 
         val thrown = runCatching {
-            bridge.pullState("gamepad")
+            bridge.pullState(appIdentity("gamepad"))
         }.exceptionOrNull()
         assertTrue(thrown is java.util.concurrent.RejectedExecutionException)
         // The whole point: no orphaned pending entry.
@@ -338,7 +410,7 @@ class NativeControlPlaneBridgeTest {
             "tags" to org.json.JSONArray("""["a",{"b":[1,2]}]"""),
         )
         bridge.invokeHandler(
-            "gamepad",
+            appIdentity("gamepad"),
             ChannelProtocol.ROUTE_KIND_COMMAND,
             0,
             RouteContext(pathParams = mapOf("id" to "left"), body = body),
@@ -355,33 +427,36 @@ class NativeControlPlaneBridgeTest {
     }
 
     @Test
-    fun `teardown fails only the torn-down capability's pending invokes`() = runBlocking {
+    fun `teardown fails only the torn-down scoped key's pending invokes`() = runBlocking {
         val channel = FakeMethodChannel()
         val bridge = newBridge(channel).apply { invokeTimeoutMs = 5_000 }
-        // Two in-flight invokes for two different caps; neither fills in.
+        // In-flight invokes for a page key and an app key sharing one capId;
+        // neither fills in. KD-4: teardown of the page key must fail only that
+        // key's invoke — the same-capId app invoke survives.
         channel.dartAnswer = { }
+        val doomedPageIdentity = pageIdentity("p1", "gamepad")
         val doomed = async {
             try {
-                bridge.invokeHandler("gamepad", ChannelProtocol.ROUTE_KIND_RESOURCE, 0, RouteContext())
+                bridge.invokeHandler(doomedPageIdentity, ChannelProtocol.ROUTE_KIND_RESOURCE, 0, RouteContext())
             } catch (e: RouteFailure) {
                 e // expected: torn down
             }
         }
         val survivor = async {
-            bridge.invokeHandler("other", ChannelProtocol.ROUTE_KIND_RESOURCE, 0, RouteContext())
+            bridge.invokeHandler(appIdentity("gamepad"), ChannelProtocol.ROUTE_KIND_RESOURCE, 0, RouteContext())
         }
         channel.awaitInvokeCount(2)
 
-        bridge.teardownCapability("gamepad")
+        bridge.teardownCapability(doomedPageIdentity)
 
         val failure = doomed.await() as RouteFailure
         assertEquals(500, failure.statusCode)
         assertEquals("internal_error", failure.code)
         assertTrue(failure.message!!.contains("gamepad"))
 
-        // The unrelated cap's invoke survives the teardown.
+        // The unrelated (same-capId app) key's invoke survives the teardown.
         bridge.completeInvoke(
-            channel.invokes.single { it.capId == "other" }.reqId,
+            channel.invokes.single { it.capId == "gamepad" && it.arguments["scope"] == "app" }.reqId,
             mapOf("result" to mapOf("ok" to true)),
         )
         assertEquals(mapOf("ok" to true), survivor.await())

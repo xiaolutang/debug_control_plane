@@ -1,5 +1,7 @@
 package com.pantas.debug.controlplane.flutter
 
+import com.pantas.debug.controlplane.CapabilityScope
+import com.pantas.debug.controlplane.CapabilityScopeType
 import com.pantas.debug.controlplane.Command
 import com.pantas.debug.controlplane.ControlPlane
 import com.pantas.debug.controlplane.Resource
@@ -7,6 +9,7 @@ import com.pantas.debug.controlplane.RouteContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -15,27 +18,31 @@ import org.junit.Test
  * FF001-2 unit tests: Decl deserialization + BridgeCapability wiring —
  * register populates the native plane registry, dispatch reaches the
  * reverse invoke with the right routeIndex.
+ *
+ * R003-FF002: scoped-identity indexing (KD-1) — app/page keys coexist,
+ * duplicates are per scoped key, and teardown-scope semantics stay exact.
  */
 class DartCapabilityRegistryTest {
 
     private class RecordingInvoker : DartReverseInvoker {
         val invokes = mutableListOf<Triple<String, String, Int>>() // (capId, kind, index)
-        val flows = mutableMapOf<String, MutableSharedFlow<com.pantas.debug.controlplane.DebugEvent>>()
+        val flows = mutableMapOf<BridgeCapabilityIdentity, MutableSharedFlow<com.pantas.debug.controlplane.DebugEvent>>()
 
-        override fun eventFlow(capId: String): MutableSharedFlow<com.pantas.debug.controlplane.DebugEvent> =
-            flows.getOrPut(capId) { MutableSharedFlow(extraBufferCapacity = 64) }
+        override fun eventFlow(identity: BridgeCapabilityIdentity): MutableSharedFlow<com.pantas.debug.controlplane.DebugEvent> =
+            flows.getOrPut(identity) { MutableSharedFlow(extraBufferCapacity = 64) }
 
         override suspend fun invokeHandler(
-            capId: String,
+            identity: BridgeCapabilityIdentity,
             routeKind: String,
             routeIndex: Int,
             context: RouteContext,
         ): Map<String, Any?> {
-            invokes += Triple(capId, routeKind, routeIndex)
+            invokes += Triple(identity.capId, routeKind, routeIndex)
             return mapOf("ok" to true, "kind" to routeKind, "index" to routeIndex)
         }
 
-        override suspend fun pullState(capId: String): Map<String, Any?> = mapOf("capId" to capId)
+        override suspend fun pullState(identity: BridgeCapabilityIdentity): Map<String, Any?> =
+            mapOf("capId" to identity.capId)
     }
 
     @Test
@@ -69,6 +76,120 @@ class DartCapabilityRegistryTest {
         assertThrows(IllegalArgumentException::class.java) {
             registry.register("gamepad", CapabilityDecl(emptyList(), emptyList()))
         }
+    }
+
+    // ---- R003-FF002 KD-1/KD-2: scoped identity indexing ---------------------
+
+    @Test
+    fun `register without scope defaults to app key`() {
+        val invoker = RecordingInvoker()
+        val registry = DartCapabilityRegistry(invoker)
+
+        val cap = registry.register("gamepad", CapabilityDecl(emptyList(), emptyList()))
+
+        assertEquals(CapabilityScope.app(), cap.scope)
+        assertEquals(setOf(BridgeCapabilityIdentity.app("gamepad")), registry.identities)
+    }
+
+    @Test
+    fun `register page scope stores scope metadata and page key`() {
+        val invoker = RecordingInvoker()
+        val registry = DartCapabilityRegistry(invoker)
+
+        val cap = registry.register(
+            "gamepad",
+            CapabilityDecl(emptyList(), emptyList()),
+            CapabilityScope.page(pageId = "page-battle", pageName = "Battle"),
+        )
+
+        assertEquals(CapabilityScopeType.PAGE, cap.scope.type)
+        assertEquals("page-battle", cap.scope.pageId)
+        assertEquals("Battle", cap.scope.pageName)
+        assertEquals(
+            setOf(BridgeCapabilityIdentity.page("page-battle", "gamepad")),
+            registry.identities,
+        )
+        // KD-2: legacy app-only debug view excludes page ids.
+        assertTrue(registry.registeredIds.isEmpty())
+    }
+
+    @Test
+    fun `same scoped key duplicate throws but app and page coexist with same capId`() {
+        val registry = DartCapabilityRegistry(RecordingInvoker())
+        registry.register("gamepad", CapabilityDecl(emptyList(), emptyList()))
+        registry.register(
+            "gamepad",
+            CapabilityDecl(emptyList(), emptyList()),
+            CapabilityScope.page(pageId = "p1"),
+        )
+        registry.register(
+            "gamepad",
+            CapabilityDecl(emptyList(), emptyList()),
+            CapabilityScope.page(pageId = "p2"),
+        )
+        assertEquals(3, registry.identities.size)
+
+        // Same scoped key (page p1, gamepad) again -> duplicate.
+        assertThrows(IllegalArgumentException::class.java) {
+            registry.register(
+                "gamepad",
+                CapabilityDecl(emptyList(), emptyList()),
+                CapabilityScope.page(pageId = "p1"),
+            )
+        }
+        // Different pageName on an identical three-field key is STILL a
+        // duplicate — pageName must not leak into identity (KD-1).
+        assertThrows(IllegalArgumentException::class.java) {
+            registry.register(
+                "gamepad",
+                CapabilityDecl(emptyList(), emptyList()),
+                CapabilityScope.page(pageId = "p1", pageName = "Other"),
+            )
+        }
+    }
+
+    @Test
+    fun `remove defaults are scoped - app removal keeps page entries`() {
+        val registry = DartCapabilityRegistry(RecordingInvoker())
+        registry.register("gamepad", CapabilityDecl(emptyList(), emptyList()))
+        registry.register(
+            "gamepad",
+            CapabilityDecl(emptyList(), emptyList()),
+            CapabilityScope.page(pageId = "p1"),
+        )
+
+        // Legacy app-only remove.
+        registry.remove(CapabilityScope.app(), "gamepad")
+        assertNull(registry.get(CapabilityScope.app(), "gamepad"))
+        assertTrue("page entry sharing the capId survives", registry.contains(CapabilityScope.page(pageId = "p1"), "gamepad"))
+
+        // Scoped remove takes exactly that key.
+        registry.remove(CapabilityScope.page(pageId = "p1"), "gamepad")
+        assertNull(registry.get(CapabilityScope.page(pageId = "p1"), "gamepad"))
+        assertTrue(registry.identities.isEmpty())
+    }
+
+    private fun DartCapabilityRegistry.contains(scope: CapabilityScope, capId: String): Boolean =
+        get(scope, capId) != null
+
+    @Test
+    fun `resolveEmitTarget mirrors Dart _scopeFor - app first then first registered key`() {
+        val registry = DartCapabilityRegistry(RecordingInvoker())
+
+        // Unregistered -> app key fallback (reject upstream as not_started).
+        assertEquals(BridgeCapabilityIdentity.app("ghost"), registry.resolveEmitTarget("ghost"))
+
+        // Page-only capId falls back to its page key.
+        registry.register(
+            "gamepad",
+            CapabilityDecl(emptyList(), emptyList()),
+            CapabilityScope.page(pageId = "p1"),
+        )
+        assertEquals(BridgeCapabilityIdentity.page("p1", "gamepad"), registry.resolveEmitTarget("gamepad"))
+
+        // App entry wins when both exist (KD-3).
+        registry.register("gamepad", CapabilityDecl(emptyList(), emptyList()))
+        assertEquals(BridgeCapabilityIdentity.app("gamepad"), registry.resolveEmitTarget("gamepad"))
     }
 
     @Test
@@ -123,6 +244,13 @@ class DartCapabilityRegistryTest {
         assertEquals(listOf(Triple("gamepad", "resource", 0)), invoker.invokes)
     }
 
+    /**
+     * KD-5 (BF005 leftover fix): BF005 made `ControlPlane.register` broadcast
+     * a `capability_scope_changed` bus event, so asserting the raw broadcast
+     * count (`broadcasts.size == 1`) failed on clean HEAD (was 2). The fixed
+     * assertion filters by event type instead. This was a BF005 leftover
+     * failure, not an FF002 regression.
+     */
     @Test
     fun `events emit reaches the plane event bus with native sequence assignment`() = runBlocking {
         val invoker = RecordingInvoker()
@@ -136,7 +264,7 @@ class DartCapabilityRegistryTest {
                 CapabilityDecl(resources = emptyList(), commands = emptyList()),
             ),
         )
-        val flow = invoker.flows.getValue("gamepad")
+        val flow = invoker.flows.getValue(BridgeCapabilityIdentity.app("gamepad"))
         kotlinx.coroutines.withTimeout(2000) {
             while (flow.subscriptionCount.value == 0) kotlinx.coroutines.delay(10)
         }
@@ -151,11 +279,19 @@ class DartCapabilityRegistryTest {
             ),
         )
         kotlinx.coroutines.withTimeout(2000) {
-            while (transport.broadcasts.isEmpty()) kotlinx.coroutines.delay(10)
+            while (transport.broadcasts.none { it.type == "pressed" }) kotlinx.coroutines.delay(10)
         }
 
-        assertEquals(1, transport.broadcasts.size)
-        assertEquals("pressed", transport.broadcasts[0].type)
-        assertEquals(0L, transport.broadcasts[0].sequence) // native-assigned
+        // Filter by type: the BF005 `capability_scope_changed` broadcast also
+        // lands here, so raw size assertions over-count (KD-5).
+        val pressed = transport.broadcasts.filter { it.type == "pressed" }
+        assertEquals(1, pressed.size)
+        // Native-assigned: the Dart-side 42 was discarded. The BF005
+        // capability_scope_changed broadcast consumed sequence 0 first, so
+        // this frame got the next monotonic value (> 0 proves reassignment).
+        assertTrue(
+            "native-assigned sequence expected, got ${pressed[0].sequence}",
+            pressed[0].sequence in 1..41,
+        )
     }
 }
