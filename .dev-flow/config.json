@@ -1,7 +1,7 @@
 {
   "version": "3.0",
   "project": "debug_control_plane",
-  "active_rc": "R003",
+  "active_rc": null,
   "default_workflow": null,
   "project_capabilities": {
     "schema_version": 2,
@@ -84,6 +84,13 @@
       "archive_dir": "R002",
       "total_tasks": 7,
       "completed_at": "2026-08-25T18:43:18+08:00"
+    },
+    {
+      "id": "R003",
+      "name": "capability-scope-split",
+      "archive_dir": "R003",
+      "total_tasks": 12,
+      "completed_at": "2026-08-27T13:53:52+08:00"
     }
   ],
   "rc_queue": [
@@ -120,43 +127,6 @@
           "degraded_reason": null
         }
       }
-    },
-    {
-      "id": "R003",
-      "requirement_cycle": "R003",
-      "status": "active",
-      "name": "capability-scope-split",
-      "topic": "capability-scope-split",
-      "analysis_topic": "capability-scope-split",
-      "version": "1.0",
-      "depends_on": [
-        "R002"
-      ],
-      "workflow": {
-        "evaluate_provider": "direct_subagent",
-        "mode": "auto"
-      },
-      "source": {
-        "tasks": ".dev-flow/R003/capability-scope-split-tasks.md",
-        "analysis_manifest": ".dev-flow/R003/analysis/manifest.json",
-        "design": ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-design.md",
-        "test": ".dev-flow/R003/analysis/2026-08-25--capability-scope-split-test.md"
-      },
-      "review_evidence": {
-        "type": "plan_review",
-        "verdict": "PASS",
-        "report_path": ".dev-flow/R003/analysis/reviews/2026-08-26T15-04-46-plan-PASS.md",
-        "manifest_revision": 4,
-        "manifest_digest": "caa27b26fb4321f0b0624484af9ab8c8ea949731a900c9cf7489a5e85c849ced",
-        "execution_evidence": {
-          "isolation": "independent_context",
-          "provider": "direct_subagent",
-          "subagent_role": "xlfoundry-plan-review",
-          "execution_id": "xlf-subagent:R003:plan-review:02",
-          "degraded_review": false,
-          "degraded_reason": null
-        }
-      }
     }
   ],
   "release_management": {
@@ -179,8 +149,12 @@
       },
       "0.4.0": {
         "status": "in-progress",
-        "rc_ids": [],
-        "completed_rcs": [],
+        "rc_ids": [
+          "R003"
+        ],
+        "completed_rcs": [
+          "R003"
+        ],
         "released_at": null
       }
     }
