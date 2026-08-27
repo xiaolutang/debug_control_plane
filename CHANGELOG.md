@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.0 - 2026-08-27
+
+- Protocol: capabilities now carry app/page dual scope metadata
+  (`scope`/`pageId`/`scopeRevision` in `/hello.registeredCapabilities`,
+  default `app` — old fixtures stay valid).
+- Scoped selector dispatch: `X-DCP-Capability-*` headers route page-scoped
+  calls; invoking a capability whose page has closed returns
+  `410 page_capability_gone` with an explicit refresh hint.
+- Kotlin/Dart/Python: isomorphic scoped capability keys; page lifecycle
+  registration (open → register, leave → release) verified end-to-end on an
+  Android 16 real device.
+- Python MCP: tools/list_changed refresh and stale page-tool convergence
+  (gone/expired).
+- Flutter plugin: `PageCapabilityScope` helper + `Page Scope Demo` acceptance
+  pages; CI gains the `[9] r003-scope-cross-stack` cross-stack guard.
+
 ## 0.3.0 - 2026-08-25
 
 - Kotlin/Flutter: add Android auth acceptance flow coverage and stabilize the

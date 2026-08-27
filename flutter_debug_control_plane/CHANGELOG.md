@@ -1,3 +1,14 @@
+## 0.4.0
+
+- 新增 `PageCapabilityScope` helper:业务按 pageId 注册/释放 page 级
+  capability(两段式预检查 + 幂等 + dispose no-op),MethodChannel 透传
+  scope identity。
+- Android 侧 native registry 解析 scope/pageId payload,page capability
+  与 app capability 同 ControlPlane 并存;离开页面即释放,gone 后调用
+  返回 `410 page_capability_gone`。
+- 示例 app 新增 Page Scope Demo(page A/B 独立 route);Android 侧
+  Kotlin 核心依赖升到 `0.4.0`(dart 侧 ^0.4.0)。
+
 ## 0.3.0
 
 - 版本对齐: kotlin 核心、dart 核心、本插件统一到 `0.3.0`，同版本号 =

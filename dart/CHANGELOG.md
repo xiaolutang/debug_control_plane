@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 - 2026-08-27
+
+- Capability scope model: `CapabilityScope.app()/page()` identity with
+  `pageId`/`pageName`; scoped registry keys keep app and page registrations
+  independent (same capId may live under different pages).
+- `/hello.registeredCapabilities` mirror entries now carry
+  `scope`/`pageId`/`scopeRevision` (optional, default `app` — backward
+  compatible).
+- Gone semantics: invoking a released page capability yields `410
+  page_capability_gone` + refresh hint; protocol fixtures extended.
+- Version alignment: `0.4.0` across Kotlin core / this package /
+  `flutter_debug_control_plane` / Python.
+
 ## 0.3.0 - 2026-08-25
 
 - Release alignment: Dart core, Kotlin core, and `flutter_debug_control_plane`

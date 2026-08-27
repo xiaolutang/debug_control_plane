@@ -17,7 +17,7 @@ plugins {
 // coordinate declared in their settings.gradle.kts — see
 // publishing.publications below which keeps artifactId = "kotlin".
 group = "com.github.xiaolutang.debug_control_plane"
-version = "0.3.0"
+version = "0.4.0"
 
 repositories {
     mavenCentral()

@@ -30,11 +30,11 @@ Business apps → plane (`debug_control_plane`).
 - Python: [`PyPI`](https://pypi.org/project/debug-control-plane/) (`debug-control-plane`) + git tag; dev mode uses `pip install -e .`
 - Python：[`PyPI`](https://pypi.org/project/debug-control-plane/)（`debug-control-plane`）+ git tag；开发模式用 `pip install -e .`
 
-**Version alignment / 版本对齐**: `0.3.0` is the latest fully aligned set
+**Version alignment / 版本对齐**: `0.4.0` is the latest fully aligned set
 for kotlin (JitPack) / dart (pub.dev) / flutter plugin (pub.dev) / Python
 (PyPI). Use the same version across packages for a verified-compatible
 combination.
-**版本对齐**：`0.3.0` 是 kotlin（JitPack）/ dart（pub.dev）/ flutter 插件
+**版本对齐**：`0.4.0` 是 kotlin（JitPack）/ dart（pub.dev）/ flutter 插件
 （pub.dev）/ Python（PyPI）最新完整对齐组合。消费端请使用同一版本号，即
 已验证兼容组合。
 
@@ -50,9 +50,9 @@ Licensed under the MIT License — see [LICENSE](LICENSE).
 
 ## Version / 版本
 
-Current aligned release: `0.3.0`. API unstable (expect breaking changes without
+Current aligned release: `0.4.0`. API unstable (expect breaking changes without
 a major bump until the first stable release).
-当前对齐版本：`0.3.0`。API 不稳定（在首个稳定版之前，次版本号变更也可能含破坏性改动）。
+当前对齐版本：`0.4.0`。API 不稳定（在首个稳定版之前，次版本号变更也可能含破坏性改动）。
 
 ## Origin / 来源
 
