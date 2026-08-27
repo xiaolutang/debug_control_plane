@@ -1,0 +1,10 @@
+# stage-1 操作序列 @ 2026-08-27T03:23:12Z
+$ adb shell am start -n com.debugplane.debug_control_plane_acceptance_example/.MainActivity
+Starting: Intent { cmp=com.debugplane.debug_control_plane_acceptance_example/.MainActivity }
+Status: ok
+LaunchState: COLD
+Activity: com.debugplane.debug_control_plane_acceptance_example/.MainActivity
+TotalTime: 1326
+WaitTime: 1329
+Complete
+$ tap open_button via dump bounds @ 2026-08-27T03:23:20Z

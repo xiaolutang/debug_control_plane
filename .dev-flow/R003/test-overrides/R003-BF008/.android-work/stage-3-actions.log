@@ -1,0 +1,2 @@
+# stage-3 操作序列 @ 2026-08-27T03:23:30Z
+$ 关闭 page A(back 至 page 列表/home),随后驱动 MCP 工具调用观察 gone+refresh

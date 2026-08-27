@@ -1,0 +1,3 @@
+# logcat 原始辅证体积过大(每文件 ~19M),不入库;
+# 关键片段已摘录进 evidence/android-page-scope.md。
+*-logcat.txt

@@ -1,0 +1,3 @@
+# stage-2 操作序列 @ 2026-08-27T03:23:25Z
+$ 从当前页 dump 寻找 page B(open)入口并 tap
+$ tap page B 入口成功
