@@ -1,10 +1,12 @@
-# stage-1 操作序列 @ 2026-08-27T03:23:12Z
+# stage-1 操作序列 @ 2026-08-27T05:39:04Z
 $ adb shell am start -n com.debugplane.debug_control_plane_acceptance_example/.MainActivity
 Starting: Intent { cmp=com.debugplane.debug_control_plane_acceptance_example/.MainActivity }
+Warning: Activity not started, its current task has been brought to the front
 Status: ok
-LaunchState: COLD
+LaunchState: HOT
 Activity: com.debugplane.debug_control_plane_acceptance_example/.MainActivity
-TotalTime: 1326
-WaitTime: 1329
+TotalTime: 127
+WaitTime: 129
 Complete
-$ tap open_button via dump bounds @ 2026-08-27T03:23:20Z
+$ tap open_button via dump bounds @ 2026-08-27T05:39:11Z
+$ 页面未翻转(首 tap 疑被吞),重试一次

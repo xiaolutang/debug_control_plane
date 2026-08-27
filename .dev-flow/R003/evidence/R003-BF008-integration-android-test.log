@@ -3,7 +3,7 @@ type: test-log
 task_id: R003-BF008
 layer: integration
 domain: android
-run_at: 2026-08-27T03:23:11Z
+run_at: 2026-08-27T05:39:04Z
 status: pass
 exit_code: 0
 device: 23116PN5BC (Android 16, serial bc6763eb)
@@ -16,19 +16,10 @@ deferred_reason:
 - device: 23116PN5BC(Android 16,serial bc6763eb)
 - 执行路径: device 检测 → uninstall 清理 → flutter build apk --debug →
   adb install → am start -W → 三阶段采集(1/1b/2/3:dump 主证 + logcat 辅证)。
-- 补充:真机回收分两段完成 —
-  1. 脚本自动采集轮(03:23Z,exit 0,本 log 由该轮产出);
-  2. 实施者受控补拍轮(03:30–03:42Z):page B 独立打开采集、HTTP 层
-     /hello 带 token 探测(registeredCapabilities 4 个 app 级)、auth 全链
-     (request 202 → app approve → claim 200 真实 token);该轮详细结论
-     与受控补拍 dumps 见 android-page-scope.md「结论对照」分节。
-  前置集成测试:`fvm flutter test integration_test/acceptance_integration_test.dart
-  -d bc6763eb` 于同设备 8/8 pass(03:0xZ,含 android-only 两用例:
-  native plane reachable endpoint hello=200 + auth claim/token 流程)。
 - 原始证据:
   - uiautomator dump 主证 + logcat 辅证:每阶段见 android-page-scope.md
     运行记录分节所列路径(test-overrides/R003-BF008/.android-work/dumps/)
   - 操作序列:同目录 stage-{1,2,3}-actions.log
-  - 结构性判定:android-page-scope.md(结论对照分节)
+  - 结构性判定:android-page-scope.md(run_at: 2026-08-27T05:39:04Z 分节)
 - deferred 回收说明:本 log 由真机回收运行产出,覆盖此前的 deferred 占位
   (device_required);历史 deferred 记录见 git history。

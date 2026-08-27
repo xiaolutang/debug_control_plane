@@ -1,3 +1,3 @@
-# stage-2 操作序列 @ 2026-08-27T03:23:25Z
-$ 从当前页 dump 寻找 page B(open)入口并 tap
-$ tap page B 入口成功
+# stage-2 操作序列 @ 2026-08-27T05:39:23Z
+$ KEYCODE_BACK 离开 page A → home dump 解析 Open page B → tap
+$ tap Open page B 成功(经 home,app 路由结构如此)

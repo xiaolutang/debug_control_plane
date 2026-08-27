@@ -294,7 +294,15 @@ resolve_bounds_and_tap() {
 TAP_XML="$DUMP_DIR/1-ui.xml"
 if resolve_bounds_and_tap "$TAP_XML" "open_button"; then
   echo "\$ tap open_button via dump bounds @ $(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$WORK_DIR/stage-1-actions.log"
-  sleep 2
+  # 冷启动后 ~7s 内首个 input tap 可能被 MIUI 吞(有注入日志但无 app 窗口
+  # publisher 分发):dump 复核页面未变则重试一次。
+  sleep 3
+  adb_cmd exec-out uiautomator dump /dev/tty >"$DUMP_DIR/1b-probe.xml" 2>/dev/null || true
+  if ! grep -q 'text="page-a"' "$DUMP_DIR/1b-probe.xml" 2>/dev/null; then
+    echo "\$ 页面未翻转(首 tap 疑被吞),重试一次" >>"$WORK_DIR/stage-1-actions.log"
+    resolve_bounds_and_tap "$TAP_XML" "open_button" || true
+    sleep 3
+  fi
 else
   echo "FAIL: 在 home 页 dump 中找不到 open_button 稳定标识,无法推进阶段 1。" >&2
   echo "      结构判定失败按 failed 处理(不以推定性结论虚构 evidence)。" >&2
@@ -302,21 +310,27 @@ else
 fi
 collect_stage "1b" "进入 page A 后"
 
-# 阶段 2:保持 page A,寻找进 page B 入口并点击 → 记录并存状态
+# 阶段 2:离开 page A 回 home → 从 home 开 page B(A/B 为同级独立 route,
+# 从 home 分别 push;「并存」语义 = scope 生命周期互不干扰,先经 back 释放 A)
 STAGE_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 {
   echo "# stage-2 操作序列 @ $STAGE_TS"
-  echo "\$ 从当前页 dump 寻找 page B(open)入口并 tap"
+  echo "\$ KEYCODE_BACK 离开 page A → home dump 解析 Open page B → tap"
 } >"$WORK_DIR/stage-2-actions.log"
-if resolve_bounds_and_tap "$DUMP_DIR/1b-ui.xml" "open_b" ||
-  resolve_bounds_and_tap "$DUMP_DIR/1b-ui.xml" "page_b_open"; then
-  echo "\$ tap page B 入口成功" >>"$WORK_DIR/stage-2-actions.log"
+adb_cmd shell input keyevent KEYCODE_BACK >>"$WORK_DIR/stage-2-actions.log" 2>&1 || true
+sleep 2
+if ! adb_cmd exec-out uiautomator dump /dev/tty >"$DUMP_DIR/2-home.xml" 2>/dev/null; then
+  adb_cmd shell uiautomator dump >/dev/null 2>&1 &&
+    adb_cmd pull /sdcard/window_dump.xml "$DUMP_DIR/2-home.xml" >/dev/null 2>&1 || true
+fi
+if resolve_bounds_and_tap "$DUMP_DIR/2-home.xml" 'content-desc="Open page B"'; then
+  echo "\$ tap Open page B 成功(经 home,app 路由结构如此)" >>"$WORK_DIR/stage-2-actions.log"
   sleep 2
 else
-  echo "WARN: 阶段 2 未在 page A dump 中找到 page B 入口标识,记 failed 段落而非推定。" >&2
+  echo "WARN: 阶段 2 未在 home dump 中找到 Open page B 标识,记 failed 段落而非推定。" >&2
   echo "failed: page_B_entry_not_found" >>"$WORK_DIR/stage-2-actions.log"
 fi
-collect_stage "2" "page A + page B 并存状态"
+collect_stage "2" "page B 打开(独立注册并存状态)"
 
 # 阶段 3:返回/关闭 page A → 驱动旧工具调用观察 gone 后刷新行为
 STAGE_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
