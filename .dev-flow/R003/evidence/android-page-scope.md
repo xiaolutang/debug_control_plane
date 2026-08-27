@@ -59,9 +59,9 @@ dumps 结构文本为主证(全部节点归属 `com.debugplane.debug_control_pla
 |---|---|---|
 | 1 进入前(home) | `1-ui.xml`/`1b-ui.xml` 33 节点 | `acceptance.status.capability_count_text = 4 registered`(app 级 4 capability);`Open page A`/`Open page B` 入口在位 |
 | 1 page A 打开 | `2-ui.xml` 20 节点 | `text="page-a"`;`acceptance.page_scope.registered_count_text = 2 registered`;`acceptance.page_scope.close_button` 在位 |
-| 1 受控复验 | `r003-pageA.xml` | 同上(独立操作序列复现,注册计数稳定 2) |
-| 2 page B 打开 | `r003-pageB.xml` | `text="page-b"`;`2 registered` |
-| 3 离开 page A 后 | `3-ui.xml`/`r003-final-home.xml` | 回到 home;`capability_count_text = 4 registered`(page 2 项已随 dispose 释放) |
+| 1 受控复验 | `r003-pageA.xml`(已被 05:39Z 轮覆写,原文见 commit `1c018fd`) | 同上(独立操作序列复现,注册计数稳定 2) |
+| 2 page B 打开 | `r003-pageB.xml`(同上,见 `1c018fd`) | `text="page-b"`;`2 registered` |
+| 3 离开 page A 后 | `3-ui.xml`/`r003-final-home.xml`(同上,见 `1c018fd`) | 回到 home;`capability_count_text = 4 registered`(page 2 项已随 dispose 释放) |
 
 注:app 路由结构中 page A/B 为同级独立 route(从 home 分别 push),
 「并存」语义 = page scope 生命周期互不干扰(A 离开释放后 B 仍可独立注册),
@@ -116,7 +116,8 @@ dumps 结构文本为主证(全部节点归属 `com.debugplane.debug_control_pla
    页面上不存在 page B 入口。修正为 KEYCODE_BACK 回 home → 匹配
    `content-desc="Open page B"` → tap(05:39Z 轮实测 stage-2 拍到 page-b)。
 
-**受控补拍附加产物**(`.android-work/dumps/r003-*.xml`)
+**受控补拍附加产物**(`.android-work/dumps/r003-*.xml`,03:3xZ 轮产物,
+已由 05:39Z 轮覆写,历史原文完整保存于 commit `1c018fd`)
 - `r003-A1.xml` page A 打开;`r003-pageB.xml` page B 打开;
   `r003-final-home.xml` 全链结束后的 home(4 registered);
   `r003-dlg3.xml` auth 授权弹窗(approve_button 在位)。
