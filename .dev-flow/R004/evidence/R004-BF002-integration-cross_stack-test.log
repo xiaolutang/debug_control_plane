@@ -1,0 +1,14 @@
+---
+type: test-log
+task_id: R004-BF002
+layer: integration
+domain: cross_stack
+run_at: 2026-08-31T13:50:18Z
+status: pass
+exit_code: 0
+---
+
+# Test Log: R004-BF002 (integration.cross_stack — provider 断言链)
+
+- bearer-reuse: PASS — save_token 落盘后,新 provider 实例经 BridgeClient 真实读盘命中 Bearer 头(Authorization: Bearer dcp_e2e_reuse)
+- 401-clear-relay: PASS — 401 token_expired 经 _http_error 联动 clear_token,新 provider 实例读盘确认 tokens.json 对应行已删除

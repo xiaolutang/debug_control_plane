@@ -92,7 +92,7 @@ contextMdPaths:
 - 关键代码片段：`class FileTokenProvider: def __init__(self, path: Path | None = None) -> None: self._path = path or Path.home() / ".debug-control-plane" / "tokens.json"; self._loaded = False; self._tokens: dict[str, dict[str, str]] = {}`
 - 改动理由/上下文：Protocol 已存在但零正式实现，python 侧 token 每进程即散；开发机明文+0600 已拍板。
 
-## R004-FF002：token TTL 默认 1h → 7 天 `⬜ 待处理`
+## R004-FF002：token TTL 默认 1h → 7 天 `✅ 已完成`
 
 - 文件：`flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/PluginDebugAuth.kt`（常量）+ `flutter_debug_control_plane/android/src/test/kotlin/com/pantas/debug/controlplane/flutter/PluginDebugAuthManagerTest.kt`（新增用例）
 - 改动类型：修改
@@ -103,7 +103,7 @@ contextMdPaths:
 - risk_tags: [android, ttl, regression]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [FF002]
 - sourceSlices: [.dev-flow/R004/analysis/2026-08-31--token-persistence-ttl-script-slice.md]
 - sourceDesigns: [.dev-flow/R004/analysis/2026-08-31--token-persistence-design.md]
