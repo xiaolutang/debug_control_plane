@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.0",
+  "manifest_revision": 2,
+  "manifest_digest": "efd0e801f958597aab9c3baf80db40ac4fa57eea3f1cc20136860a58750cb668",
+  "topic": "token-persistence",
+  "requirement_cycle": "R004",
+  "analysis_protocol": "v1",
+  "protocol_application": "standard",
+  "analysis_state": "analyzed",
+  "blocked_reason": null,
+  "blocked_slice": null,
+  "slices": [
+    {
+      "id": "S01-app-store-persistence",
+      "path": ".dev-flow/R004/analysis/2026-08-31--token-persistence-app-store-slice.md",
+      "status": "completed",
+      "revision": 1,
+      "checkpoint": {
+        "completed_sections": [
+          "概述",
+          "一、交互链",
+          "二、逻辑树",
+          "三、功能编号与网络定位",
+          "四、边界接口",
+          "五、结论"
+        ]
+      },
+      "digest": "b24768b15aaaaaaf3adbba3f080879890242d72fe0d7f66d5ae1cc27d2cfce8e",
+      "evidence": {
+        "execution_id": "xlf-subagent:R004:analysis-slice:S01-app-store-persistence:01",
+        "provider": "direct_subagent",
+        "isolation": "independent_context"
+      },
+      "deps": [],
+      "owners": [
+        "SCN-APP-TOKEN-SURVIVE-RESTART"
+      ],
+      "context_refs": [
+        ".dev-flow/architecture.md",
+        ".dev-flow/R004/analysis/brainstorm-2026-08-31--token-persistence.md",
+        "flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/PluginDebugAuth.kt",
+        "flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/DebugControlPlaneFlutterPlugin.kt",
+        "kotlin/src/main/kotlin/com/pantas/debug/controlplane/DebugAuth.kt"
+      ]
+    },
+    {
+      "id": "S02-python-file-token-provider",
+      "path": ".dev-flow/R004/analysis/2026-08-31--token-persistence-python-provider-slice.md",
+      "status": "completed",
+      "revision": 1,
+      "checkpoint": {
+        "completed_sections": [
+          "概述",
+          "一、交互链",
+          "二、逻辑树",
+          "三、功能编号与网络定位",
+          "四、边界接口",
+          "五、结论"
+        ]
+      },
+      "digest": "1dd7951eca006231f18e1024344efdef994f7996c989a0439296aafedc99d358",
+      "evidence": {
+        "execution_id": "xlf-subagent:R004:analysis-slice:S02-python-file-token-provider:01",
+        "provider": "direct_subagent",
+        "isolation": "independent_context"
+      },
+      "deps": [],
+      "owners": [
+        "SCN-PY-TOKEN-SURVIVE-RESTART"
+      ],
+      "context_refs": [
+        ".dev-flow/architecture.md",
+        ".dev-flow/R004/analysis/brainstorm-2026-08-31--token-persistence.md",
+        "python/debug_control_plane/mcp_plane/bridge_client.py",
+        "python/debug_control_plane/device_discovery/device_pool.py",
+        "python/debug_control_plane/mcp_plane/server.py"
+      ]
+    },
+    {
+      "id": "S03-ttl-and-acceptance-script",
+      "path": ".dev-flow/R004/analysis/2026-08-31--token-persistence-ttl-script-slice.md",
+      "status": "completed",
+      "revision": 1,
+      "checkpoint": {
+        "completed_sections": [
+          "概述",
+          "一、交互链",
+          "二、逻辑树",
+          "三、功能编号与网络定位",
+          "四、边界接口",
+          "五、结论"
+        ]
+      },
+      "digest": "c47f9a33167f0ac02893744fb781f671a8c74aa64265f4481bbd923f8449c1be",
+      "evidence": {
+        "execution_id": "xlf-subagent:R004:analysis-slice:S03-ttl-and-acceptance-script:01",
+        "provider": "direct_subagent",
+        "isolation": "independent_context"
+      },
+      "deps": [
+        "S01-app-store-persistence",
+        "S02-python-file-token-provider"
+      ],
+      "owners": [
+        "SCN-AUTOLOOP-ONE-APPROVE"
+      ],
+      "context_refs": [
+        ".dev-flow/R004/analysis/brainstorm-2026-08-31--token-persistence.md",
+        "flutter_debug_control_plane/lib/src/native_control_plane_bridge.dart",
+        ".dev-flow/R003/test-overrides/R003-BF008/integration-android.sh",
+        "python/tests/test_acceptance_flutter_app_auth.py"
+      ]
+    }
+  ]
+}
