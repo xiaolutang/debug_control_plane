@@ -1,0 +1,19 @@
+---
+type: test-log
+task_id: R004-regression
+layer: unit
+domain: flutter
+run_at: 2026-08-31T14:10:00Z
+status: pass
+exit_code: 0
+command: cd flutter_debug_control_plane && fvm flutter test
+---
+
+# Flutter 域全量回归（R004 收尾核查）
+
+- 动机：R004 四任务均未触碰 Dart 层（git diff 证明 dart/ 零改动），但收尾需验证
+  plugin Android 侧改动（PluginDebugAuth.kt/DebugControlPlaneFlutterPlugin.kt）
+  未破坏 Flutter 侧桥接层回归
+- 结果：All tests passed!（61 tests, 0 failures）
+- 覆盖：native_control_plane_bridge_test 等（含 R003-FF001 scope identity、
+  事件泵生命周期等既有用例零回归）
