@@ -1,0 +1,68 @@
+# R004 token-persistence AcceptanceSpec（BF004 契约消费物）
+# 稳定标识与验收断言清单——analysis/design/test/tasks 四处 contract_refs 的唯一真相源
+# 来源:design §8 扩展为机器可读 yaml(修复 plan-review F2)
+spec_version: "1.0"
+requirement_cycle: R004
+topic: token-persistence
+
+stable_identifiers:
+  # 验收 app 侧新增稳定标识(沿用 R002/R003 acceptance.* key 风格)
+  - key: acceptance.auth.token_status_text
+    locator: 授权状态区文本(authorized / none)
+    consumer: [BF002 e2e, uiautomator dump]
+
+capabilities:
+  FF001:
+    unit:
+      - FileBacked store roundtrip(新实例同目录 load,字段逐一相等)
+      - 可空往返(revokedAt=null/clientLabel=null)
+      - 截断 JSON 回退空(不抛)
+      - revoked 持久化(markRevoked 后重启 tokenByHash 命中且 revokedAt 非空)
+      - 过期清理(load 丢弃 expiresAt<now 并回写)
+      - 原子写(无 .tmp 残留)
+      - 并发 persist(两线程交错,文件合法且含两者)
+      - 红线:pending(含 tokenPlaintext)persist 后文件无明文 token 子串
+    integration:
+      - 冷重启后旧 token Bearer 调 /hello → 200 authorized [device]
+      - install -r 后同上 [device]
+      - uninstall 后旧 token → 401 invalid_token [device,出界验证]
+
+  BF001:
+    unit:
+      - roundtrip 跨实例(save→新实例 get==token)
+      - 0600(tmp 与正式文件 st_mode & 0o777 == 0o600)
+      - 过期判定四态(过去→None;未来/Z 后缀→命中;非法/缺失→视为未过期)
+      - clear 删盘(clear 后行消失)
+      - 损坏回退(非法 JSON→None 不抛)
+      - metadata 并入(tokenId/expiresAt 出现在行)
+      - 版本不符(version:99→回退空)
+    integration:
+      - python 新进程 get_token 命中(零 /auth/request)
+      - 401 token_expired 后 tokens.json 对应行消失
+
+  FF002:
+    unit:
+      - 不传 ttlSeconds → expiresAt - now ∈ [604790, 604810]s
+      - 显式 ttlSeconds=60 覆盖默认(既有用例零回归)
+
+  BF002:
+    e2e:
+      - case1 首次授权双侧落盘(claim 200;expiresAt≈7d;两侧文件存在)
+      - case2 app 冷重启(force-stop+start)旧 token 200 [device,deferred]
+      - case3 install -r 重建安装旧 token 200 [device,deferred,主断言]
+      - case4 python 重启免 auth(视可达性,否则 skip(setup_required))
+      - case5 过期自动重授权(401→行被清→授权链可达)
+      - case6 DELETE_AND_REINSTALL=1 等价首次 [device,deferred]
+    script_contract:
+      - 无条件 uninstall 移除(仅 DELETE_AND_REINSTALL=1 执行)
+      - 安装统一 install -r
+      - APK_ALREADY_INSTALLED 快速路径保留(压制 HyperOS 安装弹窗;与 auth 弹窗机制分工写入注释)
+      - fork 自 R003-BF008,不回写 R003 产物
+      - deferred 时 evidence 双写(device_required 空壳)沿用 R003 模式
+
+redlines:
+  - app 侧明文 token 永不落盘(persist 数据源只有 tokens map hash 记录)
+  - pending(tokenPlaintext/pairingCode)仅内存,不持久化
+  - wire 协议零改动(/auth/* 契约、dcp_ 前缀、DebugAuthTokenRecord 结构不变)
+  - Kotlin 纯 JVM core(kotlin/)零改动
+  - DevicePool 禁存 token(tokens.json 独立文件独立 schema)

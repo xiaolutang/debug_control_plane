@@ -127,6 +127,35 @@
           "degraded_reason": null
         }
       }
+    },
+    {
+      "id": "R004",
+      "requirement_cycle": "R004",
+      "status": "planned",
+      "name": "token-persistence",
+      "topic": "token-persistence",
+      "analysis_topic": "token-persistence",
+      "version": "1.0",
+      "workflow": {
+        "evaluate_provider": "direct_subagent",
+        "mode": "auto"
+      },
+      "source": {
+        "tasks": ".dev-flow/R004/token-persistence-tasks.md",
+        "analysis_manifest": ".dev-flow/R004/analysis/manifest.json",
+        "design": ".dev-flow/R004/analysis/2026-08-31--token-persistence-design.md",
+        "test": ".dev-flow/R004/analysis/2026-08-31--token-persistence-test.md",
+        "acceptance_spec": ".dev-flow/R004/analysis/2026-08-31--token-persistence-acceptance-spec.yaml"
+      },
+      "review_evidence": {
+        "type": "plan_review",
+        "verdict": "PASS",
+        "report_path": ".dev-flow/R004/analysis/reviews/2026-08-31T18-10-00-plan-PASS.md",
+        "manifest_revision": 4,
+        "manifest_digest": "efd0e801f958597aab9c3baf80db40ac4fa57eea3f1cc20136860a58750cb668",
+        "review_round": 2,
+        "execution_id": "xlf-subagent:R004:plan-review:02"
+      }
     }
   ],
   "release_management": {

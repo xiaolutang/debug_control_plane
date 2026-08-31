@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "manifest_revision": 3,
+  "manifest_revision": 4,
   "manifest_digest": "efd0e801f958597aab9c3baf80db40ac4fa57eea3f1cc20136860a58750cb668",
   "topic": "token-persistence",
   "requirement_cycle": "R004",
@@ -135,6 +135,21 @@
         ".dev-flow/R004/analysis/2026-08-31--token-persistence-ttl-script-slice.md"
       ],
       "integration": ".dev-flow/R004/analysis/2026-08-31--token-persistence.md"
+    },
+    "plan_seed": {
+      "main": ".dev-flow/R004/analysis/2026-08-31--token-persistence.md",
+      "slices": [
+        ".dev-flow/R004/analysis/2026-08-31--token-persistence-app-store-slice.md",
+        ".dev-flow/R004/analysis/2026-08-31--token-persistence-python-provider-slice.md",
+        ".dev-flow/R004/analysis/2026-08-31--token-persistence-ttl-script-slice.md"
+      ],
+      "integration": ".dev-flow/R004/analysis/2026-08-31--token-persistence-integration.md",
+      "design": [
+        ".dev-flow/R004/analysis/2026-08-31--token-persistence-design.md"
+      ],
+      "test": [
+        ".dev-flow/R004/analysis/2026-08-31--token-persistence-test.md"
+      ]
     }
   }
 }

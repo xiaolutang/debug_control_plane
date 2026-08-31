@@ -19,7 +19,7 @@ source_design: 2026-08-31--token-persistence-design.md
 
 ## 2. 单元测试设计
 
-### FF001-T：FileBackedPluginDebugAuthStoreTest（JVM）
+### FF001-T：PluginDebugAuthStorePersistenceTest（JVM）
 
 用例矩阵（`@TempDir` 模拟 filesDir）：
 1. **roundtrip**：putToken → 新实例同目录 load → token/tokenByHash 命中,
