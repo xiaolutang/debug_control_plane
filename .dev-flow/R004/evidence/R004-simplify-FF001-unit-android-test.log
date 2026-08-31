@@ -1,0 +1,59 @@
+---
+type: test-log
+task_id: R004-simplify-FF001
+layer: unit
+domain: android
+run_at: 2026-08-31T13:26:53Z
+status: pass
+exit_code: 0
+deferred_reason: 
+---
+
+# Test Log: R004-simplify-FF001 (unit.android)
+
+## Config Source
+- file: .dev-flow/config.json
+- path: project_capabilities.tests.unit.android
+
+## Test Command Source
+- path: project_capabilities.tests.unit.android
+- command: ./gradlew build
+
+## Setup
+- command: （跳过）
+- exit: N/A
+
+## Test
+- command: ./gradlew build
+- exit: 0
+- passed: unknown
+- failed: 0
+
+## Teardown
+- command: （跳过）
+- exit: N/A
+
+## Raw Output (tail)
+```
+Configuration on demand is an incubating feature.
+> Task :kotlin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :kotlin:compileKotlin UP-TO-DATE
+> Task :kotlin:compileJava NO-SOURCE
+> Task :kotlin:processResources NO-SOURCE
+> Task :kotlin:classes UP-TO-DATE
+> Task :kotlin:jar UP-TO-DATE
+> Task :kotlin:startScripts UP-TO-DATE
+> Task :kotlin:distTar UP-TO-DATE
+> Task :kotlin:distZip UP-TO-DATE
+> Task :kotlin:assemble UP-TO-DATE
+> Task :kotlin:compileTestKotlin UP-TO-DATE
+> Task :kotlin:compileTestJava NO-SOURCE
+> Task :kotlin:processTestResources NO-SOURCE
+> Task :kotlin:testClasses UP-TO-DATE
+> Task :kotlin:test UP-TO-DATE
+> Task :kotlin:check UP-TO-DATE
+> Task :kotlin:build UP-TO-DATE
+
+BUILD SUCCESSFUL in 571ms
+7 actionable tasks: 7 up-to-date
+```

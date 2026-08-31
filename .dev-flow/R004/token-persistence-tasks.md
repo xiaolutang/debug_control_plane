@@ -67,7 +67,7 @@ contextMdPaths:
 - 关键代码片段：`class FileBackedPluginDebugAuthStore(private val context: Context, private val delegate: InMemoryPluginDebugAuthStore = InMemoryPluginDebugAuthStore()) : PluginDebugAuthStore { private val persistLock = Any(); private val file: File get() = File(context.filesDir, "debug_auth_tokens.json") /* 透传 8 方法;token 组写后 persist() */ }`
 - 改动理由/上下文：token 生命周期当前=进程生命周期是弹窗反复的 app 侧根因；filesDir 覆盖安装保留/卸载抹除恰好匹配支持与出界边界。
 
-## R004-BF001：python FileTokenProvider — 持久化实现与 server 注入 `⬜ 待处理`
+## R004-BF001：python FileTokenProvider — 持久化实现与 server 注入 `✅ 已完成`
 
 - 文件：`python/debug_control_plane/mcp_plane/token_provider.py`（新增）+ `python/debug_control_plane/mcp_plane/server.py`（main 注入一行）+ `python/tests/test_token_provider.py`（新增）
 - 改动类型：修改

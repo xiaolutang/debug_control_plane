@@ -1,7 +1,7 @@
 {
   "version": "3.0",
   "project": "debug_control_plane",
-  "active_rc": null,
+  "active_rc": "R004",
   "default_workflow": null,
   "project_capabilities": {
     "schema_version": 2,
@@ -131,7 +131,7 @@
     {
       "id": "R004",
       "requirement_cycle": "R004",
-      "status": "planned",
+      "status": "active",
       "name": "token-persistence",
       "topic": "token-persistence",
       "analysis_topic": "token-persistence",

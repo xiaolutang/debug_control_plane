@@ -47,14 +47,31 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
     private var authManager: PluginDebugAuthManager? = null
     private var scope: CoroutineScope? = null
     private var ownsPlane = false
+    private var authUpgraded = false
 
     companion object {
-        private val processAuthStore: PluginDebugAuthStore = InMemoryPluginDebugAuthStore()
+        private var processAuthStore: PluginDebugAuthStore = InMemoryPluginDebugAuthStore()
+
+        /**
+         * R004-FF001: lazily upgrade the process store to a FileBacked one.
+         * Returns the current store unchanged unless it is still the untouched
+         * initial InMemory working set (host injection via
+         * [setAuthStoreForHost] or a prior upgrade disables the upgrade).
+         */
+        @Synchronized
+        private fun upgradeProcessStore(context: android.content.Context): PluginDebugAuthStore {
+            val current = processAuthStore
+            if (current !is InMemoryPluginDebugAuthStore) return current
+            val upgraded = FileBackedPluginDebugAuthStore(context, current)
+            processAuthStore = upgraded
+            return upgraded
+        }
     }
 
     /** Host/test injection point. The default process store is used otherwise. */
     fun setAuthStoreForHost(store: PluginDebugAuthStore) {
         authStore = store
+        authUpgraded = true
         val pluginBridge = bridge
         if (pluginBridge != null) {
             authManager = PluginDebugAuthManager(pluginBridge, authStore)
@@ -62,6 +79,21 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
     }
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        // R004-FF001 (design §3.1, plan A lazy upgrade): the first attach that
+        // finds the process store still untouched (initial InMemory, no host
+        // injection) swaps in a FileBacked decorator over the same working
+        // set — tokens survive app restarts (overlay-install keeps filesDir),
+        // pending stays memory-only. Idempotent: subsequent attaches and
+        // post-injection attaches keep the current store.
+        if (!authUpgraded) {
+            authStore = upgradeProcessStore(binding.applicationContext)
+            authUpgraded = true
+            // Zero-copy migration: the FileBacked store wraps the pre-upgrade
+            // InMemory working set as its delegate — flush it to disk once.
+            (authStore as? FileBackedPluginDebugAuthStore)?.persistNow()
+        } else {
+            authStore = processAuthStore
+        }
         val methodChannel = MethodChannel(binding.binaryMessenger, ChannelProtocol.METHOD_CHANNEL)
         methodChannel.setMethodCallHandler(this)
         val pluginScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

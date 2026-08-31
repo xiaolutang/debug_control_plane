@@ -10,6 +10,10 @@ import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import org.json.JSONArray
+import org.json.JSONException
+import org.json.JSONObject
+import java.io.File
 
 interface PluginDebugAuthStore {
     fun pending(requestId: String): PluginDebugAuthPending?
@@ -42,6 +46,9 @@ class InMemoryPluginDebugAuthStore : PluginDebugAuthStore {
     private val pending = ConcurrentHashMap<String, PluginDebugAuthPending>()
     private val tokens = ConcurrentHashMap<String, DebugAuthTokenRecord>()
 
+    /** R004-FF001: full token-set snapshot for persistence/migration consumers. */
+    fun snapshotTokens(): List<DebugAuthTokenRecord> = tokens.values.toList()
+
     override fun pending(requestId: String): PluginDebugAuthPending? = pending[requestId]
 
     override fun pendingByNonceHash(nonceHash: String): PluginDebugAuthPending? =
@@ -67,6 +74,199 @@ class InMemoryPluginDebugAuthStore : PluginDebugAuthStore {
 
     override fun markAllRevoked(revokedAt: Instant) {
         tokens.keys.forEach { markRevoked(it, revokedAt) }
+    }
+}
+
+/**
+ * R004-FF001: persistent decorator over [PluginDebugAuthStore] (design §3.1).
+ *
+ * The wrapped [delegate] (an [InMemoryPluginDebugAuthStore] working set) keeps
+ * authoritative in-memory state; token-group writes (putToken/markRevoked/
+ * markAllRevoked) are mirrored to a JSON file in the app-private directory via
+ * tmp+rename atomic replace.
+ *
+ * Red line (design §6): pending records (which carry tokenPlaintext and the
+ * pairingCode) are NEVER persisted — pending-group methods are pure
+ * pass-through and the persistence data source is only the token map (hash
+ * records; the plaintext token itself is never known to this store).
+ *
+ * Persistence is fail-soft: a corrupt/unreadable file logs a warning and falls
+ * back to empty (the attach path must never throw); an IO failure during
+ * persist logs a warning and leaves memory untouched (self-heals on the next
+ * write).
+ *
+ * Primary constructor takes a [dir] so pure-JVM unit tests can use a temp
+ * directory; the [context] factory variant resolves `context.filesDir`.
+ */
+class FileBackedPluginDebugAuthStore internal constructor(
+    private val dir: File,
+    private val delegate: InMemoryPluginDebugAuthStore = InMemoryPluginDebugAuthStore(),
+    private val now: () -> Instant = Instant::now,
+    private val logger: (String) -> Unit = { android.util.Log.w("FileBackedPluginDebugAuthStore", it) },
+) : PluginDebugAuthStore {
+
+    constructor(
+        context: android.content.Context,
+        delegate: InMemoryPluginDebugAuthStore = InMemoryPluginDebugAuthStore(),
+    ) : this(File(context.filesDir, STORE_DIR_NAME), delegate)
+
+    private val persistLock = Any()
+    private val file: File get() = File(dir, FILE_NAME)
+    private val tmpFile: File get() = File(dir, TMP_NAME)
+
+    init {
+        try {
+            dir.mkdirs()
+        } catch (e: Exception) {
+            logger("failed to create store dir ${dir.path}: $e")
+        }
+        load()
+    }
+
+    // --- pending group: pure pass-through, never persisted (red line) ---
+
+    override fun pending(requestId: String): PluginDebugAuthPending? = delegate.pending(requestId)
+
+    override fun pendingByNonceHash(nonceHash: String): PluginDebugAuthPending? =
+        delegate.pendingByNonceHash(nonceHash)
+
+    override fun putPending(pending: PluginDebugAuthPending) {
+        delegate.putPending(pending)
+    }
+
+    // --- token group: reads pass through, writes persist ---
+
+    override fun token(tokenId: String): DebugAuthTokenRecord? = delegate.token(tokenId)
+
+    override fun tokenByHash(tokenHash: String): DebugAuthTokenRecord? = delegate.tokenByHash(tokenHash)
+
+    override fun putToken(record: DebugAuthTokenRecord) {
+        synchronized(persistLock) {
+            delegate.putToken(record)
+            persistLocked()
+        }
+    }
+
+    override fun markRevoked(tokenId: String, revokedAt: Instant) {
+        synchronized(persistLock) {
+            delegate.markRevoked(tokenId, revokedAt)
+            persistLocked()
+        }
+    }
+
+    override fun markAllRevoked(revokedAt: Instant) {
+        synchronized(persistLock) {
+            delegate.markAllRevoked(revokedAt)
+            persistLocked()
+        }
+    }
+
+    /**
+     * R004-FF001 attach wiring helper: flush the current in-memory token set
+     * to disk (the attach wiring re-uses the pre-upgrade InMemory working set
+     * as this store's [delegate], so its records are already here — the
+     * "migration" is a zero-copy delegate handoff, not a record copy). Pending
+     * records never reach disk (red line).
+     */
+    fun persistNow() {
+        synchronized(persistLock) {
+            persistLocked()
+        }
+    }
+
+    // --- persistence internals ---
+
+    private fun load() {
+        val records = try {
+            val raw = file.readText()
+            if (raw.isBlank()) {
+                emptyList()
+            } else {
+                parseTokens(raw)
+            }
+        } catch (e: Exception) {
+            logger("failed to load ${file.path}, falling back to empty store: $e")
+            emptyList()
+        }
+        val currentTime = now()
+        val expired = mutableListOf<DebugAuthTokenRecord>()
+        records.forEach { record ->
+            if (record.expiresAt.isBefore(currentTime)) {
+                expired += record
+            } else {
+                delegate.putToken(record)
+            }
+        }
+        if (expired.isNotEmpty()) {
+            logger("dropping ${expired.size} expired token record(s)")
+            persistLocked()
+        }
+    }
+
+    /** Must be called under [persistLock]. Re-collects the snapshot inside the critical section. */
+    private fun persistLocked() {
+        try {
+            val snapshot = delegate.snapshotTokens()
+            tmpFile.writeText(encodeTokens(snapshot))
+            if (!tmpFile.renameTo(file)) {
+                logger("atomic rename failed: ${tmpFile.path} -> ${file.path}")
+            }
+        } catch (e: Exception) {
+            logger("failed to persist ${file.path}, memory state kept: $e")
+        }
+    }
+
+    companion object {
+        private const val STORE_DIR_NAME = "debug_control_plane"
+        private const val FILE_NAME = "debug_auth_tokens.json"
+        private const val TMP_NAME = "debug_auth_tokens.json.tmp"
+
+        /** Must be called under [persistLock]-free init only (single load). */
+        internal fun parseTokens(raw: String): List<DebugAuthTokenRecord> {
+            val json = JSONObject(raw)
+            val version = json.optInt("version", -1)
+            if (version != 1) {
+                throw JSONException("unsupported version: $version")
+            }
+            val tokens = json.optJSONArray("tokens") ?: return emptyList()
+            return (0 until tokens.length()).map { index ->
+                val entry = tokens.getJSONObject(index)
+                DebugAuthTokenRecord(
+                    tokenId = entry.getString("tokenId"),
+                    tokenHash = entry.getString("tokenHash"),
+                    createdAt = Instant.parse(entry.getString("createdAt")),
+                    expiresAt = Instant.parse(entry.getString("expiresAt")),
+                    revokedAt = if (entry.has("revokedAt") && !entry.isNull("revokedAt")) {
+                        Instant.parse(entry.getString("revokedAt"))
+                    } else {
+                        null
+                    },
+                    clientLabel = if (entry.has("clientLabel") && !entry.isNull("clientLabel")) {
+                        entry.getString("clientLabel")
+                    } else {
+                        null
+                    },
+                )
+            }
+        }
+
+        internal fun encodeTokens(records: List<DebugAuthTokenRecord>): String {
+            val tokens = JSONArray()
+            records.forEach { record ->
+                val entry = JSONObject()
+                entry.put("tokenId", record.tokenId)
+                entry.put("tokenHash", record.tokenHash)
+                entry.put("createdAt", record.createdAt.toString())
+                entry.put("expiresAt", record.expiresAt.toString())
+                entry.put("revokedAt", record.revokedAt ?: JSONObject.NULL)
+                entry.put("clientLabel", record.clientLabel ?: JSONObject.NULL)
+                tokens.put(entry)
+            }
+            val root = JSONObject()
+            root.put("version", 1)
+            root.put("tokens", tokens)
+            return root.toString()
+        }
     }
 }
 
