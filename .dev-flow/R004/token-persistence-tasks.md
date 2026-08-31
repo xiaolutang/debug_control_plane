@@ -42,7 +42,7 @@ contextMdPaths:
 
 执行顺序：R004-FF001 → R004-FF002；R004-BF001 与前两者并行；最后 R004-BF002（依赖 FF001+BF001+FF002 全部完成）。
 
-## R004-FF001：app 侧 FileBackedPluginDebugAuthStore — 持久化与 attach 接线 `⬜ 待处理`
+## R004-FF001：app 侧 FileBackedPluginDebugAuthStore — 持久化与 attach 接线 `✅ 已完成`
 
 - 文件：`flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/PluginDebugAuth.kt`（新增类）+ `flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/DebugControlPlaneFlutterPlugin.kt`（attach 升级）+ `flutter_debug_control_plane/android/src/test/kotlin/com/pantas/debug/controlplane/flutter/PluginDebugAuthStorePersistenceTest.kt`（新增）
 - 改动类型：修改
@@ -53,7 +53,7 @@ contextMdPaths:
 - risk_tags: [android, persistence, concurrency, security]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [FF001]
 - sourceSlices: [.dev-flow/R004/analysis/2026-08-31--token-persistence-app-store-slice.md]
 - sourceDesigns: [.dev-flow/R004/analysis/2026-08-31--token-persistence-design.md]
@@ -78,7 +78,7 @@ contextMdPaths:
 - risk_tags: [python, persistence, security, py310-compat]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [BF001]
 - sourceSlices: [.dev-flow/R004/analysis/2026-08-31--token-persistence-python-provider-slice.md]
 - sourceDesigns: [.dev-flow/R004/analysis/2026-08-31--token-persistence-design.md]

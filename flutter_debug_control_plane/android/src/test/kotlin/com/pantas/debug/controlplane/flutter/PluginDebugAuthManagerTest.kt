@@ -155,4 +155,39 @@ class PluginDebugAuthManagerTest {
         assertEquals("approved", status["status"])
         assertNull(status["token"])
     }
+
+    @Test
+    fun `approve without ttl uses default 7d token ttl`() = runBlocking {
+        val currentTime = AtomicReference(Instant.parse("2026-08-31T00:00:00Z"))
+        val store = InMemoryPluginDebugAuthStore()
+        val manager = PluginDebugAuthManager(
+            NativeControlPlaneBridge(FakeMethodChannel(), FakeMethodChannel.scope),
+            store,
+            now = { currentTime.get() },
+        )
+        val request = manager.requestAuthorization(mapOf("clientNonce" to "nonce-ttl")) as DebugAuthRouteResult.Ok
+        val requestId = request.body["requestId"] as String
+
+        val approve = manager.approve(requestId, ttlSeconds = null, clientLabel = null)
+        val stored = store.token(approve["tokenId"] as String)!!
+        val ttl = java.time.Duration.between(currentTime.get(), stored.expiresAt).seconds
+        assertEquals(PluginDebugAuthManager.DEFAULT_TOKEN_TTL_SECONDS, ttl)
+    }
+
+    @Test
+    fun `approve with explicit ttl overrides default`() = runBlocking {
+        val currentTime = AtomicReference(Instant.parse("2026-08-31T00:00:00Z"))
+        val store = InMemoryPluginDebugAuthStore()
+        val manager = PluginDebugAuthManager(
+            NativeControlPlaneBridge(FakeMethodChannel(), FakeMethodChannel.scope),
+            store,
+            now = { currentTime.get() },
+        )
+        val request = manager.requestAuthorization(mapOf("clientNonce" to "nonce-ttl2")) as DebugAuthRouteResult.Ok
+        val requestId = request.body["requestId"] as String
+
+        val approve = manager.approve(requestId, ttlSeconds = 60, clientLabel = null)
+        val stored = store.token(approve["tokenId"] as String)!!
+        assertEquals(60L, java.time.Duration.between(currentTime.get(), stored.expiresAt).seconds)
+    }
 }

@@ -1,0 +1,73 @@
+---
+type: test-log
+task_id: R004-FF002
+layer: unit
+domain: android
+run_at: 2026-08-31T13:36:30Z
+status: pass
+exit_code: 0
+deferred_reason: 
+---
+
+# Test Log: R004-FF002 (unit.android)
+
+## Config Source
+- file: .dev-flow/config.json
+- path: project_capabilities.tests.unit.android
+
+## Test Command Source
+- path: .dev-flow/R004/test-overrides/R004-FF002/unit-android.sh
+- command: bash .dev-flow/R004/test-overrides/R004-FF002/unit-android.sh
+
+## Setup
+- command: （跳过）
+- exit: N/A
+
+## Test
+- command: bash .dev-flow/R004/test-overrides/R004-FF002/unit-android.sh
+- exit: 0
+- passed: unknown
+- failed: 0
+
+## Teardown
+- command: （跳过）
+- exit: N/A
+
+## Raw Output (tail)
+```
+Configuration on demand is an incubating feature.
+Invalid https.proxyPort '', using default 443
+> Task :checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :kotlin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :preBuild UP-TO-DATE
+> Task :preDebugBuild UP-TO-DATE
+> Task :generateDebugResValues
+> Task :generateDebugResources
+> Task :packageDebugResources
+> Task :preDebugUnitTestBuild UP-TO-DATE
+> Task :javaPreCompileDebug
+> Task :javaPreCompileDebugUnitTest
+> Task :parseDebugLocalResources
+> Task :generateDebugRFile
+> Task :kotlin:processResources NO-SOURCE
+> Task :generateDebugUnitTestStubRFile
+> Task :kotlin:compileKotlin
+> Task :kotlin:compileJava NO-SOURCE
+> Task :kotlin:classes UP-TO-DATE
+> Task :kotlin:jar
+
+> Task :compileDebugKotlin
+w: file:///Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/NativeControlPlaneBridge.kt:274:5 This is a kotlinx.coroutines API that is not intended to be inherited from, as the library may handle predefined instances of this in a special manner. This will be an error in a future release. If you need to inherit from this, please describe your use case in https://github.com/Kotlin/kotlinx.coroutines/issues, so that we can provide a stable API for inheritance. 
+
+> Task :compileDebugJavaWithJavac NO-SOURCE
+> Task :bundleLibRuntimeToJarDebug
+> Task :processDebugJavaRes
+> Task :bundleLibCompileToJarDebug
+> Task :compileDebugUnitTestKotlin
+> Task :compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :processDebugUnitTestJavaRes
+> Task :testDebugUnitTest
+
+BUILD SUCCESSFUL in 6s
+17 actionable tasks: 17 executed
+```

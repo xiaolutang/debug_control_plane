@@ -276,8 +276,13 @@ class PluginDebugAuthManager(
     private val now: () -> Instant = { Instant.now() },
     private val random: SecureRandom = SecureRandom(),
     private val defaultPendingTtlSeconds: Long = 300,
-    private val defaultTokenTtlSeconds: Long = 3600,
+    private val defaultTokenTtlSeconds: Long = DEFAULT_TOKEN_TTL_SECONDS,
 ) : DebugAuthManager {
+
+    companion object {
+        /** DEC-R004-003: plugin 行为层全宿主免配置默认 token TTL（7 天）。 */
+        const val DEFAULT_TOKEN_TTL_SECONDS = 604800L
+    }
 
     override suspend fun authorize(request: DebugAuthRequest): DebugAuthDecision {
         val token = request.bearerToken
