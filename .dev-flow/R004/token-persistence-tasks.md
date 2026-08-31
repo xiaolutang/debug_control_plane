@@ -42,7 +42,7 @@ contextMdPaths:
 
 执行顺序：R004-FF001 → R004-FF002；R004-BF001 与前两者并行；最后 R004-BF002（依赖 FF001+BF001+FF002 全部完成）。
 
-## R004-FF001：app 侧 FileBackedPluginDebugAuthStore — 持久化与 attach 接线
+## R004-FF001：app 侧 FileBackedPluginDebugAuthStore — 持久化与 attach 接线 `⬜ 待处理`
 
 - 文件：`flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/PluginDebugAuth.kt`（新增类）+ `flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/DebugControlPlaneFlutterPlugin.kt`（attach 升级）+ `flutter_debug_control_plane/android/src/test/kotlin/com/pantas/debug/controlplane/flutter/PluginDebugAuthStorePersistenceTest.kt`（新增）
 - 改动类型：修改
@@ -67,7 +67,7 @@ contextMdPaths:
 - 关键代码片段：`class FileBackedPluginDebugAuthStore(private val context: Context, private val delegate: InMemoryPluginDebugAuthStore = InMemoryPluginDebugAuthStore()) : PluginDebugAuthStore { private val persistLock = Any(); private val file: File get() = File(context.filesDir, "debug_auth_tokens.json") /* 透传 8 方法;token 组写后 persist() */ }`
 - 改动理由/上下文：token 生命周期当前=进程生命周期是弹窗反复的 app 侧根因；filesDir 覆盖安装保留/卸载抹除恰好匹配支持与出界边界。
 
-## R004-BF001：python FileTokenProvider — 持久化实现与 server 注入
+## R004-BF001：python FileTokenProvider — 持久化实现与 server 注入 `⬜ 待处理`
 
 - 文件：`python/debug_control_plane/mcp_plane/token_provider.py`（新增）+ `python/debug_control_plane/mcp_plane/server.py`（main 注入一行）+ `python/tests/test_token_provider.py`（新增）
 - 改动类型：修改
@@ -92,7 +92,7 @@ contextMdPaths:
 - 关键代码片段：`class FileTokenProvider: def __init__(self, path: Path | None = None) -> None: self._path = path or Path.home() / ".debug-control-plane" / "tokens.json"; self._loaded = False; self._tokens: dict[str, dict[str, str]] = {}`
 - 改动理由/上下文：Protocol 已存在但零正式实现，python 侧 token 每进程即散；开发机明文+0600 已拍板。
 
-## R004-FF002：token TTL 默认 1h → 7 天
+## R004-FF002：token TTL 默认 1h → 7 天 `⬜ 待处理`
 
 - 文件：`flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/PluginDebugAuth.kt`（常量）+ `flutter_debug_control_plane/android/src/test/kotlin/com/pantas/debug/controlplane/flutter/PluginDebugAuthManagerTest.kt`（新增用例）
 - 改动类型：修改
@@ -117,7 +117,7 @@ contextMdPaths:
 - 关键代码片段：`private val defaultTokenTtlSeconds: Long = DEFAULT_TOKEN_TTL_SECONDS // companion: const val DEFAULT_TOKEN_TTL_SECONDS = 604800L`
 - 改动理由/上下文：默认值属 plugin 行为层全宿主免配置；1h 对自动化循环过短，7 天覆盖一个开发周。
 
-## R004-BF002：验收脚本 install -r 改造 + 端到端 runner
+## R004-BF002：验收脚本 install -r 改造 + 端到端 runner `⬜ 待处理`
 
 - 文件：`.dev-flow/R004/test-overrides/R004-BF002/integration-android.sh`（fork 新建）+ `.dev-flow/R004/test-overrides/R004-BF002/e2e-token-persistence.py`（新建 runner）+ `.dev-flow/R004/evidence/`（evidence 双写）
 - 改动类型：新建

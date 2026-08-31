@@ -87,6 +87,7 @@ from .bridge_client import (
 )
 from .capability_mirror import CapabilityMirror, CapabilitySchema, ToolSpec
 from .semantic_provider import SemanticProvider
+from .token_provider import FileTokenProvider
 
 # ★ BF008-010 (Contract §0.1 边界 1 收尾 + 方案 X): capability-specific semantic
 # sugar 已迁业务侧(强耦合产品 protocol,属业务知识)。平面 server 零业务依赖
@@ -1052,7 +1053,9 @@ def main() -> None:
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
     pool = DevicePool(persist_path=Path.home() / ".debug-control-plane" / "devices.json")
-    client = BridgeClient(pool=pool)
+    client = BridgeClient(
+        pool=pool, token_provider=FileTokenProvider()
+    )
     mirror = CapabilityMirror(client=client)
     server = McpServer(mirror=mirror, client=client, pool=pool)
     server.run_stdio()  # blocks; exits when the AI client closes stdin
