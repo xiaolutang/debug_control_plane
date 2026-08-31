@@ -117,7 +117,7 @@ contextMdPaths:
 - 关键代码片段：`private val defaultTokenTtlSeconds: Long = DEFAULT_TOKEN_TTL_SECONDS // companion: const val DEFAULT_TOKEN_TTL_SECONDS = 604800L`
 - 改动理由/上下文：默认值属 plugin 行为层全宿主免配置；1h 对自动化循环过短，7 天覆盖一个开发周。
 
-## R004-BF002：验收脚本 install -r 改造 + 端到端 runner `⬜ 待处理`
+## R004-BF002：验收脚本 install -r 改造 + 端到端 runner `✅ 已完成`
 
 - 文件：`.dev-flow/R004/test-overrides/R004-BF002/integration-android.sh`（fork 新建）+ `.dev-flow/R004/test-overrides/R004-BF002/e2e-token-persistence.py`（新建 runner）+ `.dev-flow/R004/evidence/`（evidence 双写）
 - 改动类型：新建
@@ -128,7 +128,7 @@ contextMdPaths:
 - risk_tags: [android-device, integration, deferred]
 - smoke_required: true
 - mode: negotiated
-- status: pending
+- status: completed
 - sourceCapabilities: [BF002]
 - sourceSlices: [.dev-flow/R004/analysis/2026-08-31--token-persistence-ttl-script-slice.md]
 - sourceDesigns: [.dev-flow/R004/analysis/2026-08-31--token-persistence-design.md]
