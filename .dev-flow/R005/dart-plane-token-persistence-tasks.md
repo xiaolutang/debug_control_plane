@@ -92,7 +92,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：dart core 是唯一无 token 存储的一端（Kotlin/Python R004 已补）；装饰器形态与 Kotlin `FileBackedPluginDebugAuthStore` 同构，行为心智一致；目录参数化让 core 不感知平台路径（D4）。
 
-## R005-FF001：example 接线 — AcceptanceDebugAuthManager store 注入 + hash 索引 + TTL 7d `▶ 进行中`
+## R005-FF001：example 接线 — AcceptanceDebugAuthManager store 注入 + hash 索引 + TTL 7d `✅ 已完成 (e3680f7)`
 
 - 文件：`flutter_debug_control_plane/example/lib/src/acceptance_plane.dart`（修改）+ `flutter_debug_control_plane/example/pubspec.yaml`（加 path_provider）+ `flutter_debug_control_plane/example/test/acceptance_plane_test.dart`（适配）
 - 改动类型：修改
@@ -103,7 +103,7 @@ contextMdPaths:
 - risk_tags: [flutter, auth, regression]
 - smoke_required: true
 - mode: direct
-- status: in_progress
+- status: completed
 - sourceCapabilities: [FF001]
 - sourceSlices: [S01-dart-token-store]
 - sourceDesigns: [.dev-flow/R005/analysis/2026-09-01--dart-plane-token-persistence-design.md]
@@ -135,7 +135,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：example 是 Dart plane 的参照宿主；装配层默认文件持久化让 iOS 模拟器集成测试无需特殊配置即验证冷重启；manager 缺省内存保持 dart core 语义（D4 两层表述）。
 
-## R005-BF002：集成测试 — iOS 模拟器 token 持久化端到端 5 用例 `⬜ 待处理`
+## R005-BF002：集成测试 — iOS 模拟器 token 持久化端到端 5 用例 `▶ 进行中`
 
 - 文件：`.dev-flow/R005/test-overrides/R005-BF002/ios-simulator-persistence.py`（新建断言脚本）+ `.dev-flow/R005/test-overrides/R005-BF002/run-integration.sh`（新建驱动）+ `python/tests/test_dart_plane_persistence.py`（新建 pytest 入口）+ `.dev-flow/R005/evidence/`（evidence 双写）
 - 改动类型：新建
@@ -146,7 +146,7 @@ contextMdPaths:
 - risk_tags: [ios-simulator, integration, cross-stack]
 - smoke_required: true
 - mode: direct
-- status: pending
+- status: in_progress
 - sourceCapabilities: [BF002]
 - sourceSlices: [S01-dart-token-store]
 - sourceDesigns: [.dev-flow/R005/analysis/2026-09-01--dart-plane-token-persistence-design.md]
