@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "manifest_revision": 4,
-  "manifest_digest": "efd0e801f958597aab9c3baf80db40ac4fa57eea3f1cc20136860a58750cb668",
+  "manifest_revision": 5,
+  "manifest_digest": "91ddf0e7c9ecab6003901681184618619e8fdc6e7e275a2f87127710a3d66465",
   "topic": "token-persistence",
   "requirement_cycle": "R004",
   "analysis_protocol": "v1",
@@ -151,5 +151,19 @@
         ".dev-flow/R004/analysis/2026-08-31--token-persistence-test.md"
       ]
     }
-  }
+  },
+  "integration": {
+    "path": ".dev-flow/R004/analysis/2026-08-31--token-persistence-integration.md",
+    "digest": "d188af18e37daac3bb25254a8034d1a77841cf8e4555c173dfa4bb7e9630a3de",
+    "summary": "R004 token persistence analysis integrated from app-store, python-provider, and ttl-script slices.",
+    "capabilities": [
+      "FF001",
+      "BF001",
+      "FF002",
+      "BF002"
+    ],
+    "split_required": false,
+    "open_issues": []
+  },
+  "bootstrap_legacy": false
 }

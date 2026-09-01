@@ -11,6 +11,10 @@ status: archived
 analysisManifestPath: .dev-flow/R004/analysis/manifest.json
 analysisManifestRevision: 4
 analysisManifestDigest: efd0e801f958597aab9c3baf80db40ac4fa57eea3f1cc20136860a58750cb668
+# 2026-09-01 勘误: 上述 digest 为登记时刻快照,无法从任何存档形态复现(单例偏差,算法本身
+# 经 R001-R003 验证正确)。manifest 已修正至 revision 5 并重算 digest
+# 91ddf0e7c9ecab6003901681184618619e8fdc6e7e275a2f87127710a3d66465,详见
+# analysis/manifest-digest-erratum.md。
 analysisIntegrationPath: .dev-flow/R004/analysis/2026-08-31--token-persistence-integration.md
 bootstrapLegacy: false
 analysisSourceMdPaths:
