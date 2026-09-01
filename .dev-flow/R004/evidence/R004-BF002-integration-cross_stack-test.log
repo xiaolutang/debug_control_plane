@@ -3,7 +3,7 @@ type: test-log
 task_id: R004-BF002
 layer: integration
 domain: cross_stack
-run_at: 2026-08-31T13:50:18Z
+run_at: 2026-09-01T02:29:03Z
 status: pass
 exit_code: 0
 ---

@@ -1,3 +1,17 @@
+## 0.5.0
+
+- 新增 `FileBackedPluginDebugAuthStore`(R004 FF001):token **hash 记录**
+  持久化到 `filesDir/debug_control_plane/debug_auth_tokens.json`——
+  tmp+rename 原子写、损坏回退空、过期记录清理回写;明文 token 永不落盘
+  (pending 组纯内存透传)。`onAttachedToEngine` 惰性升级 InMemory store,
+  内存记录零拷贝迁移,覆盖安装后 token 存活。
+- token TTL 默认 1h → 7 天(R004 FF002,
+  `PluginDebugAuthManager.DEFAULT_TOKEN_TTL_SECONDS = 604800`);显式
+  `ttlSeconds` 覆盖通道语义不变。
+- Dart API 零改动、wire 协议零改动——业务方仅需升级版本号。
+- 真机验收:Xiaomi HyperOS Android 16,6/6 用例(冷重启/覆盖安装/python
+  重启/过期重授权/清装逃生门)。
+
 ## 0.4.0
 
 - 新增 `PageCapabilityScope` helper:业务按 pageId 注册/释放 page 级

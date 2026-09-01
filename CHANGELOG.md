@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.5.0 - 2026-09-01
+
+- Token persistence (R004): debug-plane bearer tokens now survive process
+  restarts on both ends — the approval dialog only appears once per token
+  lifetime instead of once per process.
+- Flutter plugin (Android): `FileBackedPluginDebugAuthStore` persists token
+  **hash records** to `filesDir/debug_control_plane/debug_auth_tokens.json`
+  (atomic tmp+rename, corrupt-fallback-to-empty, expired-row cleanup);
+  plaintext tokens never touch disk. `onAttachedToEngine` upgrades the
+  in-memory store lazily with zero-copy migration.
+- Default token TTL raised from 1h to 7 days
+  (`DEFAULT_TOKEN_TTL_SECONDS = 604800`; explicit `ttlSeconds` overrides
+  unchanged).
+- Python MCP: `FileTokenProvider` persists tokens to
+  `~/.debug-control-plane/tokens.json` (0600 via `os.open`, atomic
+  `os.replace`); claim auto-saves, Bearer auto-reuses, and 401
+  token_expired/token_revoked/invalid_token auto-clear the row.
+- Acceptance: install -r (keep-data) replaces unconditional uninstall in the
+  e2e script; uninstall only via the `DELETE_AND_REINSTALL=1` escape hatch.
+  Verified on Xiaomi HyperOS Android 16: 6/6 e2e cases pass (cold restart,
+  reinstall, python restart, expiry re-auth, fresh-install reset).
+
 ## 0.4.0 - 2026-08-27
 
 - Protocol: capabilities now carry app/page dual scope metadata

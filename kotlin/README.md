@@ -16,7 +16,7 @@ repositories {
 
 // 模块依赖
 dependencies {
-    implementation("com.github.xiaolutang:debug_control_plane:0.4.0")
+    implementation("com.github.xiaolutang:debug_control_plane:0.5.0")
 }
 ```
 
@@ -146,10 +146,10 @@ plane.register(CounterCapability)   // 重复 id → IllegalArgumentException
 
 Flutter 项目不要直接用本包 —— 用插件
 [`flutter_debug_control_plane`](../flutter_debug_control_plane)（pub.dev
-0.4.0，内部依赖 JitPack 坐标的本核心），Dart 侧 Capability 经
+0.5.0，内部依赖 JitPack 坐标的本核心），Dart 侧 Capability 经
 MethodChannel 注册到原生平面。
 
 ## 版本 / Version
 
-`0.4.0` —— Kotlin/JitPack、Dart core、Flutter plugin 对齐版本，包含
+`0.5.0` —— Kotlin/JitPack、Dart core、Flutter plugin 对齐版本，包含
 Android 真机认证验收 app 相关修正。协议仍是 `protocolVersion=1`。

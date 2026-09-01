@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0 - 2026-09-01
+
+- Version alignment only (no Dart-core API changes this release): token
+  persistence and the 7-day default TTL live in the Flutter plugin's Android
+  side and the Python MCP host.
+
 ## 0.4.0 - 2026-08-27
 
 - Capability scope model: `CapabilityScope.app()/page()` identity with
