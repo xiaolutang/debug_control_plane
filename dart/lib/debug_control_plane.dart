@@ -16,6 +16,7 @@ library debug_control_plane;
 export 'src/control_plane.dart';
 export 'src/capability.dart';
 export 'src/debug_auth.dart';
+export 'src/debug_auth_store.dart';
 export 'src/transport.dart';
 export 'src/http_sse_transport.dart';
 export 'src/http_codec.dart';

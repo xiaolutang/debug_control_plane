@@ -1,0 +1,23 @@
+---
+type: test-log
+task_id: R005-BF001
+layer: unit
+domain: backend
+run_at: 2026-09-01T00:00:00Z
+status: pass
+exit_code: 0
+deferred_reason: 
+---
+
+# Test Log: R005-BF001 (unit.backend)
+
+## Test Command
+- command: cd dart && flutter test
+
+## Output (tail)
+
+00:00 +125: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_test.dart: ControlPlane lifecycle start wires handler and binds; stop closes transport
+00:00 +126: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_test.dart: RouteFailure implements Exception and stringifies
+00:00 +127: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_test.dart: RouteResult factories ok wraps body with 200
+00:00 +128: /Users/tangxiaolu/project/debug_control_plane/dart/test/control_plane_test.dart: RouteResult factories error builds {ok:false, code, message} + extra
+00:00 +129: All tests passed!
