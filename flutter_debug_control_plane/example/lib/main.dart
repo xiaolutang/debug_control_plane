@@ -11,7 +11,16 @@ import 'src/acceptance_plane.dart' show AcceptanceRequestLogEntry;
 import 'src/android_native_plane.dart';
 import 'src/auth_dialog.dart';
 
-void main() => runApp(const AcceptanceApp());
+/// R005-FF001 (DEC-R005-006): attach the file-backed token store at app
+/// assembly time, before the plane starts and before any claim can happen,
+/// so cold-restart token persistence (I2) holds on devices/simulators.
+Future<void> main() async {
+  // Ensure the bindings are ready for path_provider's platform channel.
+  WidgetsFlutterBinding.ensureInitialized();
+  final controller = createAcceptanceController();
+  await controller.ensurePersistentStore();
+  runApp(AcceptanceApp(controller: controller));
+}
 
 /// Plane mode selection (DEC-R002-005): Android devices run the debug plane
 /// in the native process via the plugin bridge; everywhere else (iOS

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:debug_control_plane/debug_control_plane.dart';
+import 'package:path_provider/path_provider.dart';
 
 typedef AcceptanceRequestLogSink = void Function(AcceptanceRequestLogEntry);
 
@@ -11,20 +12,55 @@ class AcceptancePlane {
     AcceptanceRequestLogSink? onRequestLog,
     DateTime Function()? now,
     Random? random,
+    DebugAuthStore? store,
   }) : authManager = AcceptanceDebugAuthManager(
           onRequestLog: onRequestLog,
           now: now ?? DateTime.now,
           random: random ?? Random.secure(),
+          store: store,
         );
 
   final AcceptanceDebugAuthManager authManager;
 
   ControlPlane? _plane;
   Uri? _endpoint;
+  bool _persistentStoreAttached = false;
 
   Uri? get endpoint => _endpoint;
 
   bool get isRunning => _endpoint != null;
+
+  /// Attaches the default file-backed token store (documents directory via
+  /// path_provider) and migrates any in-memory tokens into it.
+  ///
+  /// Idempotent: a no-op once already attached. Fails soft — when the platform
+  /// documents directory is unavailable (e.g. flutter_test's
+  /// MissingPluginException, pure Dart hosts) the manager keeps its in-memory
+  /// store and this returns without throwing.
+  Future<void> ensurePersistentStore() async {
+    if (_persistentStoreAttached) return;
+    _persistentStoreAttached = true;
+    if (authManager.usesDefaultInMemoryStore) {
+      try {
+        final docs = await getApplicationDocumentsDirectory();
+        final directory = Directory(
+          '${docs.path}${Platform.pathSeparator}debug_control_plane',
+        );
+        await directory.create(recursive: true);
+        final persistent = FileBackedDebugAuthStore(directory: directory.path);
+        authManager.swapStore(persistent);
+      } catch (error) {
+        // Fail-soft: keep the in-memory store when the platform directory
+        // channel is unavailable (tests, non-Flutter hosts).
+        authManager.recordSystem(
+          route: '/auth/token',
+          statusCode: 200,
+          authResult: 'persistent_store_unavailable',
+          message: 'File-backed token store unavailable: $error',
+        );
+      }
+    }
+  }
 
   Future<Uri> startDartPlane({
     Object? address,
@@ -85,11 +121,14 @@ class AcceptanceDebugAuthManager implements DebugAuthManager {
     AcceptanceRequestLogSink? onRequestLog,
     DateTime Function()? now,
     Random? random,
-    Duration tokenTtl = const Duration(minutes: 15),
+    DebugAuthStore? store,
+    Duration tokenTtl = const Duration(days: 7),
   })  : _onRequestLog = onRequestLog,
         _now = now ?? DateTime.now,
         _random = random ?? Random.secure(),
-        _tokenTtl = tokenTtl;
+        _tokenTtl = tokenTtl,
+        _store = store ?? InMemoryDebugAuthStore(),
+        _explicitStore = store != null;
 
   final AcceptanceRequestLogSink? _onRequestLog;
   final DateTime Function() _now;
@@ -97,7 +136,15 @@ class AcceptanceDebugAuthManager implements DebugAuthManager {
   final Duration _tokenTtl;
   final Map<String, _PendingAuthorization> _pending =
       <String, _PendingAuthorization>{};
-  final Map<String, _IssuedToken> _tokens = <String, _IssuedToken>{};
+  DebugAuthStore _store;
+  final bool _explicitStore;
+
+  /// UI-demo convenience: in-memory expiry overrides keyed by token hash.
+  ///
+  /// Never persisted — lets [expireToken] make an individual token act as
+  /// `token_expired` immediately without abusing the revoke semantics of the
+  /// immutable store records (DEC-R005-005).
+  final Map<String, DateTime> _expiryOverrides = <String, DateTime>{};
 
   String? _activeToken;
   int _logSequence = 0;
@@ -107,6 +154,29 @@ class AcceptanceDebugAuthManager implements DebugAuthManager {
   String? get activeToken => _activeToken;
 
   Iterable<String> get pendingRequestIds => _pending.keys;
+
+  /// Whether [swapStore] may still replace the backing store (the
+  /// constructor-default in-memory store is in place and no explicit store
+  /// was injected).
+  bool get usesDefaultInMemoryStore =>
+      _store is InMemoryDebugAuthStore && !_explicitStore;
+
+  /// Assembly-time store replacement (R005-FF001).
+  ///
+  /// Swaps the backing store, migrating every record from the current
+  /// in-memory store into [replacement] before the swap so no live token is
+  /// lost. Intended for the acceptance plane's lazy file-store attach; not
+  /// part of the wire contract.
+  void swapStore(DebugAuthStore replacement) {
+    if (identical(replacement, _store)) return;
+    final current = _store;
+    if (current is InMemoryDebugAuthStore) {
+      for (final record in current.snapshot()) {
+        replacement.putToken(record);
+      }
+    }
+    _store = replacement;
+  }
 
   Future<void> approvePending(String requestId) async {
     final pending = _pending[requestId];
@@ -138,7 +208,7 @@ class AcceptanceDebugAuthManager implements DebugAuthManager {
 
   void clearToken() {
     if (_activeToken != null) {
-      _tokens.remove(_activeToken);
+      _store.markAllRevoked(_now());
     }
     _activeToken = null;
     recordSystem(
@@ -151,9 +221,10 @@ class AcceptanceDebugAuthManager implements DebugAuthManager {
   void expireToken() {
     final token = _activeToken;
     if (token == null) return;
-    final issued = _tokens[token];
-    if (issued == null) return;
-    issued.expiresAt = _now().subtract(const Duration(seconds: 1));
+    final hash = debugAuthTokenHash(token);
+    final record = _store.tokenByHash(hash);
+    if (record == null) return;
+    _expiryOverrides[hash] = _now().subtract(const Duration(seconds: 1));
     recordSystem(
       route: '/auth/token',
       statusCode: 200,
@@ -205,13 +276,18 @@ class AcceptanceDebugAuthManager implements DebugAuthManager {
       _emitDenied(request, DebugAuth.authorizationRequired());
       return DebugAuth.authorizationRequired();
     }
-    final issued = _tokens[token];
-    if (issued == null) {
+    final record = _store.tokenByHash(debugAuthTokenHash(token));
+    if (record == null) {
       final denied = DebugAuth.invalidToken();
       _emitDenied(request, denied);
       return denied;
     }
-    if (!issued.expiresAt.isAfter(_now())) {
+    if (record.revokedAt != null) {
+      final denied = DebugAuth.tokenRevoked();
+      _emitDenied(request, denied);
+      return denied;
+    }
+    if (!_effectiveExpiresAt(record).isAfter(_now())) {
       final denied = DebugAuth.tokenExpired();
       _emitDenied(request, denied);
       return denied;
@@ -220,11 +296,24 @@ class AcceptanceDebugAuthManager implements DebugAuthManager {
     return const AuthAuthorized();
   }
 
+  /// Effective expiry = min(record.expiresAt, in-memory override).
+  DateTime _effectiveExpiresAt(TokenRecord record) {
+    final override = _expiryOverrides[record.tokenHash];
+    if (override != null && override.isBefore(record.expiresAt)) {
+      return override;
+    }
+    return record.expiresAt;
+  }
+
   @override
   Future<Map<String, Object?>> helloAuthState(String? token) async {
-    final hasValidToken = token != null &&
-        _tokens[token] != null &&
-        _tokens[token]!.expiresAt.isAfter(_now());
+    var hasValidToken = false;
+    if (token != null) {
+      final record = _store.tokenByHash(debugAuthTokenHash(token));
+      hasValidToken = record != null &&
+          record.revokedAt == null &&
+          _effectiveExpiresAt(record).isAfter(_now());
+    }
     return <String, Object?>{
       'authRequired': true,
       'authStatus': hasValidToken ? 'authorized' : 'authorization_required',
@@ -351,12 +440,13 @@ class AcceptanceDebugAuthManager implements DebugAuthManager {
     final token = _newId('tok');
     final tokenId = _newId('token');
     final expiresAt = _now().add(_tokenTtl);
-    _tokens[token] = _IssuedToken(
+    _store.putToken(TokenRecord(
       tokenId: tokenId,
-      token: token,
+      tokenHash: debugAuthTokenHash(token),
+      createdAt: _now(),
       expiresAt: expiresAt,
-      requestId: pending.requestId,
-    );
+      clientLabel: pending.clientLabel,
+    ));
     _activeToken = token;
     _pending.remove(pending.requestId);
     _emit(
@@ -520,20 +610,6 @@ class _PendingAuthorization {
   final String clientLabel;
   final DateTime createdAt;
   AcceptanceAuthStatus status;
-}
-
-class _IssuedToken {
-  _IssuedToken({
-    required this.tokenId,
-    required this.token,
-    required this.expiresAt,
-    required this.requestId,
-  });
-
-  final String tokenId;
-  final String token;
-  DateTime expiresAt;
-  final String requestId;
 }
 
 abstract class _AcceptanceCapability implements Capability {

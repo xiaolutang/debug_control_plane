@@ -13,6 +13,7 @@ dependencies:
     path: ../../dart
   flutter_debug_control_plane:
     path: ../
+  path_provider: ^2.1.0
 
 dependency_overrides:
   debug_control_plane:

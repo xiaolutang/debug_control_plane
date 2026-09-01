@@ -1,0 +1,21 @@
+---
+type: test-log
+task_id: R005-FF001
+layer: unit
+domain: flutter
+run_at: 2026-09-01T00:00:00Z
+status: pass
+exit_code: 0
+deferred_reason: 
+---
+
+# Test Log: R005-FF001 (unit.flutter)
+
+## Test Command
+- command: cd flutter_debug_control_plane/example && flutter test
+
+## Output (tail)
+
+00:01 +52: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/page_capability_scope_demo_test.dart: degraded path (non-Android bridge) registration failure over the distinct demo channel surfaces error text, keeps count at 0 and does not crash
+00:01 +53: /Users/tangxiaolu/project/debug_control_plane/flutter_debug_control_plane/example/test/page_capability_scope_demo_test.dart: production assembly (evaluate round-2 fix) AcceptanceApp wires resolveDemoBridge: an AndroidNativePlane-hosted controller hands the demo the host bridge instance, not the degraded demo-channel bridge
+00:01 +54: All tests passed!

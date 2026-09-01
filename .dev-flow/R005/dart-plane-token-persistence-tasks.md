@@ -113,6 +113,7 @@ contextMdPaths:
 - contract_refs: []
 - decision_refs: [D3, D4, D5]
 - blocked_files: [dart/lib/, kotlin/, python/, PROTOCOL.md, flutter_debug_control_plane/lib/]
+- visual-verify 不适用：本任务无新增 UI 元素（行为增强非 UI 变更，复用 R002 既有 acceptance.auth_dialog.* 标识；plan-review A1 豁免判定）
 - 具体改动点：R005-FF001.1 `acceptance_plane.dart`：`AcceptanceDebugAuthManager` 构造加 `DebugAuthStore? store`（缺省 InMemory）+ `tokenTtl` 默认改 `Duration(days: 7)`；R005-FF001.2 校验路径 hash 化（authorize/helloAuthState/claim 三处）；R005-FF001.3 `AcceptancePlane` 装配层默认注入 FileBacked（path_provider documents 目录，异步装配：store 目录解析完成前 manager 用内存版，避免构造顺序耦合）；R005-FF001.4 既有测试适配 + E1-E5。
 - 关键代码片段：
   ```dart

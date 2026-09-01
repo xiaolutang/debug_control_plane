@@ -94,6 +94,16 @@ class AcceptanceController extends ChangeNotifier {
     return _startingFuture!;
   }
 
+  /// R005-FF001: attaches the plane's default file-backed token store before
+  /// the plane starts (assembly-layer persistence, DEC-R005-006). No-op for
+  /// hosts without a Dart-plane store (e.g. the Android native bridge).
+  Future<void> ensurePersistentStore() async {
+    final host = this.host;
+    if (host is DartPlaneHost) {
+      await host.plane.ensurePersistentStore();
+    }
+  }
+
   Future<void> _doStart() async {
     planeStatus = AcceptancePlaneStatus.starting;
     notifyListeners();
