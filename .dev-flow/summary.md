@@ -1,5 +1,16 @@
 # 项目变更摘要
 
+## 2026-09-01
+
+- 归档 R004 `token-persistence`：token 生命周期从进程生命周期升级为跨进程持久化,授权弹窗只在首次出现(app 冷重启/覆盖安装/python 重停/token 过期不再人工介入)。
+- app 侧(Kotlin plugin)`FileBackedPluginDebugAuthStore` 装饰器:hash 记录落 `filesDir/debug_auth_tokens.json`(tmp+rename 原子写,损坏回退空,过期清理回写);`onAttachedToEngine` 惰性升级 InMemory→FileBacked 零拷贝迁移;红线:明文 token 永不落盘(pending 组纯内存透传)。
+- python 侧 `FileTokenProvider`(`~/.debug-control-plane/tokens.json`,os.open 0600 绕 umask + os.replace 原子替换):claim 自动落盘,Bearer 自动复用,401 三码(token_expired/token_revoked/invalid_token)联动清行;main() 注入。
+- token TTL 默认 1h→7 天(`DEFAULT_TOKEN_TTL_SECONDS=604800` 挂 PluginDebugAuthManager.companion,显式 ttlSeconds 通道语义不变)。
+- 验收脚本 fork R003-BF008 → R004 test-override 副本:uninstall 仅 `DELETE_AND_REINSTALL=1` 逃生门执行,安装统一 `install -r`,APK 未变快速路径保留(压制 HyperOS 安装弹窗与 auth 弹窗机制分工写入注释);端到端 runner 6 用例 + deferred 契约。
+- iOS 模拟器集成验证(iPhone 16e 真实 Dart plane):BF001 全链路 4/4 场景 pass(授权落盘 0600/新进程免授权/过期清行+401 联动/wire 回归)+ 既有验收集 4 passed 零回归;FF001/FF002(Kotlin)iOS 无代码路径,android JVM 81 用例覆盖。
+- 真机 deferred 债务:e2e 用例 1/2/3/6(设备 23116PN5BC 在场时经 `.dev-flow/R004/test-overrides/R004-BF002/integration-android.sh` 回收,用例 6 需 `DELETE_AND_REINSTALL=1` 单独轮次)。
+- visual-verify 接入状态：R004 FF001/FF002 domain=ui 但为纯持久化/常量任务(无新 UI 面),visual-verify 由 evaluate subagent 以 DEFERRED 判定(无视觉面可采集);独立 collector(collectors/flutter/)未接入,与 R002/R003 同作后续技术债。
+
 ## 2026-08-27
 
 - 归档 R003 `capability-scope-split`：capability 注册引入 app/page 双 scope 模型,page 级生命周期(进入注册/离开释放/gone 后 410 + refresh 提示)四端落地。

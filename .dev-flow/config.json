@@ -1,7 +1,7 @@
 {
   "version": "3.0",
   "project": "debug_control_plane",
-  "active_rc": "R004",
+  "active_rc": null,
   "default_workflow": null,
   "project_capabilities": {
     "schema_version": 2,
@@ -91,6 +91,13 @@
       "archive_dir": "R003",
       "total_tasks": 12,
       "completed_at": "2026-08-27T13:53:52+08:00"
+    },
+    {
+      "id": "R004",
+      "name": "token-persistence",
+      "archive_dir": "R004",
+      "total_tasks": 4,
+      "completed_at": "2026-09-01T10:19:15+08:00"
     }
   ],
   "rc_queue": [
@@ -127,35 +134,6 @@
           "degraded_reason": null
         }
       }
-    },
-    {
-      "id": "R004",
-      "requirement_cycle": "R004",
-      "status": "active",
-      "name": "token-persistence",
-      "topic": "token-persistence",
-      "analysis_topic": "token-persistence",
-      "version": "1.0",
-      "workflow": {
-        "evaluate_provider": "direct_subagent",
-        "mode": "auto"
-      },
-      "source": {
-        "tasks": ".dev-flow/R004/token-persistence-tasks.md",
-        "analysis_manifest": ".dev-flow/R004/analysis/manifest.json",
-        "design": ".dev-flow/R004/analysis/2026-08-31--token-persistence-design.md",
-        "test": ".dev-flow/R004/analysis/2026-08-31--token-persistence-test.md",
-        "acceptance_spec": ".dev-flow/R004/analysis/2026-08-31--token-persistence-acceptance-spec.yaml"
-      },
-      "review_evidence": {
-        "type": "plan_review",
-        "verdict": "PASS",
-        "report_path": ".dev-flow/R004/analysis/reviews/2026-08-31T18-10-00-plan-PASS.md",
-        "manifest_revision": 4,
-        "manifest_digest": "efd0e801f958597aab9c3baf80db40ac4fa57eea3f1cc20136860a58750cb668",
-        "review_round": 2,
-        "execution_id": "xlf-subagent:R004:plan-review:02"
-      }
     }
   ],
   "release_management": {
@@ -188,8 +166,12 @@
       },
       "0.5.0": {
         "status": "in-progress",
-        "rc_ids": [],
-        "completed_rcs": [],
+        "rc_ids": [
+          "R004"
+        ],
+        "completed_rcs": [
+          "R004"
+        ],
         "released_at": null
       }
     }

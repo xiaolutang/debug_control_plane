@@ -26,6 +26,9 @@ flowchart TD
 - `BridgeClient`：Python 端 device_id 到 App debug plane HTTP 请求转发。
 - `CapabilityMirror`：把 `/hello.registeredCapabilities` 映射成 MCP tool manifest，镜像 scope 元数据并刷新 stale page tool。
 - `McpServer`：把 Python adapter 暴露为 MCP stdio server。
+- `FileBackedPluginDebugAuthStore`：app 侧 token 持久化装饰器（hash 记录落 filesDir，原子写/损坏回退/过期清理；明文永不落盘），attach 惰性升级 InMemory。
+- `FileTokenProvider`：python 侧 token 持久化（~/.debug-control-plane/tokens.json 0600，claim 落盘 / Bearer 复用 / 401 三码联动清行）。
+- `TokenTtl`：默认 7 天（DEFAULT_TOKEN_TTL_SECONDS=604800，显式 ttlSeconds 覆盖通道不变）。
 
 ## 已归档能力
 
@@ -33,3 +36,4 @@ flowchart TD
 - R002：Flutter 真实宿主验收 App、App 侧授权弹窗/请求日志、Python acceptance runner、Android native bridge 真机验收路径。
 - `0.3.0`：Kotlin/Dart/Flutter/Python 四端对齐发布，协议版本仍为 `protocolVersion=1`。
 - R003：app/page 双 scope capability 模型、三方同构 scoped key、scoped selector dispatch（gone→410+refresh）、Page Scope Demo 验收页、ci-check-all `[9]` 跨语言守卫、Android 真机三阶段验收（含 410 gone 直证）。
+- R004：token 跨进程持久化（app FileBacked store + python FileTokenProvider 0600）、TTL 默认 7 天、install -r 验收脚本（uninstall 仅逃生门）；授权弹窗只弹首次。
