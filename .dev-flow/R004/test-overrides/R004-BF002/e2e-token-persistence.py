@@ -252,6 +252,10 @@ def ensure_token(host: str, serial: str) -> tuple[str, dict]:
 
     需要真机人工 approve(脚本使用者按 app 弹窗确认)。claim 成功时
     BridgeClient 自动经 FileTokenProvider 落盘。
+
+    顺序修正(2026-09-01 真机回收发现):Kotlin 契约下 pending 期 claim
+    返回 401 authorization_required,直接轮询 claim 会让第一轮就被
+    DeviceAuthError 中断 —— 必须先轮询 auth_status 到 approved 再 claim。
     """
     provider = FileTokenProvider()
     client = make_client(host, provider)
@@ -266,12 +270,15 @@ def ensure_token(host: str, serial: str) -> tuple[str, dict]:
     claim = None
     while time.time() < deadline:
         time.sleep(5)
+        status = client.auth_status("__e2e__", request_id, nonce)
+        if not (isinstance(status, dict) and status.get("status") == "approved"):
+            continue
         claim = client.auth_claim("__e2e__", request_id, nonce)
         if isinstance(claim, dict) and isinstance(claim.get("token"), str):
             token = claim["token"]
             break
     if token is None:
-        raise RuntimeError(f"claim 未在 90s 内成功: {claim!r}")
+        raise RuntimeError(f"claim 未在 90s 内成功(未被 approve?): {claim!r}")
     return token, claim
 
 
@@ -302,17 +309,23 @@ def case1(host: str, serial: str, package: str) -> None:
     row = existing_device_row()
     if row is not None:
         token, meta = row
-        status, _ = raw_bearer_hello(host, token)
-        if status != 200:
+        status, body = raw_bearer_hello(host, token)
+        # /hello 是 bootstrap 握手路由:任何 Bearer 都回 200,有效性看
+        # 响应体 authStatus(2026-09-01 真机实证,与 case6 同源修正)。
+        auth_status = body.get("authStatus") if isinstance(body, dict) else None
+        if status != 200 or auth_status != "authorized":
             # 落盘 token 已不可用(设备清装/过期),走完整授权链
+            print(f"  落盘 token 不可用(authStatus={auth_status}),走完整授权链...")
             row = None
     if row is None:
         token, claim = ensure_token(host, serial)
         meta = claim
     provider = FileTokenProvider()
-    # python 侧断言
-    got = provider.get_token(list(json.loads(TOKENS_JSON.read_text())["tokens"])[0]) \
-        if TOKENS_JSON.exists() else None
+    # python 侧断言:新实例真实读盘,按本轮 device_id(__e2e__)取行。
+    # (修正:原实现取 tokens 首键,与 ensure_token 落盘的 __e2e__ 键
+    # 不一致 —— 逃生门轮 tokens.json 只剩 __e2e__ 行时首键恰巧命中,
+    # 常规轮含 manual 历史行时首键错位导致误报。)
+    got = provider.get_token("__e2e__") if TOKENS_JSON.exists() else None
     ok = got == token
     # expiresAt ≈ 7d
     expires_at = meta.get("expiresAt", "")
@@ -329,14 +342,58 @@ def case1(host: str, serial: str, package: str) -> None:
     print(f"  python侧文件命中={ok};{delta_desc};app侧文件存在={app_ok}")
 
 
-def case2(host: str, serial: str, activity: str) -> None:
+def rediscover_forward(serial: str, package: str, host: str) -> bool:
+    """app 重启后 plane 换随机端口 → 重新发现并重建 adb forward。
+
+    发现算法与外层脚本 find_plane_port 同源:/proc/<pid>/net/tcp6 按
+    app uid 过滤 LISTEN(0x0A)行取端口(排除 adbd uid-1000 监听)。
+    2026-09-01 真机回收实证:冷重启/清装(uid 变更)两场景均命中。
+    """
+    if host != DEFAULT_HOST:
+        return True  # 非本机 forward 通道(LAN 直连),无需处理
+    for _ in range(12):
+        pid = adb("shell", "pidof", package, serial=serial)
+        if not pid:
+            time.sleep(5)
+            continue
+        uid = adb("shell", "stat", "-c", "%u", f"/proc/{pid.split()[0]}", serial=serial)
+        if not uid.isdigit():
+            time.sleep(5)
+            continue
+        out = adb(
+            "shell",
+            f"cat /proc/{pid.split()[0]}/net/tcp6",
+            serial=serial,
+        )
+        hex_port = ""
+        for line in out.splitlines():
+            parts = line.split()
+            if len(parts) >= 8 and parts[3] == "0A" and parts[7] == uid:
+                hex_port = parts[1].split(":")[-1]
+                break
+        if hex_port:
+            port = int(hex_port, 16)
+            adb("forward", "--remove", f"tcp:{PORT}", serial=serial)
+            adb("forward", f"tcp:{PORT}", f"tcp:{port}", serial=serial)
+            return True
+        time.sleep(5)
+    return False
+
+
+def case2(host: str, serial: str, activity: str, package: str = "") -> None:
     token, _ = require_token()
     adb("shell", "am", "force-stop", activity.split("/")[0], serial=serial)
     time.sleep(2)
     adb("shell", "am", "start", "-W", "-n", activity, serial=serial)
     time.sleep(6)
+    # 冷重启后 plane 端口变化 → 重新发现并重建 forward
+    if package and not rediscover_forward(serial, package, host):
+        results["case2"] = "fail"
+        print("  FAIL: 冷重启后未能重新发现 plane 端口")
+        return
     status, body = raw_bearer_hello(host, token)
-    results["case2"] = "pass" if status == 200 else "fail"
+    auth_ok = isinstance(body, dict) and body.get("authStatus") == "authorized"
+    results["case2"] = "pass" if (status == 200 and auth_ok) else "fail"
     print(f"  force-stop+start 后旧 token /hello → {status} {body!r:.80}")
 
 
@@ -348,7 +405,8 @@ def case3(host: str) -> None:
     """
     token, _ = require_token()
     status, body = raw_bearer_hello(host, token)
-    results["case3"] = "pass" if status == 200 else "fail"
+    auth_ok = isinstance(body, dict) and body.get("authStatus") == "authorized"
+    results["case3"] = "pass" if (status == 200 and auth_ok) else "fail"
     print(f"  install -r 后旧 token /hello → {status} {body!r:.80}")
 
 
@@ -358,10 +416,12 @@ def case4() -> None:
         results["case4"] = "skipped"
         print("  skip(setup_required): tokens.json 不存在(用例 1 未产出)")
         return
+    # (修正:不再排除 __e2e__ —— 本轮 case1 的落盘 key 就是 __e2e__,
+    # 新进程命中任意未过期行即证明「重启免 auth」语义。)
     code = (
         "import sys,json,pathlib;"
         "d=json.loads(pathlib.Path.home().joinpath('.debug-control-plane/tokens.json').read_text());"
-        "rows={k:v for k,v in d.get('tokens',{}).items() if k!='__e2e__'};"
+        "rows=list(d.get('tokens',{}).keys());"
         "sys.path.insert(0,sys.argv[1]);"
         "from debug_control_plane.mcp_plane.token_provider import FileTokenProvider;"
         "p=FileTokenProvider();"
@@ -423,26 +483,57 @@ def case5(host: str, serial: str) -> None:
     print(f"  过期行 get_token=None(python 读时判定)+ 授权链可达={reachable}")
 
 
-def case6(host: str) -> None:
-    """清装逃生门:需 DELETE_AND_REINSTALL=1 轮次。本轮非逃生门则 deferred。"""
+def case6(host: str, stale_token_file: str = "") -> None:
+    """清装逃生门:需 DELETE_AND_REINSTALL=1 轮次。本轮非逃生门则 deferred。
+
+    断言修正(2026-09-01 真机实证,两处):
+    1. /hello 是 bootstrap 握手路由,对任何 Bearer 都回 200(区别在响应体
+       authStatus);「401 invalid_token」只出现在敏感路由。正确断言 =
+       authStatus == "invalid_token"。原 status==401 断言恒假。
+    2. 断言对象必须是「uninstall 前的旧 token」:本轮 case1 已在清装后
+       重新授权出新 token,拿新 token 断言 authorized 恒假。外层脚本在
+       uninstall 前快照旧 token 经 --stale-token-file 传入;无快照时
+       skip(setup_required) 而非误报。
+    """
     if os.environ.get("DELETE_AND_REINSTALL") != "1":
         results["case6"] = "deferred"
         print("  deferred(device_required): 用例 6 需 DELETE_AND_REINSTALL=1 单独轮次")
         return
-    token, _ = require_token()
-    status, body = raw_bearer_hello(host, token)
-    code = auth_error_code(status, body)
-    ok = status == 401 and code == "invalid_token"
+    stale = ""
+    if stale_token_file and Path(stale_token_file).exists():
+        stale = Path(stale_token_file).read_text(encoding="utf-8").strip()
+    if not stale:
+        results["case6"] = "skipped"
+        print("  skip(setup_required): 无 uninstall 前旧 token 快照(--stale-token-file)")
+        return
+    status, body = raw_bearer_hello(host, stale)
+    auth_status = body.get("authStatus") if isinstance(body, dict) else None
+    ok = status == 200 and auth_status == "invalid_token"
     results["case6"] = "pass" if ok else "fail"
-    print(f"  清装后旧 token /hello → {status} code={code}(期望 401 invalid_token)")
+    print(f"  清装后 uninstall 前旧 token /hello → {status} authStatus={auth_status}"
+          f"(期望 200 + authStatus=invalid_token,授权弹窗回归)")
 
 
 _cached_token: tuple[str, dict] | None = None
 
 
 def require_token() -> tuple[str, dict]:
+    """本轮有效 token:优先 case1 产物(__e2e__ 行),回退历史行。
+
+    (修正:原实现只查 existing_device_row(排除 __e2e__),逃生门轮
+    case1 刚落的新 token 拿不到,fallback 到清装前的失效历史行。)
+    """
     global _cached_token
     if _cached_token is None:
+        if TOKENS_JSON.exists():
+            try:
+                data = json.loads(TOKENS_JSON.read_text(encoding="utf-8"))
+                row = data.get("tokens", {}).get("__e2e__")
+                if isinstance(row, dict) and isinstance(row.get("token"), str):
+                    _cached_token = (row["token"], row)
+                    return _cached_token
+            except ValueError:
+                pass
         row = existing_device_row()
         if row is None:
             raise RuntimeError("无可复用 token(用例 1 失败或未执行)")
@@ -463,7 +554,8 @@ def overall_status() -> str:
     if results.get("case4") == "fail" or results.get("case5") == "fail":
         return "fail"
     if any(results.get(c) == "pass" for c in device_cases):
-        # 真机在场路径:device 用例必须 pass(deferred 的 case6 除外)
+        # 真机在场路径:device 用例必须 pass(deferred/skipped 的 case6 除外
+        # —— skipped = 无 uninstall 前快照,setup_required 契约内)
         for case_id in ("case1", "case2", "case3"):
             if results.get(case_id) != "pass":
                 return "fail"
@@ -483,6 +575,8 @@ def main() -> int:
     ap.add_argument("--log", default="")
     ap.add_argument("--cross-log", required=True)
     ap.add_argument("--scope-md", default="")
+    ap.add_argument("--stale-token-file", default="",
+                    help="uninstall 前旧 token 快照(逃生门轮 case6 断言对象)")
     ap.add_argument("--run-at", default=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
     args = ap.parse_args()
 
@@ -508,7 +602,7 @@ def main() -> int:
             print(f"  FAIL: {exc!r}")
         print("[case2] app 冷重启旧 token ...")
         try:
-            case2(args.host, args.serial, args.activity)
+            case2(args.host, args.serial, args.activity, args.package)
         except Exception as exc:  # noqa: BLE001
             results["case2"] = "fail"
             print(f"  FAIL: {exc!r}")
@@ -533,7 +627,7 @@ def main() -> int:
         print(f"  FAIL: {exc!r}")
     print("[case6] 清装逃生门 ...")
     try:
-        case6(args.host)
+        case6(args.host, args.stale_token_file)
     except Exception as exc:  # noqa: BLE001
         results["case6"] = "fail"
         print(f"  FAIL: {exc!r}")

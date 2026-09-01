@@ -202,6 +202,32 @@ echo "OK: $DEVICE_SERIAL ($DEVICE_MODEL, Android $OS_VERSION)"
 PACKAGE_NAME="$(get_package_name)"
 if [[ "${DELETE_AND_REINSTALL:-0}" == "1" ]]; then
   echo "[2/6] 逃生门模式(DELETE_AND_REINSTALL=1):uninstall 清装(等价首次)..."
+  # 用例 6 语义修正(2026-09-01):断言对象是「uninstall 前的旧 token 在
+  # 清装后失效」。本轮 case1 会在清装后重新授权出新 token,所以必须在
+  # uninstall 抹数据前把 python 侧现有 token 快照下来传给 runner ——
+  # 否则 case6 拿到的是新 token,断言 authorized 恒假(实测踩坑)。
+  STALE_TOKEN_FILE="$WORK_DIR/pre-uninstall-token.txt"
+  python3 - "$STALE_TOKEN_FILE" <<'SNAP'
+import json, sys
+from pathlib import Path
+snap = Path(sys.argv[1])
+tj = Path.home() / ".debug-control-plane" / "tokens.json"
+if tj.exists():
+    try:
+        data = json.loads(tj.read_text(encoding="utf-8"))
+        row = data.get("tokens", {}).get("__e2e__")
+        if isinstance(row, dict) and isinstance(row.get("token"), str):
+            snap.write_text(row["token"], encoding="utf-8")
+            print("  已快照 uninstall 前旧 token(供 case6 断言)")
+            raise SystemExit(0)
+        row = next(iter(data.get("tokens", {}).values()), None)
+        if isinstance(row, dict) and isinstance(row.get("token"), str):
+            snap.write_text(row["token"], encoding="utf-8")
+            print("  已快照 uninstall 前历史 token(供 case6 断言)")
+    except ValueError:
+        pass
+print("  (无已落盘 token 可快照 —— case6 将 skip(setup_required))")
+SNAP
   adb_cmd uninstall "$PACKAGE_NAME" >/dev/null 2>&1 || true
   APK_ALREADY_INSTALLED=0
 elif adb_cmd shell pm list packages 2>/dev/null | grep -q "^package:${PACKAGE_NAME}$"; then
@@ -249,7 +275,7 @@ else
   echo "OK: $INSTALL_OUT"
 fi
 
-# --- 步骤 5:启动 app --------------------------------------------------------
+# --- 步骤 5:启动 app + 发现 plane 动态端口并建立 forward ---------------------
 # resolve-activity 对不存在的包返回字符串 "No activity found"(退出码 0),
 # 须校验解析结果确为该包自身组件。
 MAIN_ACTIVITY="$(adb_cmd shell cmd package resolve-activity --brief "$PACKAGE_NAME" 2>/dev/null | tr -d '\r' | tail -1)"
@@ -259,10 +285,47 @@ fi
 echo "[5/6] 启动 app($MAIN_ACTIVITY)..."
 adb_cmd shell am start -W -n "$MAIN_ACTIVITY" >"$WORK_DIR/am-start.log" 2>&1 ||
   echo "WARN: am start 失败(见 $WORK_DIR/am-start.log)" >&2
-sleep 5
+
+# plane 绑 0.0.0.0 随机端口(每次重启变化),python 侧经 adb forward 打
+# 127.0.0.1:18080。发现算法:app 进程 uid 过滤 /proc/<pid>/net/tcp{,6}
+# LISTEN(0x0A)行取端口 —— 排除 adbd 的 reverse 监听(uid 1000)与回环
+# dart 端口,取 tcp6 通配地址(::)上属于 app uid 的监听(plane 语义)。
+# 真机回收实证:2026-09-01 Xiaomi 23116PN5BC 该算法两轮(重启/清装 uid
+# 变更 u0_a847→u0_a848)均命中。
+find_plane_port() {
+  local pid uid hex
+  pid="$(adb_cmd shell pidof "$PACKAGE_NAME" | tr -d '\r ')"
+  [[ -n "$pid" ]] || return 1
+  uid="$(adb_cmd shell stat -c %u "/proc/$pid" | tr -d '\r ')"
+  [[ -n "$uid" ]] || return 1
+  # tcp6 通配(00000000000000000000000000000000:PORT)且属 app uid 的 LISTEN
+  hex="$(adb_cmd shell "cat /proc/$pid/net/tcp6" 2>/dev/null |
+    tr -d '\r' | awk -v u="$uid" '$4=="0A" && $8==u {split($2,a,":"); print a[2]}' | head -1)"
+  [[ -n "$hex" ]] || return 1
+  printf "%d" "0x$hex"
+}
+
+PLANE_PORT=""
+for _ in $(seq 1 12); do
+  PLANE_PORT="$(find_plane_port || true)"
+  [[ -n "$PLANE_PORT" ]] && break
+  sleep 5  # plane 随 app 冷启动渐次就绪(实测首启可达 40s+)
+done
+if [[ -z "$PLANE_PORT" ]]; then
+  echo "FAIL: 未能发现 plane 监听端口(/proc/net/tcp6 无 app uid LISTEN 行)" >&2
+  exit 1
+fi
+echo "OK: plane 端口 = $PLANE_PORT"
+adb forward --remove tcp:18080 >/dev/null 2>&1 || true
+adb forward tcp:18080 tcp:"$PLANE_PORT" >/dev/null
 
 # --- 步骤 6:python e2e runner(6 用例断言,设备侧断言由 python 发起)----------
 # 设备无独立 curl 通道(Dart plane loopback),所有 HTTP 断言 python 侧发起。
+# 逃生门轮透传 uninstall 前旧 token 快照(case6 断言对象)。
+STALE_ARG=""
+if [[ -n "${STALE_TOKEN_FILE:-}" && -f "${STALE_TOKEN_FILE:-}" ]]; then
+  STALE_ARG="--stale-token-file $STALE_TOKEN_FILE"
+fi
 echo "[6/6] 运行 e2e-token-persistence.py(6 用例)..."
 E2E_LOG="$WORK_DIR/e2e-out.log"
 if python3 "$OVERRIDE_DIR/e2e-token-persistence.py" \
@@ -274,6 +337,7 @@ if python3 "$OVERRIDE_DIR/e2e-token-persistence.py" \
     --os-version "$OS_VERSION" \
     --cross-log "$CROSS_LOG" \
     --scope-md "$SCOPE_MD" \
+    ${STALE_ARG} \
     --run-at "$RUN_AT" 2>&1 | tee "$E2E_LOG"; then
   E2E_STATUS="$(grep -m1 '^E2E_STATUS: ' "$E2E_LOG" | sed 's/^E2E_STATUS: //')"
 else
