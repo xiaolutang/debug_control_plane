@@ -1,0 +1,39 @@
+---
+type: test-log
+task_id: R005-BF002
+layer: integration
+domain: cross_stack
+run_at: 2026-09-01T10:21:09Z
+status: pass
+exit_code: 0
+deferred_reason:
+---
+
+# Test Log: R005-BF002 (integration.cross_stack — iOS 模拟器 token 持久化 I1-I5)
+
+- status: pass
+- device: iOS Simulator (udid DAA2A14D-9BF2-4E3B-9EF2-A7E1136C631F)
+- 执行路径: simctl 检测 → flutter build ios --simulator --debug →
+  simctl install → driver 首启(r005_persistence_driver_test.dart, fork 自
+  R002 pytest driver + ensurePersistentStore)endpoint 发现 → python
+  ios-simulator-persistence.py 主控 I1-I5(含 simctl terminate/relaunch
+  冷重启 I2/I3/I4 各一次)。
+- I1 首次授权双侧落盘 / I2 冷重启旧 Bearer 200 authorized / I3 损坏自愈 /
+  I4 TTL 窗口 + load-discard / I5 wire 回归。
+- 原始证据: test-overrides/R005-BF002/.work/e2e-out.log
+- endpoint 发现机制: driver stdout `pytest-driver: endpoint=` 行
+  (模拟器 lo0 与宿主共享,宿主直连 127.0.0.1)。
+
+```
+  I1 PASS: claim 200 + 双侧落盘(app=1 行只含 hash;python tokens.json 有行;claim expiresAt=2026-09-08T10:22:01.053782Z)
+  I2 PASS: 冷重启(terminate+relaunch)后旧 Bearer /hello 200 authStatus=authorized;敏感路由 200;零 /auth/request
+  I3 PASS: 截断 JSON 重启→401 invalid_token→重授权 claim 成功→沙箱文件恢复合法 JSON(且无明文)
+  I4 PASS: TTL 窗口 604800s(∈[604790,604810]);过期行重启→401 invalid_token(load-discard);重授权链可达
+  I5 PASS: no-token 401 / forged 401 invalid_token / pending claim 无泄漏 / 多 capability Bearer
+SCENARIO I1: pass
+SCENARIO I2: pass
+SCENARIO I3: pass
+SCENARIO I4: pass
+SCENARIO I5: pass
+IOS_E2E_STATUS: pass
+```

@@ -29,3 +29,7 @@ local.properties
 
 # Kotlin daemon session artifacts
 .kotlin/
+
+# xlfoundry integration driver work dirs (R005-BF002, cf. R004-BF002 .android-work)
+.dev-flow/*/test-overrides/*/.work/
+.dev-flow/*/test-overrides/*/.android-work/

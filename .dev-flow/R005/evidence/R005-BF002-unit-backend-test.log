@@ -1,0 +1,14 @@
+---
+type: test-log
+task_id: R005-BF002
+layer: unit
+domain: backend
+run_at: 2026-09-01T10:21:09Z
+status: pass
+exit_code: 0
+deferred_reason:
+command: cd python && python -m pytest tests -q
+note: 别名日志（gate awk 单行 test_tasks 回退 unit:backend 时消费）。权威 unit 日志与全量数字以本文件为准——pytest 全量 391 passed, 13 skipped, 0 error（含 test_dart_plane_persistence.py 6 用例无 endpoint 场景 skip 不误报）。integration 权威日志见 R005-BF002-integration-cross_stack-test.log（I1-I5 全 pass）。
+---
+
+391 passed, 13 skipped in ...
