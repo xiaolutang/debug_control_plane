@@ -5,7 +5,8 @@
 #   preflight        发版前置自检（权限/干净树/版本一致性/本地全量门）
 #   push             push 当前分支 + 等线上 CI 绿
 #   merge            fast-forward 合入 main + push + 等绿
-#   tag              按 kotlin 版本打 vX.Y.Z + push tag + 等 tag CI 绿
+#   tag              RC 完整性检查 + config 状态推进 + 按 kotlin 版本打 vX.Y.Z
+#                    + push tag/main + 等 tag CI 绿
 #   jitpack          轮询 JitPack 构建状态 + 验证坐标可解析
 #   pubdev-flip      插件切 JitPack 坐标（改 pubspec/gradle，只改不 commit）
 #   pubdev-publish   flutter pub publish（dry-run 先行，最终发布交互确认）
@@ -15,6 +16,9 @@
 # - 每阶段幂等可重跑；失败停在原地，修完重跑该阶段即可
 # - 不可逆动作（pub publish）前置 --dry-run + 人工确认
 # - 版本 SSOT = kotlin/build.gradle.kts 的 version = "X.Y.Z"
+# - tag stage 同步推进 .dev-flow/config.json 的 release_management
+#   （releases[v]=released + project_version bump + 新 in-progress 占位），
+#   config commit 与 tag 分离：tag 指向纯版本号 commit
 
 set -euo pipefail
 
@@ -104,8 +108,58 @@ stage_tag() {
     echo "  tag $TAG 已存在（本机）—— 若是重打请先 git tag -d $TAG"
     return 1
   fi
+  # 本阶段在 main 上执行（config commit 直接推 main；merge stage 已回 $BRANCH，这里切回）
+  if [[ "$BRANCH" != "main" ]]; then
+    git -C "$REPO_ROOT" checkout main
+  fi
+  # ── 1. RC 完整性 + config 状态检查（xlfoundry release_management）──
+  local rel_status rc_ids completed
+  read -r rel_status rc_ids completed <<<"$(python3 - "$KOTLIN_VERSION" <<'PYEOF'
+import json, sys
+v = sys.argv[1]
+rel = json.load(open(".dev-flow/config.json"))["release_management"]["releases"].get(v)
+if not rel:
+    print("MISSING", "", ""); raise SystemExit
+print(rel.get("status"), ",".join(rel.get("rc_ids", [])), ",".join(rel.get("completed_rcs", [])))
+PYEOF
+)"
+  if [[ "$rel_status" == "MISSING" ]]; then
+    echo "  ✗ releases[$KOTLIN_VERSION] 不存在于 .dev-flow/config.json（先走 xlfoundry 归档/发布准备）"
+    return 1
+  fi
+  if [[ "$rel_status" != "in-progress" ]]; then
+    echo "  ✗ releases[$KOTLIN_VERSION].status=${rel_status} (只有 in-progress 可发布)"
+    return 1
+  fi
+  if [[ "$rc_ids" != "$completed" ]] && [[ "${FORCE_RC:-0}" != "1" ]]; then
+    echo "  ✗ 未完成 RC：rc_ids=[${rc_ids}] completed=[${completed}]（FORCE_RC=1 可覆盖）"
+    return 1
+  fi
+  echo "  ✓ releases[$KOTLIN_VERSION] in-progress，RC 完整"
+  # ── 2. 打 tag（指向当前 HEAD=版本号 commit）+ push + 等 CI ──
   git -C "$REPO_ROOT" tag -a "$TAG" -m "Release $TAG (kotlin core $KOTLIN_VERSION)"
   git -C "$REPO_ROOT" push "$REMOTE" "$TAG"
+  # ── 3. config 状态推进（releases[v]=released + project_version bump + 新占位）──
+  python3 - "$KOTLIN_VERSION" <<'PYEOF'
+import json, sys, datetime
+v = sys.argv[1]
+p = ".dev-flow/config.json"
+c = json.load(open(p))
+rm = c["release_management"]
+a, b, d = (int(x) for x in v.split("."))
+bump = rm.get("version_bump", "minor")
+new_v = {"major": f"{a+1}.0.0", "minor": f"{a}.{b+1}.0", "patch": f"{a}.{b}.{d+1}"}[bump]
+rm["releases"][v]["status"] = "released"
+rm["releases"][v]["released_at"] = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+rm["project_version"] = new_v
+rm["releases"][new_v] = {"status": "in-progress", "rc_ids": [], "completed_rcs": [], "released_at": None}
+json.dump(c, open(p, "w"), ensure_ascii=False, indent=2)
+open(p, "a").write("\n")
+print(f"  ✓ config: {v}=released, project_version→{new_v}")
+PYEOF
+  git -C "$REPO_ROOT" add .dev-flow/config.json
+  git -C "$REPO_ROOT" commit -m "chore(release): v${KOTLIN_VERSION} released (project_version 推进)" >/dev/null
+  git -C "$REPO_ROOT" push "$REMOTE" main
   wait_ci_green "$TAG"   # H1: tag push 过同一套 CI 门
   echo "  tag PASS — 可执行: bash tool/release.sh jitpack"
 }
