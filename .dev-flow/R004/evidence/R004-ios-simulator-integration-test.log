@@ -1,0 +1,48 @@
+---
+type: test-log
+task_id: R004-BF001
+layer: integration
+domain: cross_stack
+run_at: 2026-09-01T10:10:00+08:00
+status: pass
+exit_code: 0
+platform: iOS Simulator iPhone 16e (DAA2A14D-9BF2-4E3B-9EF2-A7E1136C631F, iOS, booted)
+endpoint: http://127.0.0.1:58444 (example app Dart plane, loopback)
+---
+
+# Test Log: R004 token 持久化 — iOS 模拟器集成验证
+
+用户指定在 iOS 模拟器上对 example app 集成测试 R004 新功能。架构事实:
+plugin 为 Android-only(无 ios/ 实现),iOS 上 example app 走 Dart plane
+(acceptance_plane.dart);故本轮验证范围为 **BF001 python FileTokenProvider
+全链路 + R001 wire 契约回归**(FF001/FF002 为 Kotlin plugin 代码,iOS 无
+代码路径,已由 android JVM 81 用例覆盖)。
+
+## 环境与驱动
+
+- 模拟器: iPhone 16e (DAA2A14D), booted, fvm flutter 3.44.4
+- 驱动: acceptance_pytest_driver_test.dart -d <udid> --dart-define=DRIVER_SECONDS=300
+  (app 内自动 approve 授权请求,label 非 deny*/hold* 分派)
+- plane: 真实 Dart ControlPlane + HttpSseTransport,loopback 直通宿主机
+- 断言脚本: .dev-flow/R004/test-overrides/R004-BF002/ios-simulator-token-persistence.py
+
+## 结果(4/4 pass)
+
+- S1 首次授权链落盘: auth_request→status→claim 200;FileTokenProvider 落盘
+  tokens.json 0600;tokenId/expiresAt 并入行 → PASS
+- S2 新进程免授权: 全新 provider 实例(模拟 python 重启)真实读盘 get_token
+  命中;Bearer 复用 /hello 200;BridgeClient.hello 经 invoke 通道 → PASS
+- S3 过期清行重授权: 构造过期行读时判定 None;重授权链可达(新 pending 建立);
+  伪造 token 打敏感路由 401 invalid_token → clear_token 联动删行 → PASS
+- S4 wire 回归: forged 401 / no-token 401 / pending claim 无 token 泄漏 /
+  多 capability Bearer(debug.echo) → PASS
+
+## 既有验收集零回归
+
+python -m pytest tests/test_acceptance_flutter_app_auth.py --endpoint=... :
+4 passed, 1 skipped(denied_flow 需 AUTH_DENIED_DRIVER=1,setup_required 契约)
+
+## 结论
+
+BF001(python 侧持久化)+ wire 契约在真实 iOS 模拟器 plane 上全链路验证通过。
+FF001/FF002(app 侧 Kotlin)仍待 Android 真机回收 deferred 项(e2e 用例 1/2/3/6)。
