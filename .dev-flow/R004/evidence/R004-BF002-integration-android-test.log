@@ -3,23 +3,53 @@ type: test-log
 task_id: R004-BF002
 layer: integration
 domain: android
-run_at: 2026-08-31T13:50:18Z
-status: deferred
-exit_code: null
-deferred_reason: device_required
+run_at: 2026-09-01T10:35:00Z
+status: pass
+exit_code: 0
+device_model: 23116PN5BC (Xiaomi)
+os_version: Android 16
+serial: bc6763eb
+transport: adb forward tcp:18080 → app plane (0.0.0.0, dynamic port)
+apk: 2026-09-01 rebuild (含 R004 FF001/FF002;先前 8/27 R003 APK 已被替换)
 ---
 
-# Test Log: R004-BF002 (integration.android — DEFERRED)
+# Test Log: R004-BF002 (integration.android — 真机回收 PASS)
 
-- status: deferred
-- deferred_reason: device_required
-- reason_detail: tasks.md R004-BF002 test_tasks 第一项(integration android)
-  需要 Android 真机执行 token 持久化 6 用例端到端验收;本次运行时
-  `adb devices` 无 device 状态行(实测),按 deferred 契约登记,不虚构
-  任何真机输出。
-- substitute_evidence: 自动化部分(cross_stack 定向回归)见
-  /Users/tangxiaolu/project/debug_control_plane/.dev-flow/R004/evidence/R004-BF002-integration-cross_stack-test.log(由 e2e runner python 侧断言链产出)。
-- 回收动作: 待设备可用时重跑
-  `bash .dev-flow/R004/test-overrides/R004-BF002/integration-android.sh`
-  (HyperOS 设备需先手动开启「USB 安装」授权),脚本将补齐 6 用例内容并
-  翻转为 pass/failed。
+设备在场(Xiaomi 23116PN5BC / Android 16),原 deferred 6 用例全部真机回收。
+执行方式:手动驱动(integration-android.sh 自动链路存在两处环境问题,见
+「执行偏差」),断言逻辑与 e2e runner 用例定义一致。
+
+## 6 用例结果
+
+| # | 用例 | 结果 | 关键证据 |
+|---|------|------|---------|
+| 1 | 首次授权双侧落盘 | PASS | claim 200 token=dcp_*;app files/debug_control_plane/debug_auth_tokens.json 存在(hash 记录无明文);python ~/.debug-control-plane/tokens.json 落盘 0600 |
+| 2 | app 冷重启旧 token 200 | PASS | force-stop+start 后旧 token /hello → 200 authorized(零弹窗) |
+| 3 | install -r 旧 token 200【主断言】 | PASS | adb install -r(同 APK)→ 重启 → 旧 token 200 authorized;filesDir 文件存活 |
+| 4 | python 重启免 auth | PASS | 新 python 进程 FileTokenProvider.get_token 命中(真实读盘,零 /auth/request) |
+| 5 | 过期自动重授权 | PASS | 构造过期行 → get_token None(读时判定)→ auth_request 新 pending 可达 |
+| 6 | 清装逃生门 | PASS | uninstall+install(等价 DELETE_AND_REINSTALL=1)→ 旧 token authStatus=invalid_token(首次授权语义回归) |
+
+## R004 能力真机直证(额外)
+
+- FF002 TTL 7 天:approve→claim expiresAt delta=604798s(7.00 天)≈604800
+- FF001 app 侧落盘:tokenHash(sha256)记录,无明文;expiresAt 与 claim 一致
+- wire 兼容:auth_request 返回含 pairingCode(R003 契约)不变
+
+## 执行偏差(与脚本自动化链路的差异,如实记录)
+
+1. integration-android.sh 假定 app plane 固定可达 127.0.0.1:18080,但 plane
+   绑 0.0.0.0 随机端口(每次重启变化),脚本未做 adb forward 发现/建立——
+   首轮 case1 直接 Connection refused。回收时以 /proc/<pid>/net/tcp6 按 app
+   uid 过滤动态发现端口 + adb forward 建立通道。
+2. e2e-token-persistence.py ensure_token 在 pending 期直接 auth_claim,Kotlin
+   契约 pending claim → 401 authorization_required,BridgeClient 抛
+   DeviceAuthError 使轮询中断(应先轮询 auth_status 到 approved 再 claim)。
+   回收时以手动脚本按正确顺序驱动。
+3. 首轮运行的 APK 为 8/27 构建(R003 时代,不含 R004 代码,TTL 55min 实测),
+   已重建(9/1)后重测;重建后 install -r 被 HyperOS 拦截一次
+   (INSTALL_FAILED_USER_RESTRICTED),手动授权后成功。
+4. 清装后 app uid 变更(u0_a847→u0_a848),端口发现按 uid 动态过滤已覆盖。
+
+脚本自动化修复(端口发现 + claim 顺序)留作后续改进,不改变 6 用例的
+验收结论——断言全部由真实设备行为产出。
