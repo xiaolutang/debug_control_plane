@@ -72,18 +72,24 @@
     "manifest_digest": "afd145bdb50143d83de0cbca5ab357ce7c6871b7a084a360405369686dac7f60",
     "release_eligible": true,
     "gate_verdicts": {
-      "Index": "PASS",
-      "Slice": "PASS",
-      "Integration": "PASS"
+      "D1": "PASS",
+      "D2": "PASS",
+      "D3": "PASS",
+      "D4": "PASS",
+      "D5": "PASS",
+      "D6": "PASS",
+      "D7": "PASS",
+      "D8": "PASS",
+      "D9": "PASS"
     },
     "execution_evidence": {
-      "execution_id": "xlf-subagent:R005:analysis-review:01",
+      "execution_id": "xlf-subagent:R005:design-review:01",
       "provider": "direct_subagent",
       "isolation": "independent_context",
       "skill_loaded": false
     },
     "degraded": false,
     "degraded_reason": null,
-    "report_path": ".dev-flow/R005/analysis/reviews/2026-09-01T00-00-00-analysis-PASS.md"
+    "report_path": ".dev-flow/R005/analysis/reviews/2026-09-01T00-00-00-design-PASS.md"
   }
 }
