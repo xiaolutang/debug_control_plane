@@ -98,6 +98,13 @@
       "archive_dir": "R004",
       "total_tasks": 4,
       "completed_at": "2026-09-01T10:19:15+08:00"
+    },
+    {
+      "id": "R005",
+      "name": "dart-plane-token-persistence",
+      "archive_dir": "R005",
+      "total_tasks": 3,
+      "completed_at": "2026-09-01T10:21:09+08:00"
     }
   ],
   "rc_queue": [
@@ -130,40 +137,6 @@
           "provider": "direct_subagent",
           "subagent_role": "xlfoundry-plan-review",
           "execution_id": "xlf-subagent:R001:plan-review:02",
-          "degraded_review": false,
-          "degraded_reason": null
-        }
-      }
-    },
-    {
-      "id": "R005",
-      "requirement_cycle": "R005",
-      "status": "planned",
-      "name": "dart-plane-token-persistence",
-      "topic": "dart-plane-token-persistence",
-      "analysis_topic": "dart-plane-token-persistence",
-      "version": "1.0",
-      "workflow": {
-        "evaluate_provider": "direct_subagent",
-        "mode": "auto"
-      },
-      "source": {
-        "tasks": ".dev-flow/R005/dart-plane-token-persistence-tasks.md",
-        "analysis_manifest": ".dev-flow/R005/analysis/manifest.json",
-        "design": ".dev-flow/R005/analysis/2026-09-01--dart-plane-token-persistence-design.md",
-        "test": ".dev-flow/R005/analysis/2026-09-01--dart-plane-token-persistence-test.md"
-      },
-      "review_evidence": {
-        "type": "plan_review",
-        "verdict": "PASS",
-        "report_path": ".dev-flow/R005/analysis/reviews/2026-09-01T00-00-00-plan-PASS.md",
-        "manifest_revision": 1,
-        "manifest_digest": "afd145bdb50143d83de0cbca5ab357ce7c6871b7a084a360405369686dac7f60",
-        "execution_evidence": {
-          "isolation": "independent_context",
-          "provider": "direct_subagent",
-          "subagent_role": "xlfoundry-plan-review",
-          "execution_id": "xlf-subagent:R005:plan-review:01",
           "degraded_review": false,
           "degraded_reason": null
         }
@@ -210,8 +183,12 @@
       },
       "0.6.0": {
         "status": "in-progress",
-        "rc_ids": [],
-        "completed_rcs": [],
+        "rc_ids": [
+          "R005"
+        ],
+        "completed_rcs": [
+          "R005"
+        ],
         "released_at": null
       }
     }

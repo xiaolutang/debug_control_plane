@@ -29,6 +29,8 @@ flowchart TD
 - `FileBackedPluginDebugAuthStore`：app 侧 token 持久化装饰器（hash 记录落 filesDir，原子写/损坏回退/过期清理；明文永不落盘），attach 惰性升级 InMemory。
 - `FileTokenProvider`：python 侧 token 持久化（~/.debug-control-plane/tokens.json 0600，claim 落盘 / Bearer 复用 / 401 三码联动清行）。
 - `TokenTtl`：默认 7 天（DEFAULT_TOKEN_TTL_SECONDS=604800，显式 ttlSeconds 覆盖通道不变）。
+- `DebugAuthStore`：dart core token 存储抽象（恰 5 方法）+ InMemory（map 键=tokenHash）+ FileBacked 装饰器（惰性 load/损坏回退/过期丢弃/tmp+rename 原子写），sha256 纯 Dart FIPS 180-4 手写，与 Kotlin PluginDebugAuthStore 同构。
+- `ExamplePersistMount`：example AcceptanceDebugAuthManager store 注入（缺省 InMemory，main() 装配层挂 FileBacked documents 目录）+ 校验 hash 索引化 + TTL 7d 对齐；widget 测试零影响（挂载点在装配层非 startDartPlane）。
 
 ## 已归档能力
 
@@ -37,3 +39,4 @@ flowchart TD
 - `0.3.0`：Kotlin/Dart/Flutter/Python 四端对齐发布，协议版本仍为 `protocolVersion=1`。
 - R003：app/page 双 scope capability 模型、三方同构 scoped key、scoped selector dispatch（gone→410+refresh）、Page Scope Demo 验收页、ci-check-all `[9]` 跨语言守卫、Android 真机三阶段验收（含 410 gone 直证）。
 - R004：token 跨进程持久化（app FileBacked store + python FileTokenProvider 0600）、TTL 默认 7 天、install -r 验收脚本（uninstall 仅逃生门）；授权弹窗只弹首次。
+- R005：Dart plane 持久化补齐（dart core DebugAuthStore 三件套 + sha256 手写 + example 接线 + main() 装配层挂载）、iOS 模拟器 I1-I5 集成验证（冷重启旧 token 200 零弹窗）；Kotlin/Dart 两端 store 同构但文件相互独立。
