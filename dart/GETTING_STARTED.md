@@ -38,7 +38,7 @@
 ```yaml
 # pubspec.yaml
 dependencies:
-  debug_control_plane: ^0.3.0   # 与生态同版本线(kotlin JitPack/flutter 插件同号)
+  debug_control_plane: ^0.4.0   # 与生态同版本线(kotlin JitPack/flutter 插件同号;0.5.0 已发布后可再升级)
 ```
 
 或命令行:`flutter pub add debug_control_plane`。
