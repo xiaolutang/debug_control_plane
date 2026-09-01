@@ -35,7 +35,7 @@ contextMdPaths:
 
 执行顺序：R005-BF001 → R005-FF001（依赖 BF001 的 store）→ R005-BF002（依赖前两者全部完成）。
 
-## R005-BF001：dart core token 存储管理 — DebugAuthStore + InMemory + FileBacked + sha256 `⬜ 待处理`
+## R005-BF001：dart core token 存储管理 — DebugAuthStore + InMemory + FileBacked + sha256 `✅ 已完成 (430a9f8)`
 
 - 文件：`dart/lib/src/debug_auth_store.dart`（新建）+ `dart/lib/debug_control_plane.dart`（加一行 export）+ `dart/test/debug_auth_store_test.dart`（新建）
 - 改动类型：新建
@@ -46,7 +46,7 @@ contextMdPaths:
 - risk_tags: [dart, persistence, security, cryptography]
 - smoke_required: true
 - mode: direct
-- status: pending
+- status: completed
 - sourceCapabilities: [BF001]
 - sourceSlices: [S01-dart-token-store]
 - sourceDesigns: [.dev-flow/R005/analysis/2026-09-01--dart-plane-token-persistence-design.md]
@@ -92,7 +92,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：dart core 是唯一无 token 存储的一端（Kotlin/Python R004 已补）；装饰器形态与 Kotlin `FileBackedPluginDebugAuthStore` 同构，行为心智一致；目录参数化让 core 不感知平台路径（D4）。
 
-## R005-FF001：example 接线 — AcceptanceDebugAuthManager store 注入 + hash 索引 + TTL 7d `⬜ 待处理`
+## R005-FF001：example 接线 — AcceptanceDebugAuthManager store 注入 + hash 索引 + TTL 7d `▶ 进行中`
 
 - 文件：`flutter_debug_control_plane/example/lib/src/acceptance_plane.dart`（修改）+ `flutter_debug_control_plane/example/pubspec.yaml`（加 path_provider）+ `flutter_debug_control_plane/example/test/acceptance_plane_test.dart`（适配）
 - 改动类型：修改
@@ -103,7 +103,7 @@ contextMdPaths:
 - risk_tags: [flutter, auth, regression]
 - smoke_required: true
 - mode: direct
-- status: pending
+- status: in_progress
 - sourceCapabilities: [FF001]
 - sourceSlices: [S01-dart-token-store]
 - sourceDesigns: [.dev-flow/R005/analysis/2026-09-01--dart-plane-token-persistence-design.md]

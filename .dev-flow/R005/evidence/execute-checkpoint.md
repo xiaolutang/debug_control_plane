@@ -1,12 +1,12 @@
 ---
 type: execute-checkpoint
 requirement_cycle: R005
-updated_at: 2026-09-01T08:54:45+00:00
+updated_at: 2026-09-01T08:55:09+00:00
 updated_by: update-checkpoint.sh
 total_tasks: 3
-completed: 0
-active_task: none
-next_pending: R005-BF001
+completed: 1
+active_task: R005-FF001
+next_pending: R005-FF001
 blocked_task: none
 blocked_reason: none
 runner_id: none
@@ -17,21 +17,22 @@ runner_id: none
 ## 调度状态
 
 - total_tasks: 3
-- completed: 0
-- active_task: none
-- next_pending: R005-BF001
+- completed: 1
+- active_task: R005-FF001
+- next_pending: R005-FF001
 - blocked_task: none
 - blocked_reason: none
 - runner_id: none
 
 ## 已完成任务
 
-（无已完成任务）
+| Task ID | Commit | Completed At |
+|---------|--------|-------------|
+| R005-BF001 | 430a9f8 | 2026-09-01T16:55:01+08:00 |
 
 ## 待执行任务（按优先级）
 
-- R005-BF001（priority=5, deps=无, ready）
-- R005-FF001（priority=4, deps=R005-BF001, blocked）
+- R005-FF001（priority=4, deps=R005-BF001, resume）
 - R005-BF002（priority=3, deps=R005-BF001,R005-FF001, blocked）
 
 ## 恢复指令
