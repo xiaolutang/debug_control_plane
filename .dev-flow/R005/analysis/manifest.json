@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0",
+  "manifest_revision": 1,
+  "manifest_digest": "afd145bdb50143d83de0cbca5ab357ce7c6871b7a084a360405369686dac7f60",
+  "topic": "dart-plane-token-persistence",
+  "requirement_cycle": "R005",
+  "analysis_protocol": "v1",
+  "protocol_application": "standard",
+  "analysis_state": "analyzed",
+  "blocked_reason": null,
+  "blocked_slice": null,
+  "slices": [
+    {
+      "id": "S01-dart-token-store",
+      "path": ".dev-flow/R005/analysis/2026-09-01--dart-plane-token-persistence.md",
+      "status": "completed",
+      "revision": 1,
+      "checkpoint": null,
+      "digest": "3738af3df33bddf5527fabcfb04e8bde9b7de35aeaeb1d5a0ae582eba95a2ec2",
+      "evidence": {
+        "execution_id": "xlf-subagent:R005:analysis-slice:S01-dart-token-store:01",
+        "provider": "direct_subagent",
+        "isolation": "independent_context"
+      },
+      "deps": [],
+      "owners": [
+        "SCN-DART-TOKEN-PERSIST",
+        "BF001",
+        "FF001",
+        "BF002"
+      ],
+      "context_refs": [
+        ".dev-flow/architecture.md",
+        "PROTOCOL.md"
+      ]
+    }
+  ],
+  "integration": {
+    "path": ".dev-flow/R005/analysis/2026-09-01--dart-plane-token-persistence-integration.md",
+    "digest": "fb9b7f47903ae9b9921df06adf48d8b76dca1f074ae5aec5d9d17c9838c705e1",
+    "summary": "R005 dart plane token persistence analysis (single slice).",
+    "capabilities": [
+      "BF001",
+      "FF001",
+      "BF002"
+    ],
+    "split_required": false,
+    "open_issues": []
+  },
+  "consumer_refs": {
+    "design_seed": [
+      ".dev-flow/R005/analysis/2026-09-01--dart-plane-token-persistence.md",
+      ".dev-flow/R005/analysis/2026-09-01--dart-plane-token-persistence-integration.md"
+    ],
+    "plan_seed": [
+      ".dev-flow/R005/analysis/2026-09-01--dart-plane-token-persistence.md",
+      ".dev-flow/R005/analysis/2026-09-01--dart-plane-token-persistence-integration.md"
+    ]
+  },
+  "artifact_slots": {
+    "design": [
+      ".dev-flow/R005/analysis/2026-09-01--dart-plane-token-persistence-design.md"
+    ],
+    "test": [
+      ".dev-flow/R005/analysis/2026-09-01--dart-plane-token-persistence-test.md"
+    ]
+  },
+  "bootstrap_legacy": false,
+  "review": {
+    "verdict": "PASS",
+    "manifest_revision": 1,
+    "manifest_digest": "afd145bdb50143d83de0cbca5ab357ce7c6871b7a084a360405369686dac7f60",
+    "release_eligible": true,
+    "gate_verdicts": {
+      "Index": "PASS",
+      "Slice": "PASS",
+      "Integration": "PASS"
+    },
+    "execution_evidence": {
+      "execution_id": "xlf-subagent:R005:analysis-review:01",
+      "provider": "direct_subagent",
+      "isolation": "independent_context",
+      "skill_loaded": false
+    },
+    "degraded": false,
+    "degraded_reason": null,
+    "report_path": ".dev-flow/R005/analysis/reviews/2026-09-01T00-00-00-analysis-PASS.md"
+  }
+}
