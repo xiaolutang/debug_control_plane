@@ -6,8 +6,8 @@
 > Extracted from an internal Flutter app into an independent repo so it can be reused across multiple products without coupling to any single business package.
 > 从某内部 Flutter 应用抽离为独立仓库，可在多产品间复用，不耦合任何单一业务包。
 
-**Status / 状态**: version `0.5.0` — **API is UNSTABLE**. Breaking changes are expected before `1.0.0`; pin the exact version in consumers. The ecosystem (kotlin JitPack core / this package / `flutter_debug_control_plane`) shares one version line — same number = verified-compatible set.
-版本 `0.5.0` — **API 不稳定**。`1.0.0` 之前可能有破坏性变更，消费方请锁定精确版本号。整个生态（kotlin JitPack 核心 / 本包 / `flutter_debug_control_plane`）统一版本线——同版本号 = 已验证兼容组合。
+**Status / 状态**: version `0.5.1` — **API is UNSTABLE**. Breaking changes are expected before `1.0.0`; pin the exact version in consumers. The ecosystem (kotlin JitPack core / this package / `flutter_debug_control_plane`) shares one version line — same number = verified-compatible set.
+版本 `0.5.1` — **API 不稳定**。`1.0.0` 之前可能有破坏性变更，消费方请锁定精确版本号。整个生态（kotlin JitPack 核心 / 本包 / `flutter_debug_control_plane`）统一版本线——同版本号 = 已验证兼容组合。
 
 ## Three-layer skeleton / 三层骨架
 

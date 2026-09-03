@@ -1,3 +1,13 @@
+## 0.5.1
+
+- 版本对齐发布(alignment-only):插件 Android 侧与 Dart API 面本版**零改动**——
+  R005 的 Dart plane token 持久化落在 dart core 包(`DebugAuthStore`
+  三件套 + `debugAuthTokenHash`),插件经 `flutter_debug_control_plane`
+  `^0.5.1` 依赖线自动获得。
+- example 验收 app(非发布面)接 store 注入 + TTL 15min→7d 对齐,iOS 模拟器
+  I1-I5 集成验证(冷重启旧 Bearer 200 authorized 零弹窗)。
+- wire 协议零改动——业务方仅需升级版本号。
+
 ## 0.5.0
 
 - 新增 `FileBackedPluginDebugAuthStore`(R004 FF001):token **hash 记录**

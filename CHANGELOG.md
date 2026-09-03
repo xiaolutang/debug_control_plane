@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.5.1 - 2026-09-03
+
+- Dart-plane token persistence (R005): completes the 0.5.0 persistence work
+  for Dart-plane hosts (iOS simulator / pure-Dart) — the approval dialog now
+  appears only once per token lifetime on **all** plane types.
+- dart core: new `DebugAuthStore` abstraction (exactly 5 methods) +
+  `InMemoryDebugAuthStore` + `FileBackedDebugAuthStore` decorator (lazy load,
+  corrupt-fallback-to-empty, expired rows dropped at load, atomic
+  tmp+rename writes); hand-written pure-Dart SHA-256 (FIPS 180-4) with public
+  `debugAuthTokenHash` alias — zero new dependencies. Only token **hashes**
+  are persisted, never plaintext.
+- flutter plugin Dart surface (API-compatible): example/acceptance hosts can
+  inject a `DebugAuthStore`; default remains in-memory, with file-backed
+  persistence mounted at the assembly layer (`main()`). Default token TTL
+  15min → 7 days, aligning with the Kotlin side.
+- Acceptance: iOS-simulator integration suite I1–I5 (cold-restart with old
+  Bearer → 200 authorized and zero approval dialogs, corrupt-file self-heal,
+  TTL window, wire regression) — verified on iPhone 16e iOS 18.5 simulator.
+
 ## 0.5.0 - 2026-09-01
 
 - Token persistence (R004): debug-plane bearer tokens now survive process

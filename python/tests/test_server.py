@@ -1313,7 +1313,7 @@ class TestMakeApp:
         srv = assembled[0]
         app = srv._make_app()  # noqa: SLF001
         assert app.name == "mcp-debug-bridge"
-        assert app.version == "0.5.0"
+        assert app.version == "0.5.1"
 
     def test_make_app_registers_stub_provider(self, assembled):
         """★ BF008-010 (A 类): assembled fixture 注入的 _StubProvider 已注册到

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.5.1 - 2026-09-03
+
+- New token store API (R005): `DebugAuthStore` abstraction (exactly 5
+  methods: tokenByHash/putToken/markRevoked/markAllRevoked/removeExpired) +
+  `InMemoryDebugAuthStore` + `FileBackedDebugAuthStore` decorator — lazy
+  load, corrupt/version-mismatch fallback to empty (never throws),
+  expired rows dropped at load without rewrite, atomic tmp+rename persist.
+  Mirrors the Kotlin `PluginDebugAuthStore` design; only token **hashes**
+  are persisted.
+- `TokenRecord` model (tokenId/tokenHash/createdAt/expiresAt/revokedAt/
+  clientLabel) with ISO8601-UTC JSON round-trip, isomorphic to Kotlin
+  `DebugAuthTokenRecord`.
+- Hand-written pure-Dart SHA-256 (FIPS 180-4, 64-char lowercase hex) —
+  **zero new dependencies**; public `debugAuthTokenHash(String)` alias.
+
 ## 0.5.0 - 2026-09-01
 
 - Version alignment only (no Dart-core API changes this release): token
