@@ -65,7 +65,7 @@ dependencies {
 
     // Kotlin core. Local development/test hosts may substitute this JitPack
     // coordinate with the sibling kotlin project via includeBuild.
-    implementation("com.github.xiaolutang:debug_control_plane:0.5.0")
+    implementation("com.github.xiaolutang:debug_control_plane:0.5.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
