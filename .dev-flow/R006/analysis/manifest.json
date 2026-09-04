@@ -1,0 +1,97 @@
+{
+  "schema_version": "1.0",
+  "manifest_revision": 1,
+  "manifest_digest": "f532ccf54cd4e37db2585f12b9477cc8eb55dcc8df98c6ede64d27eb19921b7a",
+  "topic": "android-plugin-auth-policy",
+  "requirement_cycle": "R006",
+  "analysis_protocol": "v1",
+  "protocol_application": "standard",
+  "analysis_state": "analyzed",
+  "blocked_reason": null,
+  "blocked_slice": null,
+  "slices": [
+    {
+      "id": "S01-plugin-auth-policy",
+      "path": ".dev-flow/R006/analysis/2026-09-04--android-plugin-auth-policy.md",
+      "status": "completed",
+      "revision": 1,
+      "checkpoint": null,
+      "digest": "63b5eb1f6c4a41494c45cb99ca527e98da842d59d99d0496a75cdaf4a5dc629f",
+      "evidence": {
+        "execution_id": "xlf-subagent:R006:analysis-slice:S01-plugin-auth-policy:01",
+        "provider": "direct_subagent",
+        "isolation": "independent_context"
+      },
+      "deps": [],
+      "owners": [
+        "SCN-PLUGIN-AUTH-POLICY-DECLARE",
+        "SCN-PLUGIN-AUTH-AUTO-DIRECT",
+        "SCN-PLUGIN-AUTH-DEFAULT-UI",
+        "BF001",
+        "FF001",
+        "BF002"
+      ],
+      "context_refs": [
+        ".dev-flow/architecture.md",
+        "PROTOCOL.md",
+        ".dev-flow/R006/analysis/brainstorm-2026-09-04--android-plugin-auth-toggle.md"
+      ]
+    }
+  ],
+  "integration": {
+    "path": ".dev-flow/R006/analysis/2026-09-04--android-plugin-auth-policy-integration.md",
+    "digest": "defed1b384e0e12b27cd809b437b9c55f92406eabb867e19d5e2cd54b293d8e4",
+    "summary": "R006 android plugin auth policy assembly API analysis (single slice).",
+    "capabilities": [
+      "BF001",
+      "FF001",
+      "BF002"
+    ],
+    "split_required": false,
+    "open_issues": [
+      "architecture.md 授权门约束分层表述校准(design 阶段 architecture_md_updates: true)"
+    ]
+  },
+  "consumer_refs": {
+    "design_seed": [
+      ".dev-flow/R006/analysis/2026-09-04--android-plugin-auth-policy.md",
+      ".dev-flow/R006/analysis/2026-09-04--android-plugin-auth-policy-integration.md"
+    ],
+    "plan_seed": [
+      ".dev-flow/R006/analysis/2026-09-04--android-plugin-auth-policy.md",
+      ".dev-flow/R006/analysis/2026-09-04--android-plugin-auth-policy-integration.md"
+    ]
+  },
+  "artifact_slots": {
+    "design": [
+      ".dev-flow/R006/analysis/2026-09-04--android-plugin-auth-policy-design.md"
+    ],
+    "test": [
+      ".dev-flow/R006/analysis/2026-09-04--android-plugin-auth-policy-test.md"
+    ]
+  },
+  "bootstrap_legacy": false,
+  "review": {
+    "verdict": "PASS",
+    "manifest_revision": 1,
+    "manifest_digest": "f532ccf54cd4e37db2585f12b9477cc8eb55dcc8df98c6ede64d27eb19921b7a",
+    "release_eligible": true,
+    "gate_verdicts": {
+      "A1": "PASS",
+      "A2": "PASS",
+      "A3": "PASS",
+      "A4": "PASS",
+      "A5": "PASS",
+      "A6": "PASS",
+      "A7": "PASS",
+      "A8": "PASS",
+      "A9": "PASS"
+    },
+    "execution_evidence": {
+      "execution_id": "xlf-subagent:R006:analysis-review:01",
+      "provider": "direct_subagent",
+      "isolation": "independent_context",
+      "skill_loaded": false
+    }
+  }
+}
