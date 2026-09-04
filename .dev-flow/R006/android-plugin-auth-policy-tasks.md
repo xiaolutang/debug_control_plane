@@ -91,7 +91,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：autoApprove 注入点=既有 `requestAuthorization` 落库→202 返回缝隙（design §4.3）；fail-fast 在 handler 层拦在 mount 之前（plane 不启动不静默回退，D5）；ChannelProtocol 双端逐字对齐由既有 ChannelProtocolAlignmentTest 守护。
 
-## R006-FF001：Dart API 面 — AuthPolicy 类型 + start 透传 + 序列化单测 + 接入文档 `⏳ pending`
+## R006-FF001：Dart API 面 — AuthPolicy 类型 + start 透传 + 序列化单测 + 接入文档 `✅ 已完成
 
 - 文件：`flutter_debug_control_plane/lib/src/auth_policy.dart`（新建）+ `.../channel_protocol.dart`（修改，追加常量）+ `.../native_control_plane_bridge.dart`（修改，start 加参数）+ `flutter_debug_control_plane/lib/flutter_debug_control_plane.dart`（修改，export）+ `flutter_debug_control_plane/test/auth_policy_test.dart`（新建）+ `flutter_debug_control_plane/README.md` + `GETTING_STARTED.md`（修改，接入文档）
 - 改动类型：新建 + 修改

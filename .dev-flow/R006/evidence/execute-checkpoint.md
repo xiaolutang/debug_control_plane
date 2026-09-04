@@ -1,14 +1,14 @@
 ---
 type: execute-checkpoint
 requirement_cycle: R006
-updated_at: 2026-09-04T04:01:15+00:00
+updated_at: 2026-09-04T04:07:41+00:00
 updated_by: update-checkpoint.sh
-total_tasks: 3
+total_tasks: 2
 completed: 1
 active_task: none
-next_pending: R006-FF001
-blocked_task: none
-blocked_reason: none
+next_pending: none
+blocked_task: R006-BF002
+blocked_reason: dependencies_not_satisfied
 runner_id: none
 ---
 
@@ -16,12 +16,12 @@ runner_id: none
 
 ## 调度状态
 
-- total_tasks: 3
+- total_tasks: 2
 - completed: 1
 - active_task: none
-- next_pending: R006-FF001
-- blocked_task: none
-- blocked_reason: none
+- next_pending: none
+- blocked_task: R006-BF002
+- blocked_reason: dependencies_not_satisfied
 - runner_id: none
 
 ## 已完成任务
@@ -33,7 +33,6 @@ runner_id: none
 ## 待执行任务（按优先级）
 
 - R006-BF002（priority=3, deps=R006-BF001,R006-FF001, blocked）
-- R006-FF001（priority=4, deps=R006-BF001, ready）
 
 ## 恢复指令
 
