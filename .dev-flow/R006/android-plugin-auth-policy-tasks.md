@@ -35,7 +35,7 @@ contextMdPaths:
 
 执行顺序：R006-BF001（Kotlin 装配层，含 JVM 单测）→ R006-FF001（Dart API 面 + 文档，依赖 BF001 channel 契约对齐）→ R006-BF002（跨栈 e2e，依赖前两者）。
 
-## R006-BF001：插件 Kotlin 装配层 — authPolicy 通道 + 三策略装配 + fail-fast + JVM 单测 `⏳ pending`
+## R006-BF001：插件 Kotlin 装配层 — authPolicy 通道 + 三策略装配 + fail-fast + JVM 单测 `✅ 已完成 (723f85e)`
 
 - 文件：`flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/ChannelProtocol.kt`（修改）+ `.../PluginDebugAuth.kt`（修改）+ `.../DebugControlPlaneFlutterPlugin.kt`（修改）+ `flutter_debug_control_plane/android/src/test/kotlin/com/pantas/debug/controlplane/flutter/PluginAuthPolicyTest.kt`（新建）
 - 改动类型：修改
