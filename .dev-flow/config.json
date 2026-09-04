@@ -141,6 +141,40 @@
           "degraded_reason": null
         }
       }
+    },
+    {
+      "id": "R006",
+      "requirement_cycle": "R006",
+      "status": "planned",
+      "name": "android-plugin-auth-policy",
+      "topic": "android-plugin-auth-policy",
+      "analysis_topic": "android-plugin-auth-policy",
+      "version": "1.0",
+      "workflow": {
+        "evaluate_provider": "direct_subagent",
+        "mode": "auto"
+      },
+      "source": {
+        "tasks": ".dev-flow/R006/android-plugin-auth-policy-tasks.md",
+        "analysis_manifest": ".dev-flow/R006/analysis/manifest.json",
+        "design": ".dev-flow/R006/analysis/2026-09-04--android-plugin-auth-policy-design.md",
+        "test": ".dev-flow/R006/analysis/2026-09-04--android-plugin-auth-policy-test.md"
+      },
+      "review_evidence": {
+        "type": "plan_review",
+        "verdict": "PASS",
+        "report_path": ".dev-flow/R006/analysis/reviews/2026-09-04-plan-REVIEW.md",
+        "manifest_revision": 1,
+        "manifest_digest": "f532ccf54cd4e37db2585f12b9477cc8eb55dcc8df98c6ede64d27eb19921b7a",
+        "execution_evidence": {
+          "isolation": "independent_context",
+          "provider": "direct_subagent",
+          "subagent_role": "xlfoundry-plan-review",
+          "execution_id": "xlf-subagent:R006:plan-review:01",
+          "degraded_review": false,
+          "degraded_reason": null
+        }
+      }
     }
   ],
   "release_management": {

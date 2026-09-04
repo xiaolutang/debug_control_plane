@@ -56,7 +56,7 @@ flutter_debug_control_plane/
 │   └── DebugControlPlaneFlutterPlugin.kt       🔵 改造（ensurePlane 按 policy 装配 + fail-fast）
 ├── android/src/test/kotlin/.../                🟢 新增（BF002 JVM：三策略装配测试）
 ├── test/                                       🟢 新增（FF001 Dart：参数序列化测试）
-├── example/integration_test/                   🟢 新增（BF002 e2e：auto 策略直连）
+├── .dev-flow/R006/test-overrides/R006-BF002/   🟢 新增（BF002 e2e 驱动+断言，不入 example 树——沿 R004/R005 脚手架先例，test §4 拓扑）
 └── README.md / GETTING_STARTED.md              🔵 改造（FF001 接入文档）
 ```
 
