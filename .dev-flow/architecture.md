@@ -25,6 +25,7 @@
 - 真实资源边界在 App debug plane，最终授权判定必须由 debug plane 执行，Python adapter 只负责携带凭证和翻译错误。
 - MCP adapter 架构保留；不为了标准化而把 App 直接改成完整 MCP server。
 - 鉴权不得破坏未授权发现的最小 bootstrap 能力；敏感调试能力必须统一经过授权门。
+- 授权门分层（R006）：core 强制提供授权门与路由拦截（不变量）；装配策略（default/auto/none）是宿主经插件 API 显式声明的安全决策权，缺省 secured（default）。
 - token 不得通过 query string 传递；HTTP 请求使用 `Authorization: Bearer <token>`。
 
 ## 验证入口

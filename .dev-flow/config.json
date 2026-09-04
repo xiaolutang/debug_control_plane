@@ -105,6 +105,13 @@
       "archive_dir": "R005",
       "total_tasks": 3,
       "completed_at": "2026-09-01T10:21:09+08:00"
+    },
+    {
+      "id": "R006",
+      "name": "android-plugin-auth-policy",
+      "archive_dir": "R006",
+      "total_tasks": 3,
+      "completed_at": "2026-09-04T13:10:00+08:00"
     }
   ],
   "rc_queue": [
@@ -145,7 +152,7 @@
     {
       "id": "R006",
       "requirement_cycle": "R006",
-      "status": "planned",
+      "status": "completed",
       "name": "android-plugin-auth-policy",
       "topic": "android-plugin-auth-policy",
       "analysis_topic": "android-plugin-auth-policy",
@@ -227,8 +234,12 @@
       },
       "0.5.2": {
         "status": "in-progress",
-        "rc_ids": [],
-        "completed_rcs": [],
+        "rc_ids": [
+          "R006"
+        ],
+        "completed_rcs": [
+          "R006"
+        ],
         "released_at": null
       }
     }

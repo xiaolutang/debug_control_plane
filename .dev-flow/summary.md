@@ -1,5 +1,15 @@
 # 项目变更摘要
 
+## 2026-09-04
+
+- 归档 R006 `android-plugin-auth-policy`：插件装配 API 补上授权策略维度——「授权是装配时决策（assembly-time decision），不是插件实现细节」；消解 Android 插件宿主与纯 Dart 宿主授权行为不一致（插件曾无条件内置 authManager，业务不接授权 UI 时请求挂起 pending）。
+- Kotlin 装配层（BF001）：`plane.start` channel 可选 `authPolicy` 参数（"default"/"auto"/"none"，缺席=现状 0.5.1 逐字节兼容）；`PluginDebugAuthManager` 构造追加 `autoApprove` 标志（既有调用零破坏）——auto 下 `/auth/request` pending 落库后即时 approve（复用既有签发，审计通知仍发，nonce 重放幂等）；none 下 `PlaneCarrier.mount(..., null)` 走 core null 放行（与纯 Dart 宿主同构，`/hello` 无 `authRequired`）；非法值 launch 前 fail-fast `invalid_arguments`（plane 不启动不静默回退）；JOIN 分支不重建（策略 start 后不可变）。JVM K1-K8 新 8 用例，全套 89 tests 0 failed 零回归。
+- Dart API 面（FF001）：`AuthPolicy` enum（`defaultPolicy` 避 Dart 保留字，wire 层仍 "default"——D7 两层映射）+ `start(authPolicy:)` collection-if 透传（null 不进参数表）+ 包导出 + alignment test 扩展（4 常量+错误码与 Kotlin 逐字对齐）；README 英文节 + 包内新建中文 GETTING_STARTED。68 tests 0 failed 零回归。
+- 跨栈 e2e（BF002）：fork R004 脚手架 + `R006_AUTH_POLICY` 编译常量独立 driver（example 树外，bogus 场景经裸 channel——enum 不可构造非法值）+ 纯 urllib 断言 E1-E6（auto 直连链/Bearer 200/冷重启持久化/none 无 authRequired 主断言/非法值双断言/default 回归）；真机 23116PN5BC 不在场 deferred 双写 device_required（设备在场时重跑同一命令回收）；pytest 391 passed 零回归。
+- 宪法修订（design architecture_md_updates 兑现）：`architecture.md` 鉴权节增补授权门分层条目——core 强制提供授权门与路由拦截（不变量，原句保留）；装配策略（default/auto/none）是宿主经插件 API 显式声明的安全决策权，缺省 secured。`none` 不违宪（core 能力未削弱，策略显式可审计）。
+- 决策要点：三值 enum 非 bool（auto 是真实中间态，D1）；auto 审批在 Kotlin 侧（Dart 轮询违背零配置，D2）；拒绝 dev-only 门禁（debug 包可连生产环境，显式声明即审计点，D3 吸收 W2）；fail-fast 双保险（Dart ArgumentError + Kotlin invalid_arguments，D5）；python 401→request→poll→claim 编排归 e2e 脚手架不动 mcp_plane 库（D6 吸收 W1）。
+- visual-verify 接入状态：R006 无 UI 面任务（纯装配层/API 面/脚手架），visual-verify 全部不适用；独立 collector（collectors/flutter/）仍未接入，与 R002-R005 同作后续技术债。
+
 ## 2026-09-01
 
 - 归档 R005 `dart-plane-token-persistence`：R004 持久化的 Dart plane 补齐——iOS 模拟器/纯 Dart 宿主路径获得与 Android 原生 plane 同构的「授权弹窗只弹第一次」体验。
