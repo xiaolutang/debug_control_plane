@@ -35,7 +35,7 @@ contextMdPaths:
 
 执行顺序：R006-BF001（Kotlin 装配层，含 JVM 单测）→ R006-FF001（Dart API 面 + 文档，依赖 BF001 channel 契约对齐）→ R006-BF002（跨栈 e2e，依赖前两者）。
 
-## R006-BF001：插件 Kotlin 装配层 — authPolicy 通道 + 三策略装配 + fail-fast + JVM 单测
+## R006-BF001：插件 Kotlin 装配层 — authPolicy 通道 + 三策略装配 + fail-fast + JVM 单测 `⏳ pending`
 
 - 文件：`flutter_debug_control_plane/android/src/main/kotlin/com/pantas/debug/controlplane/flutter/ChannelProtocol.kt`（修改）+ `.../PluginDebugAuth.kt`（修改）+ `.../DebugControlPlaneFlutterPlugin.kt`（修改）+ `flutter_debug_control_plane/android/src/test/kotlin/com/pantas/debug/controlplane/flutter/PluginAuthPolicyTest.kt`（新建）
 - 改动类型：修改
@@ -91,7 +91,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：autoApprove 注入点=既有 `requestAuthorization` 落库→202 返回缝隙（design §4.3）；fail-fast 在 handler 层拦在 mount 之前（plane 不启动不静默回退，D5）；ChannelProtocol 双端逐字对齐由既有 ChannelProtocolAlignmentTest 守护。
 
-## R006-FF001：Dart API 面 — AuthPolicy 类型 + start 透传 + 序列化单测 + 接入文档
+## R006-FF001：Dart API 面 — AuthPolicy 类型 + start 透传 + 序列化单测 + 接入文档 `⏳ pending`
 
 - 文件：`flutter_debug_control_plane/lib/src/auth_policy.dart`（新建）+ `.../channel_protocol.dart`（修改，追加常量）+ `.../native_control_plane_bridge.dart`（修改，start 加参数）+ `flutter_debug_control_plane/lib/flutter_debug_control_plane.dart`（修改，export）+ `flutter_debug_control_plane/test/auth_policy_test.dart`（新建）+ `flutter_debug_control_plane/README.md` + `GETTING_STARTED.md`（修改，接入文档）
 - 改动类型：新建 + 修改
@@ -152,7 +152,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：参数可选缺席=现状是全链向后兼容的锚点（AC1）；`defaultPolicy` 命名避 Dart 保留字而 wire 层仍用 `"default"`（D7 两层显式映射）；文档是 FF001 编号成立的组成部分（授权策略从实现细节变显式装配声明）。
 
-## R006-BF002：跨栈验证 — 真机 e2e auto/none 策略 6 用例 + deferred 契约
+## R006-BF002：跨栈验证 — 真机 e2e auto/none 策略 6 用例 + deferred 契约 `⏳ pending`
 
 - 文件：`.dev-flow/R006/test-overrides/R006-BF002/integration-android.sh`（新建驱动，fork 自 R004-BF002）+ `.dev-flow/R006/test-overrides/R006-BF002/auth-policy-e2e.py`（新建断言脚本）+ `.dev-flow/R006/evidence/`（evidence 双写）
 - 改动类型：新建
