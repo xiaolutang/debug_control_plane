@@ -3,25 +3,32 @@
 # R006-BF002 authPolicy 策略真机 e2e 驱动(fork 自 R004-BF002
 # integration-android.sh,不回写先例产物)
 # =============================================================================
-# 契约: 设备检测 → 构建/安装(install -r 语义) → 策略 driver 会话轮转 →
-# python 断言脚本(auth-policy-e2e.py E1-E6) → evidence 双写。
+# 契约: 设备检测 → python 断言脚本(auth-policy-e2e.py E1-E6,app 模式
+# 主控按策略轮转 build/install/start/forward)→ evidence 双写。
 #
-# 与 R004 的差异:
-#   - 策略注入机制(plan 决策): example 无现成 authPolicy 注入点且
-#     example/lib 被 block,故用 test-overrides 内独立 driver 文件
-#     r006_auth_policy_driver_test.dart + --dart-define=R006_AUTH_POLICY=<v>
-#     (default/auto/none/bogus;缺席 = default 现状)。driver 不经
-#     AcceptanceController,直接用 NativeControlPlaneBridge.start(
-#     authPolicy:) 装配(R006-FF001 API 面)。
-#   - 端点发现: 既有 R004 /proc/net/tcp6 端口发现算法原样沿用(python 侧
-#     forward_plane_port 实现)。
+# 与 R004 的差异(B 方案, 2026-09-04):
+#   - 策略注入机制: example/lib/src/android_native_plane.dart 的
+#     AndroidNativePlane.start 有 opt-in 编译常量注入点
+#     String.fromEnvironment('R006_AUTH_POLICY')(auto|none 显式声明,
+#     缺席 = null = default 现状)。旧 flutter-test driver 路线
+#     (r006_auth_policy_driver_test.dart)因 plugin Kotlin 侧在
+#     flutter test 模式不注册(GeneratedPluginRegistrant 只在真实
+#     app Activity 启动)抛 MissingPluginException,已废弃删除。
+#   - python 主控每轮策略: flutter build apk --debug
+#     --dart-define=R006_AUTH_POLICY=<v> → install -r → am start -W →
+#     R004 /proc/net/tcp6 uid LISTEN 端口发现 → adb forward tcp:18080 →
+#     HTTP 断言 → force-stop。
+#   - E5 非法值: switch 注入点在 Dart 侧把 bogus 坍缩为 default(枚举
+#     不可构造非法值),fail-fast 主断言由 JVM 单测 K5 覆盖,python 侧
+#     只断言坍缩行为(401 + pending)并登记 K5 证据引用。
 #
 # 行为约定(沿用 R004/R005):
 #   - 设备缺失  : 打印 DEFERRED,双写 evidence(android + cross_stack 均
 #                 status=deferred, deferred_reason=device_required)后
 #                 exit 0(不算失败);
 #   - 多设备并存: 报错退出(非确定环境禁止盲选);
-#   - HyperOS   : 安装失败给「USB 安装」手动授权提示后重试一次。
+#   - HyperOS   : 安装失败给「USB 安装」手动授权提示后重试一次
+#                 (python install_apk 内 5s 退避重试)。
 #
 # 用法:
 #   bash .dev-flow/R006/test-overrides/R006-BF002/integration-android.sh
@@ -37,13 +44,15 @@ ANDROID_LOG="$EVIDENCE_DIR/R006-BF002-integration-android-test.log"
 CROSS_LOG="$EVIDENCE_DIR/R006-BF002-integration-cross_stack-test.log"
 WORK_DIR="$OVERRIDE_DIR/.android-work"
 EXAMPLE_DIR="$REPO_ROOT/flutter_debug_control_plane/example"
+# 包名以 build 产物实际 applicationId 为准(aapt 校正见 get_package_name)
+PACKAGE_NAME_FALLBACK="com.debugplane.debug_control_plane_acceptance_example"
 APK_PATH="$EXAMPLE_DIR/build/app/outputs/flutter-apk/app-debug.apk"
-PACKAGE_NAME_FALLBACK="com.example.debug_control_plane_acceptance_example"
 RUN_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 mkdir -p "$WORK_DIR"
 
 get_package_name() {
+  # APK 未构建时 aapt 无产物可读,优先从设备已装包校正,最后 fallback
   local pkg
   pkg="$(AAPT_BIN="${AAPT_BIN:-}" bash "$0" --internal-print-package "$APK_PATH" 2>/dev/null || true)"
   if [[ -n "$pkg" ]]; then
@@ -106,7 +115,7 @@ has_device() {
 }
 
 # --- 步骤 1:前置检测 ---------------------------------------------------------
-echo "[1/5] 检测 adb 设备 ..."
+echo "[1/3] 检测 adb 设备 ..."
 DEV_COUNT="$(has_device)"
 if (( DEV_COUNT == 0 )); then
   echo "DEFERRED: device_required(adb devices 无 device 状态行)"
@@ -125,55 +134,20 @@ DEVICE_MODEL="$(adb_cmd -s "$DEVICE_SERIAL" shell getprop ro.product.model 2>/de
 OS_VERSION="$(adb_cmd -s "$DEVICE_SERIAL" shell getprop ro.build.version.release 2>/dev/null | tr -d '\r')"
 echo "OK: $DEVICE_SERIAL ($DEVICE_MODEL, Android $OS_VERSION)"
 
-# --- 步骤 2:安装态检测(R004 install -r 语义) --------------------------------
+# --- 步骤 2:包名校正 --------------------------------------------------------
+# python 侧按策略轮转 build/install,首轮 build 前无 APK 产物;包名从
+# 设备已装包读(装过 R004-R006 任一轮的设备),否则用 fallback + 设备
+# pm list 验证,不一致即报错(fail-fast,禁止盲跑错包)。
 PACKAGE_NAME="$(get_package_name)"
-if adb_cmd -s "$DEVICE_SERIAL" shell pm list packages 2>/dev/null | grep -q "^package:${PACKAGE_NAME}$"; then
-  APK_ALREADY_INSTALLED=1
-  echo "[2/5] 包已在设备,跳过 install(免 HyperOS 安装弹窗)"
+if adb_cmd -s "$DEVICE_SERIAL" shell pm list packages 2>/dev/null |
+    grep -q "^package:${PACKAGE_NAME}$"; then
+  echo "[2/3] 包名校正: $PACKAGE_NAME(设备已装)"
 else
-  APK_ALREADY_INSTALLED=0
-  echo "[2/5] 包未安装,将执行 install -r"
+  echo "[2/3] 包名 $PACKAGE_NAME 未在设备上(首轮将 install)"
 fi
 
-# --- 步骤 3:构建 APK --------------------------------------------------------
-# 注: driver 会话经 fvm flutter test 运行(其自身会再编译注入 dart-define),
-# 此处 build apk 仅为首次 install 提供产物。
-if (( APK_ALREADY_INSTALLED == 1 )); then
-  echo "[3/5] 包已安装,跳过独立构建"
-else
-  echo "[3/5] 构建 debug APK ..."
-  (
-    cd "$EXAMPLE_DIR" &&
-      fvm flutter build apk --debug
-  ) >"$WORK_DIR/build.log" 2>&1 || {
-    echo "FAIL: flutter build apk --debug 失败,详见 $WORK_DIR/build.log" >&2
-    exit 1
-  }
-fi
-
-# --- 步骤 4:安装(install -r;快速路径跳过) ---------------------------------
-if (( APK_ALREADY_INSTALLED == 1 )); then
-  echo "[4/5] 跳过安装(包已在设备)"
-else
-  [[ -f "$APK_PATH" ]] || { echo "FAIL: 未找到 APK: $APK_PATH" >&2; exit 1; }
-  install_apk() { adb_cmd -s "$DEVICE_SERIAL" install -r "$APK_PATH"; }
-  echo "[4/5] 安装 APK(install -r)..."
-  if ! INSTALL_OUT="$(install_apk 2>&1)"; then
-    echo "WARN: 安装失败(可能被 HyperOS 拦截):"
-    echo "$INSTALL_OUT"
-    echo ">>> 请在手机上手动开启「设置 → 开发者选项 → USB 安装」后继续 ..."
-    read -r -p "已开启授权,按回车重试(仅此一次)> "
-    INSTALL_OUT="$(install_apk 2>&1)" || {
-      echo "FAIL: 重试安装仍失败:" >&2
-      echo "$INSTALL_OUT" >&2
-      exit 1
-    }
-  fi
-  echo "OK: $INSTALL_OUT"
-fi
-
-# --- 步骤 5:python e2e runner(E1-E6,策略 driver 轮转由 python 主控) -------
-echo "[5/5] 运行 auth-policy-e2e.py(E1-E6,策略注入 R006_AUTH_POLICY)..."
+# --- 步骤 3:python e2e runner(E1-E6,策略轮转由 python 主控) --------------
+echo "[3/3] 运行 auth-policy-e2e.py(E1-E6,app 模式策略轮转)..."
 E2E_LOG="$WORK_DIR/e2e-out.log"
 if python3 "$OVERRIDE_DIR/auth-policy-e2e.py" \
     --serial "$DEVICE_SERIAL" \
@@ -201,11 +175,16 @@ deferred_reason:
 
 - status: $STATUS
 - device: $DEVICE_MODEL(Android $OS_VERSION,serial $DEVICE_SERIAL)
-- 执行路径: device 检测 → flutter build apk --debug(仅首装) →
-  adb install -r → python auth-policy-e2e.py 主控 E1-E6(每策略独立
-  driver 会话: r006_auth_policy_driver_test.dart +
-  --dart-define=R006_AUTH_POLICY=auto/none/bogus/缺席;端点发现 R004
-  /proc/net/tcp6 uid LISTEN 算法 + adb forward tcp:18080)。
+- 执行路径: device 检测 → python auth-policy-e2e.py 主控 E1-E6(app
+  模式策略轮转: flutter build apk --debug
+  --dart-define=R006_AUTH_POLICY=auto/none/bogus/缺席 → adb install -r
+  → am start -W → R004 /proc/net/tcp6 uid LISTEN 端口发现 +
+  adb forward tcp:18080 → HTTP 断言 → force-stop;策略注入点在
+  example/lib/src/android_native_plane.dart 的编译常量
+  String.fromEnvironment('R006_AUTH_POLICY'),opt-in 不改产品接入面)。
+- E5 边界说明: switch 注入点只映射 auto/none,bogus 在 Dart 侧坍缩为
+  default;python 侧断言坍缩行为(401 + pending),非法值 fail-fast
+  主断言由 JVM 单测 PluginAuthPolicyTest.K5 覆盖。
 - 原始证据: test-overrides/R006-BF002/.android-work/e2e-out.log
 - deferred 回收说明: 本 log 由真机回收运行产出,覆盖 deferred 占位;
   历史 deferred 记录见 git history。

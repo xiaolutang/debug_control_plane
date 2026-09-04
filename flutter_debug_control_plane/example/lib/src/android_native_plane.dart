@@ -1,5 +1,5 @@
 import 'package:flutter_debug_control_plane/flutter_debug_control_plane.dart'
-    show BridgeCapability, NativeControlPlaneBridge;
+    show AuthPolicy, BridgeCapability, NativeControlPlaneBridge;
 
 import 'acceptance_plane.dart';
 import 'acceptance_plane_host.dart';
@@ -95,6 +95,15 @@ class AndroidNativePlane implements PlaneHost {
       address: '0.0.0.0',
       port: 0,
       appMeta: _appMeta,
+      // R006 e2e 注入点（opt-in 编译常量）：--dart-define=R006_AUTH_POLICY=
+      // auto|none 时声明策略；缺席/其他值 = 不传（default，字节级现状，
+      // 既有宿主零感知）。仅真机验收脚本使用，产品接入面在
+      // NativeControlPlaneBridge.start(authPolicy:)（见 GETTING_STARTED）。
+      authPolicy: switch (const String.fromEnvironment('R006_AUTH_POLICY')) {
+        'auto' => AuthPolicy.auto,
+        'none' => AuthPolicy.none,
+        _ => null,
+      },
     );
     for (final capability in plane.buildCapabilities()) {
       // Fresh BridgeCapability per registration (D2 single-subscription).

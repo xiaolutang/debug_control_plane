@@ -3,21 +3,37 @@ type: test-log
 task_id: R006-BF002
 layer: integration
 domain: android
-run_at: 2026-09-04T04:14:26Z
-status: deferred
+run_at: 2026-09-04T06:52:22Z
+status: pass
 exit_code: 0
-deferred_reason: device_required
+device: 23116PN5BC (Android 16, serial bc6763eb)
+deferred_reason:
 ---
 
-# Test Log: R006-BF002 (integration — DEFERRED)
+# Test Log: R006-BF002 (integration.android — authPolicy 策略 E1-E6 真机)
 
-- status: deferred
-- deferred_reason: device_required
-- reason_detail: tasks.md R006-BF002 test_tasks(integration cross_stack)
-  需要 Android 真机执行 authPolicy 策略 6 用例(E1-E6)端到端验收;
-  本次运行时 `adb devices` 无 device 状态行(实测),按 deferred 契约
-  (R003/R004/R005 模式)登记,不虚构任何真机输出。
-- 回收动作: 待设备可用时重跑
-  `bash .dev-flow/R006/test-overrides/R006-BF002/integration-android.sh`
-  (HyperOS 设备需先手动开启「USB 安装」授权),脚本将补齐 E1-E6 内容并
-  翻转为 pass/failed。
+- status: pass
+- device: 23116PN5BC(Android 16,serial bc6763eb)
+- 执行路径: device 检测 → python auth-policy-e2e.py 主控 E1-E6(app
+  模式策略轮转: flutter build apk --debug
+  --dart-define=R006_AUTH_POLICY=auto/none/bogus/缺席 → adb install -r
+  → am start -W → R004 /proc/net/tcp6 uid LISTEN 端口发现 +
+  adb forward tcp:18080 → HTTP 断言 → force-stop;策略注入点在
+  example/lib/src/android_native_plane.dart 的编译常量
+  String.fromEnvironment('R006_AUTH_POLICY'),opt-in 不改产品接入面)。
+- E5 边界说明: switch 注入点只映射 auto/none,bogus 在 Dart 侧坍缩为
+  default;python 侧断言坍缩行为(401 + pending),非法值 fail-fast
+  主断言由 JVM 单测 PluginAuthPolicyTest.K5 覆盖。
+- 原始证据: test-overrides/R006-BF002/.android-work/e2e-out.log
+- deferred 回收说明: 本 log 由真机回收运行产出,覆盖 deferred 占位;
+  历史 deferred 记录见 git history。
+
+```
+  E1 PASS: 401 → /auth/request 202 approved(auto) → claim 200 全程零人工审批
+  E2 PASS: Bearer 直连 /debug/secure-action 200
+  E3 PASS: am force-stop + 同策略重启后旧 Bearer /hello 200 authorized(auto 下持久化照常)
+  E4 PASS: none 无 token 敏感路由 200;/hello 无 authRequired(core null 放行,两宿主同构主断言)
+  E5 PASS(app 侧坍缩断言): bogus --dart-define 坍缩 default(401 + pending);非法值 fail-fast 主断言由 JVM 单测 PluginAuthPolicyTest.K5 覆盖(invalid_arguments + 不 mount,2026-09-03 gradlew test PASS)
+  E6 PASS: default 回归 无 token 401 + 授权链 pending 可达
+E2E_STATUS: pass
+```
