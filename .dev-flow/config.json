@@ -189,7 +189,7 @@
       "prefix": "R",
       "digits": 3
     },
-    "project_version": "0.5.2",
+    "project_version": "0.5.3",
     "version_bump": "patch",
     "releases": {
       "0.3.0": {
@@ -233,13 +233,19 @@
         "released_at": "2026-09-03T11:26:15+08:00"
       },
       "0.5.2": {
-        "status": "in-progress",
+        "status": "released",
         "rc_ids": [
           "R006"
         ],
         "completed_rcs": [
           "R006"
         ],
+        "released_at": "2026-09-04T15:28:50+08:00"
+      },
+      "0.5.3": {
+        "status": "in-progress",
+        "rc_ids": [],
+        "completed_rcs": [],
         "released_at": null
       }
     }
