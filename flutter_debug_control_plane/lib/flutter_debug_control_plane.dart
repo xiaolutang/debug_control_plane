@@ -17,6 +17,7 @@
 /// hard zero-change constraint — this package only consumes it.
 library flutter_debug_control_plane;
 
+export 'src/auth_policy.dart';
 export 'src/bridge_capability.dart';
 export 'src/channel_protocol.dart';
 export 'src/page_capability_scope.dart';

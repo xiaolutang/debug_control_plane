@@ -65,6 +65,14 @@ void main() {
     expectKtContains(kErrorCodeDuplicate, 'ERROR_DUPLICATE');
     expectKtContains(kErrorCodeNotRegistered, 'ERROR_NOT_REGISTERED');
     expectKtContains(kErrorCodeBindFailed, 'ERROR_BIND_FAILED');
+    expectKtContains(kErrorCodeInvalidArguments, 'ERROR_INVALID_ARGUMENTS');
+  });
+
+  test('authPolicy arg name and wire values aligned (R006-FF001)', () {
+    expectKtContains(kAuthPolicyArgName, 'AUTH_POLICY');
+    expectKtContains(kAuthPolicyDefault, 'AUTH_POLICY_DEFAULT');
+    expectKtContains(kAuthPolicyAuto, 'AUTH_POLICY_AUTO');
+    expectKtContains(kAuthPolicyNone, 'AUTH_POLICY_NONE');
   });
 }
 

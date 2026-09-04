@@ -15,7 +15,7 @@ document only specifies the **channel layer** (FF001-1).
 
 | method | args | reply |
 |---|---|---|
-| `plane.start` | `{address, port, appMeta?}` | `{uri: String?}` or PlatformException `bind_failed` (→ Dart `SocketException` errorCode=98, FF002-3) |
+| `plane.start` | `{address, port, appMeta?, authPolicy?}` | `{uri: String?}` or PlatformException `bind_failed` (→ Dart `SocketException` errorCode=98, FF002-3) / `invalid_arguments` (unknown authPolicy, R006) |
 | `plane.stop` | `{}` | `null` |
 | `capability.register` | `{capId, resources: [Decl], commands: [Decl]}` | `null`; duplicate id → error `duplicate` |
 | `capability.unregister` | `{capId}` | `null` |
@@ -54,6 +54,34 @@ the original owner stops its plane or the apps use distinct ports.
 never a `/`-joined string. `routeIndex` locates the handler by
 registration-list index (no second path-string match). Reverse-invoke
 timeout: 30s → 500 `internal_error` (decision B4).
+
+## Authorization policy (authPolicy, R006)
+
+Assembly-time decision: pass `AuthPolicy` to `NativeControlPlaneBridge.start()`
+once; the native carrier (R006-BF001 `ensurePlane`) mounts the plane with the
+selected auth shape. Absent param = current behavior (byte-compatible with
+0.5.1).
+
+| Policy | wire | Semantics | Assembly | Use case |
+|---|---|---|---|---|
+| `AuthPolicy.defaultPolicy` | `default` | Every request pops a host-side approval prompt (0.5.1 behavior) | `PluginDebugAuthManager(autoApprove=false)` | Production-adjacent debugging |
+| `AuthPolicy.auto` | `auto` | Auto-approve on submit — pending lands, then instantly approved; the host notification still fires (auditable) | `PluginDebugAuthManager(autoApprove=true)` | CI / unattended device farms |
+| `AuthPolicy.none` | `none` | No auth manager mounted — plain plane | `authManager=null` (isomorphic with a pure-Dart host) | Locked debug builds, local-only tools |
+
+```dart
+final uri = await bridge.start(
+  address: '127.0.0.1',
+  port: 18080,
+  authPolicy: AuthPolicy.auto, // omit for 0.5.1 default behavior
+);
+```
+
+- `auto`: existing python clients connect with zero changes — they still claim
+  a token, and the claim resolves instantly.
+- `none`: the plane is isomorphic with a pure-Dart host's `ControlPlane`
+  (no token dance at all on the wire).
+- Unknown wire values are impossible to construct from Dart (closed enum) and
+  fail fast natively with `invalid_arguments` (plane not mounted).
 
 ## Constants
 

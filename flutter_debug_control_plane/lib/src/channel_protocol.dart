@@ -20,7 +20,12 @@ const String kEventChannel = 'debug_control_plane/event';
 // Dart → native 正向方法（11 个）
 // ---------------------------------------------------------------------------
 
-/// 启动 native ControlPlane。args: `{address, port, appMeta?}`。
+/// 启动 native ControlPlane。args: `{address, port, appMeta?, authPolicy?}`。
+///
+/// `authPolicy`（R006-FF001，可选）：授权策略 wire 值
+/// [kAuthPolicyDefault]/[kAuthPolicyAuto]/[kAuthPolicyNone]；缺席走
+/// default 分支（0.5.1 字节兼容），非法值 native 侧 fail-fast 返回
+/// `invalid_arguments` 且 plane 不挂载。
 ///
 /// reply: `{uri: String?}`；bind 失败经 PlatformException 回
 /// SocketException 语义（FF002-3 R024 降级承接，code=`bind_failed`）。
@@ -102,6 +107,22 @@ const String kRouteKindResource = 'resource';
 const String kRouteKindCommand = 'command';
 
 // ---------------------------------------------------------------------------
+// authPolicy（plane.start 可选参数，R006-FF001）
+// ---------------------------------------------------------------------------
+
+/// `plane.start` 可选参数名（Kotlin `AUTH_POLICY`）。
+const String kAuthPolicyArgName = 'authPolicy';
+
+/// 授权策略 wire 值：现状（每次请求弹确认，0.5.1 行为）。
+const String kAuthPolicyDefault = 'default';
+
+/// 授权策略 wire 值：自动批准（落库即 approve，审计通知仍发出）。
+const String kAuthPolicyAuto = 'auto';
+
+/// 授权策略 wire 值：无鉴权（装配时不挂 authManager）。
+const String kAuthPolicyNone = 'none';
+
+// ---------------------------------------------------------------------------
 // PlatformException code（正向方法错误）
 // ---------------------------------------------------------------------------
 
@@ -113,3 +134,7 @@ const String kErrorCodeNotRegistered = 'not_registered';
 
 /// bind 失败（FF002-3 映射成 Dart SocketException(errorCode=98) 的来源）。
 const String kErrorCodeBindFailed = 'bind_failed';
+
+/// 非法参数（R006：`plane.start` 传未知 authPolicy wire 值时 native 侧
+/// fail-fast，plane 不挂载）。
+const String kErrorCodeInvalidArguments = 'invalid_arguments';

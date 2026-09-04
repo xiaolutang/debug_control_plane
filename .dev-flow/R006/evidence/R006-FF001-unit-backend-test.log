@@ -1,0 +1,39 @@
+---
+type: test-log
+task_id: R006-FF001
+layer: unit
+domain: backend
+run_at: 2026-09-04T04:35:00Z
+status: pass
+exit_code: 0
+deferred_reason:
+---
+
+# Test Log: R006-FF001 (unit.frontend)
+
+## Config Source
+- file: .dev-flow/config.json
+- path: project_capabilities.tests.unit.flutter
+
+## Test Command Source
+- command: cd flutter_debug_control_plane && fvm flutter test
+
+## Result
+- exit: 0
+- `00:00 +68: All tests passed!`（68 = 既有 62 零回归 + 新 6）
+
+## New Cases
+- test/auth_policy_test.dart（6）：
+  - T1 AuthPolicy 三值 wireName 映射（default/auto/none）
+  - T2 start() 不传 authPolicy → channel 参数表不含 authPolicy 键（containsKey isFalse，字节兼容 0.5.1）
+  - T3 start(authPolicy: auto) → 参数表含 authPolicy:"auto"
+  - T4a fromWire(null) == defaultPolicy
+  - T4b fromWire('bogus') throws ArgumentError
+  - T4c fromWire 三合法值 roundtrip
+- test/channel_protocol_alignment_test.dart（扩展 2 组断言）：
+  - kAuthPolicyArgName/Default/Auto/None ↔ Kotlin AUTH_POLICY* 逐字对齐
+  - kErrorCodeInvalidArguments ↔ ERROR_INVALID_ARGUMENTS 对齐
+
+## Regression
+- 既有 62 用例零回归（channel_protocol_alignment_test / native_control_plane_bridge_test / bridge_capability_test / page_capability_scope_test / src/**）
+- analyze：仅 1 既有 warning（example/lib，blocked 区域，与本次无关）

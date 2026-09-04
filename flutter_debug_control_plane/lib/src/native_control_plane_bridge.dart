@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:debug_control_plane/debug_control_plane.dart';
 import 'package:flutter/services.dart';
 
+import 'auth_policy.dart';
 import 'bridge_capability.dart';
 import 'channel_protocol.dart';
 
@@ -170,6 +171,13 @@ class NativeControlPlaneBridge {
 
   /// Start the native plane (`plane.start`).
   ///
+  /// [authPolicy] (R006-FF001, optional) selects the assembly-time
+  /// authorization policy: omitted → the param stays absent from the
+  /// channel payload (byte-compatible with 0.5.1, native assembles the
+  /// default policy); non-null → serialized as its lowercase
+  /// [AuthPolicy.wireName] and an unknown value fails fast natively with
+  /// `invalid_arguments` (the plane is not mounted).
+  ///
   /// Returns the bound URI, or `null` if the transport is connection-less.
   /// Native bind failure (EADDRINUSE) resurfaces as a [SocketException]
   /// shaped [PlatformException] (code [kErrorCodeBindFailed], errorCode=98)
@@ -178,11 +186,13 @@ class NativeControlPlaneBridge {
     required Object address,
     required int port,
     Map<String, Object?> Function()? appMeta,
+    AuthPolicy? authPolicy,
   }) async {
     final raw = await _channel.invokeMethod<dynamic>(kMethodPlaneStart, {
       'address': '$address',
       'port': port,
       if (appMeta != null) 'appMeta': appMeta(),
+      if (authPolicy != null) kAuthPolicyArgName: authPolicy.wireName,
     });
     final uri = (raw is Map) ? raw['uri'] : raw;
     return uri == null ? null : Uri.parse(uri as String);
