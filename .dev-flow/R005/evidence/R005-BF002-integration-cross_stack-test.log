@@ -3,7 +3,7 @@ type: test-log
 task_id: R005-BF002
 layer: integration
 domain: cross_stack
-run_at: 2026-09-01T10:21:09Z
+run_at: 2026-09-04T05:35:17Z
 status: pass
 exit_code: 0
 deferred_reason:
@@ -25,7 +25,7 @@ deferred_reason:
   (模拟器 lo0 与宿主共享,宿主直连 127.0.0.1)。
 
 ```
-  I1 PASS: claim 200 + 双侧落盘(app=1 行只含 hash;python tokens.json 有行;claim expiresAt=2026-09-08T10:22:01.053782Z)
+  I1 PASS: claim 200 + 双侧落盘(app=2 行只含 hash;python tokens.json 有行;claim expiresAt=2026-09-11T05:36:20.003434Z)
   I2 PASS: 冷重启(terminate+relaunch)后旧 Bearer /hello 200 authStatus=authorized;敏感路由 200;零 /auth/request
   I3 PASS: 截断 JSON 重启→401 invalid_token→重授权 claim 成功→沙箱文件恢复合法 JSON(且无明文)
   I4 PASS: TTL 窗口 604800s(∈[604790,604810]);过期行重启→401 invalid_token(load-discard);重授权链可达
