@@ -1,0 +1,23 @@
+---
+type: test-log
+task_id: R006-BF002
+layer: integration
+domain: cross_stack
+run_at: 2026-09-04T04:14:26Z
+status: deferred
+exit_code: 0
+deferred_reason: device_required
+---
+
+# Test Log: R006-BF002 (integration — DEFERRED)
+
+- status: deferred
+- deferred_reason: device_required
+- reason_detail: tasks.md R006-BF002 test_tasks(integration cross_stack)
+  需要 Android 真机执行 authPolicy 策略 6 用例(E1-E6)端到端验收;
+  本次运行时 `adb devices` 无 device 状态行(实测),按 deferred 契约
+  (R003/R004/R005 模式)登记,不虚构任何真机输出。
+- 回收动作: 待设备可用时重跑
+  `bash .dev-flow/R006/test-overrides/R006-BF002/integration-android.sh`
+  (HyperOS 设备需先手动开启「USB 安装」授权),脚本将补齐 E1-E6 内容并
+  翻转为 pass/failed。
