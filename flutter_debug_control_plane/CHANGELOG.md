@@ -1,3 +1,21 @@
+## 0.5.2
+
+- 新增授权策略装配 API(R006):`AuthPolicy` enum(`defaultPolicy`/`auto`/
+  `none`,Dart 保留字回避——wire 层仍为 "default")+ `NativeControlPlaneBridge
+  .start(authPolicy:)` 可选参数透传;**缺席参数 = 0.5.1 行为逐字节兼容**,
+  既有宿主零感知、零迁移。
+- `auto`(装配为 `PluginDebugAuthManager(autoApprove=true)`):授权请求落库后
+  即时批准——复用既有签发链,宿主审计通知仍发,nonce 重放幂等;适合 CI/
+  无人值守设备农场,python 客户端零改动(claim 即时resolve)。
+- `none`(装配为 `authManager=null`):与纯 Dart 宿主同构——`/hello` 响应无
+  `authRequired` 字段,敏感路由直连 200;适合锁定 debug 构建/本地工具。
+- 非法 wire 值 Kotlin 侧 fail-fast `invalid_arguments`(plane 不 mount 不
+  静默回退);Dart 闭合 enum 从构造面杜绝非法值。策略为装配期一次性决策,
+  start 后不可变(JOIN 不重建)。
+- 验收:JVM K1-K8(全套 89 tests 0 failed)+ 真机 e2e E1-E6(Xiaomi
+  Android 16,auto 直连链/Bearer/冷重启持久化/none 同构主断言/bogus 坍缩
+  +K5 fail-fast/default 回归)+ iOS 模拟器 I1-I5 回归全 PASS。
+
 ## 0.5.1
 
 - 版本对齐发布(alignment-only):插件 Android 侧与 Dart API 面本版**零改动**——

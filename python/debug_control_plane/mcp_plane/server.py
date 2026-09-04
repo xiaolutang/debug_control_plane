@@ -257,7 +257,7 @@ class McpServer:
         pool: DevicePool,
         *,
         server_name: str = "mcp-debug-bridge",
-        server_version: str = "0.5.1",
+        server_version: str = "0.5.2",
         providers: list[SemanticProvider] | None = None,
         tool_handlers: dict[str, Any] | None = None,
     ) -> None:

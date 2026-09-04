@@ -4,7 +4,7 @@
 // - local example builds may substitute the JitPack coordinate with sources.
 // Zero business deps beyond io.flutter embedding + the Kotlin core.
 group = "com.pantas.debug.controlplane.flutter"
-version = "0.5.1"
+version = "0.5.2"
 
 plugins {
     id("com.android.library")

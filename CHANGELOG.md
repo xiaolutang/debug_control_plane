@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.5.2 - 2026-09-04
+
+- Authorization policy assembly API (R006): authorization is an
+  **assembly-time decision**, not a plugin implementation detail. The
+  `plane.start` channel accepts an optional `authPolicy`
+  ("default"/"auto"/"none"); absent = 0.5.1 behavior byte-for-byte
+  (existing hosts are unaffected).
+- Kotlin assembly layer: `PluginDebugAuthManager` gains an `autoApprove`
+  flag (existing constructors unchanged) — `auto` approves each pending
+  request on landing (existing issuance reused, host notification still
+  fires, nonce replay idempotent); `none` mounts the plane without an
+  auth manager (isomorphic with pure-Dart hosts, `/hello` has no
+  `authRequired`); illegal wire values fail fast with `invalid_arguments`
+  (plane never mounts, no silent fallback); JOIN does not rebuild.
+- Flutter plugin Dart surface: `AuthPolicy` enum (`defaultPolicy` avoids
+  the Dart reserved word; wire stays "default") + `start(authPolicy:)`
+  pass-through + package export; alignment test extended (constants +
+  error codes string-identical with Kotlin).
+- Acceptance: JVM K1–K8 (89 tests, 0 failed); real-device e2e E1–E6 on
+  Xiaomi Android 16 (auto approve chain / bearer / cold-restart
+  persistence under auto / none parity — no `authRequired` field /
+  bogus collapses to default + K5 fail-fast / default regression);
+  iOS-simulator regression I1–I5 all PASS. Python MCP host: zero
+  changes (version-line alignment only).
+
 ## 0.5.1 - 2026-09-03
 
 - Dart-plane token persistence (R005): completes the 0.5.0 persistence work

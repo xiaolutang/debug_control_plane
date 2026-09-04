@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.2 - 2026-09-04
+
+- Version alignment only (no dart-core API changes this release): the
+  authorization-policy assembly API (R006 `AuthPolicy`) lives in the
+  Flutter plugin's bridge surface; dart core is consumed unchanged via
+  the `^0.5.2` dependency line.
+
 ## 0.5.1 - 2026-09-03
 
 - New token store API (R005): `DebugAuthStore` abstraction (exactly 5
