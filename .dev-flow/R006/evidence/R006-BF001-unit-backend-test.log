@@ -1,0 +1,38 @@
+---
+type: test-log
+task_id: R006-BF001
+layer: unit
+domain: backend
+run_at: 2026-09-04T04:12:00Z
+status: pass
+exit_code: 0
+deferred_reason:
+---
+
+# Test Log: R006-BF001 (unit.backend)
+
+## Config Source
+- file: .dev-flow/config.json
+- path: project_capabilities.tests.unit.android
+
+## Test Command Source
+- command: cd flutter_debug_control_plane/android && ../../kotlin/gradlew -p . testDebugUnitTest -q
+- 说明：插件 android 工程无独立 gradlew，沿 R004 test-override 脚本模式复用 kotlin/gradlew（-p 指向插件工程）
+
+## Result
+- exit: 0
+- tests=89 failed=0 skipped=0（JVM XML 聚合：build/test-results/testDebugUnitTest/*.xml）
+
+## New Cases
+- PluginAuthPolicyTest.kt 8 用例（K1-K8）：
+  - K1 plane.start 无 authPolicy → default 装配（PlaneCarrier.plane 非 null）
+  - K2 显式 default ≡ K1
+  - K3 auto → manager autoApprove=true（经 /auth/request 路由返回 status=approved）
+  - K4 none → mount authManager=null（/hello 无 authRequired）
+  - K5 authPolicy="bogus" → invalid_arguments + PlaneCarrier.plane 为 null
+  - K6 auto requestAuthorization → 202 approved + token 落 store + 审计通知发出（含 nonce 重放幂等子断言）
+  - K7 autoApprove=false 对照组 → 202 pending（现状不变）
+  - K8 auto 下 claim → token → authorize = Authorized
+
+## Regression
+- 既有 81 用例零回归（ChannelProtocolAlignmentTest / PluginDebugAuthManagerTest / DebugControlPlaneFlutterPluginTest / PluginOwnershipTest / NativeControlPlaneBridgeTest / DartCapabilityRegistryTest / FlutterWireTest 等）

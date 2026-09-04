@@ -277,6 +277,8 @@ class PluginDebugAuthManager(
     private val random: SecureRandom = SecureRandom(),
     private val defaultPendingTtlSeconds: Long = 300,
     private val defaultTokenTtlSeconds: Long = DEFAULT_TOKEN_TTL_SECONDS,
+    /** R006 auto policy assembly flag: approve pending requests instantly. */
+    private val autoApprove: Boolean = false,
 ) : DebugAuthManager {
 
     companion object {
@@ -335,6 +337,18 @@ class PluginDebugAuthManager(
             ).also(store::putPending)
         }
         bridge.requestAuthorization(pending.toWireStatus())
+        // R006 auto policy (design §4.3, D4): the host notification above is
+        // still emitted (audit), then the pending request is approved through
+        // the existing approve path. The status==pending guard keeps the nonce
+        // replay path idempotent — an already-approved replayed pending is
+        // returned as-is (approve would throw "request is not pending").
+        if (autoApprove && pending.status == "pending") {
+            approve(pending.requestId, ttlSeconds = null, clientLabel = pending.clientLabel)
+            return DebugAuthRouteResult.Ok(
+                store.pending(pending.requestId)!!.toRouteStatus(),
+                statusCode = 202,
+            )
+        }
         return DebugAuthRouteResult.Ok(pending.toRouteStatus(), statusCode = 202)
     }
 

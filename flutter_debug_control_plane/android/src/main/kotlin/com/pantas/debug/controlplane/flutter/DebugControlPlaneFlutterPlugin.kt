@@ -143,9 +143,22 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
                 val port = call.argument<Int>("port") ?: 0
                 @Suppress("UNCHECKED_CAST")
                 val appMeta = call.argument<Map<String, Any?>>("appMeta")
+                // R006: optional authPolicy. Absent keeps the default policy
+                // (byte-compatible with 0.5.1); an unknown value fails fast
+                // BEFORE the plane is started — no silent fallback (D5).
+                val authPolicy = call.argument<String>(ChannelProtocol.AUTH_POLICY)
+                    ?: ChannelProtocol.AUTH_POLICY_DEFAULT
+                if (authPolicy !in ChannelProtocol.AUTH_POLICY_VALUES) {
+                    result.error(
+                        ChannelProtocol.ERROR_INVALID_ARGUMENTS,
+                        "unknown authPolicy: $authPolicy",
+                        null,
+                    )
+                    return
+                }
                 pluginScope.launch {
                     try {
-                        val plane = ensurePlane(pluginScope, port, appMeta)
+                        val plane = ensurePlane(pluginScope, port, appMeta, authPolicy)
                         // Start-once join (R026): the Kotlin core guarantees the
                         // first call really binds and later calls join the
                         // cached result/failure — a carrier plane the Service
@@ -376,12 +389,15 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
         pluginScope: CoroutineScope,
         port: Int,
         appMeta: Map<String, Any?>?,
+        authPolicy: String,
     ): ControlPlane {
         // R026 (design §1.2): a Service-mounted carrier plane is JOINED, not
         // replaced — but the Dart-side identity fields are post-injected via
         // updateAppMeta so /hello carries them (C2). A null appMeta keeps the
         // plane's existing one (a late join without identity must not wipe
         // what the Service set).
+        // R006: the policy of an already-mounted plane is immutable — a JOIN
+        // never rebuilds its auth manager (start-time assembly semantics).
         PlaneCarrier.plane?.let {
             it.updateAppMeta(appMeta?.let { meta -> { meta } })
             return it
@@ -389,8 +405,20 @@ class DebugControlPlaneFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHa
         // Fallback self-mount (JVM / no-carrier). The Dart-requested port is
         // passed through to the transport (C4): port=0 keeps the OS-pick
         // semantics, an explicit port pins the bind.
+        // R006 (design §4.2): three-policy assembly. `default` keeps the
+        // attach-time authManager; `auto` rebuilds it over the same bridge/
+        // store with autoApprove=true; `none` mounts with no auth gate.
+        val manager = when (authPolicy) {
+            ChannelProtocol.AUTH_POLICY_NONE -> null
+            ChannelProtocol.AUTH_POLICY_AUTO -> {
+                val pluginBridge = bridge
+                    ?: throw IllegalStateException("bridge not attached for authPolicy=auto")
+                PluginDebugAuthManager(pluginBridge, authStore, autoApprove = true)
+            }
+            else -> authManager
+        }
         val transport = HttpSseTransport(pluginScope, port)
-        val plane = PlaneCarrier.mount(transport, pluginScope, authManager) { appMeta ?: emptyMap() }
+        val plane = PlaneCarrier.mount(transport, pluginScope, manager) { appMeta ?: emptyMap() }
         ownsPlane = true
         return plane
     }

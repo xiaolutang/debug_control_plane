@@ -105,6 +105,31 @@ object ChannelProtocol {
     /** Duplicate registration (mirrors Dart StateError / Kotlin require). */
     const val ERROR_DUPLICATE = "duplicate"
 
+    /**
+     * R006-BF001: invalid channel argument value (e.g. an unknown authPolicy).
+     * Fail-fast — the plane is NOT started, no silent default fallback (D5).
+     */
+    const val ERROR_INVALID_ARGUMENTS = "invalid_arguments"
+
+    // -----------------------------------------------------------------------
+    // authPolicy (R006): plane.start optional argument + wire values
+    // -----------------------------------------------------------------------
+
+    /** Optional `plane.start` argument name. Absent means [AUTH_POLICY_DEFAULT]. */
+    const val AUTH_POLICY = "authPolicy"
+
+    /** Default policy: the existing host-mediated approve/deny flow. */
+    const val AUTH_POLICY_DEFAULT = "default"
+
+    /** Auto policy: pending requests are approved instantly (R006 autoApprove). */
+    const val AUTH_POLICY_AUTO = "auto"
+
+    /** None policy: no auth gate — the plane mounts with a null auth manager. */
+    const val AUTH_POLICY_NONE = "none"
+
+    /** Legal [AUTH_POLICY] wire values. */
+    val AUTH_POLICY_VALUES = setOf(AUTH_POLICY_DEFAULT, AUTH_POLICY_AUTO, AUTH_POLICY_NONE)
+
     /** Unknown capability id. */
     const val ERROR_NOT_REGISTERED = "not_registered"
 
