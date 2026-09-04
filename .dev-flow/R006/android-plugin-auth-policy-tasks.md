@@ -152,7 +152,7 @@ contextMdPaths:
   ```
 - 改动理由/上下文：参数可选缺席=现状是全链向后兼容的锚点（AC1）；`defaultPolicy` 命名避 Dart 保留字而 wire 层仍用 `"default"`（D7 两层显式映射）；文档是 FF001 编号成立的组成部分（授权策略从实现细节变显式装配声明）。
 
-## R006-BF002：跨栈验证 — 真机 e2e auto/none 策略 6 用例 + deferred 契约 `⏳ pending`
+## R006-BF002：跨栈验证 — 真机 e2e auto/none 策略 6 用例 + deferred 契约 `✅ 已完成`
 
 - 文件：`.dev-flow/R006/test-overrides/R006-BF002/integration-android.sh`（新建驱动，fork 自 R004-BF002）+ `.dev-flow/R006/test-overrides/R006-BF002/auth-policy-e2e.py`（新建断言脚本）+ `.dev-flow/R006/evidence/`（evidence 双写）
 - 改动类型：新建
