@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.5.3 - 2026-10-08
+
+- Python MCP adapter: authorization is now a standard generic lifecycle.
+  When a protected MCP resource, command, state read, event subscription, or
+  capability refresh returns a recoverable authorization failure, it drives
+  `request → status → claim` against the App and retries the original call
+  once with the claimed Bearer token. No product capability knowledge is
+  embedded in the control plane.
+- MCP assembly guarantees a token provider for a bare `BridgeClient`, so a
+  successful claim is retained and is available to the retry and future MCP
+  processes.
+- Acceptance: protocol-shaped local App integration verifies the complete
+  `401 → request → approval → claim → Bearer retry` sequence; Python suite
+  `398 passed, 13 skipped`.
+- Kotlin, Dart, and Flutter artifacts are version-line alignment releases;
+  no behavior change outside the Python MCP adapter.
+
 ## 0.5.2 - 2026-09-04
 
 - Authorization policy assembly API (R006): authorization is an

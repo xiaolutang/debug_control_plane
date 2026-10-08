@@ -286,6 +286,51 @@ class TestDispatchRouting:
         assert mock_client.read.call_args.args == ("dev1", ["profiles"])
 
     @pytest.mark.asyncio
+    async def test_read_resource_authorizes_once_then_retries_original_operation(self, assembled):
+        srv, _mirror, mock_client, _ = assembled
+        mock_client.read.side_effect = [
+            DeviceAuthError(401, {"code": "authorization_required"}, "authorization_required"),
+            {"ok": True, "phase": "ready"},
+        ]
+        authorization = MagicMock()
+        srv._authorization = authorization  # noqa: SLF001
+
+        result = await srv.call_handler_for_test("read_resource")({
+            "device_id": "dev1",
+            "capability_id": "ai.voice",
+            "resource_path": ["ai-voice", "state"],
+        })
+
+        assert result == {"ok": True, "phase": "ready"}
+        authorization.authorize.assert_called_once_with(
+            "dev1", requested_method="GET", requested_path="/ai-voice/state"
+        )
+        assert mock_client.read.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_invoke_command_authorizes_once_then_retries_original_operation(self, assembled):
+        srv, _mirror, mock_client, _ = assembled
+        mock_client.invoke.side_effect = [
+            DeviceAuthError(401, {"code": "authorization_required"}, "authorization_required"),
+            {"ok": True},
+        ]
+        authorization = MagicMock()
+        srv._authorization = authorization  # noqa: SLF001
+
+        result = await srv.call_handler_for_test("invoke_command")({
+            "device_id": "dev1",
+            "capability_id": "ai.voice",
+            "command_path": ["ai-voice", "open"],
+            "args": {},
+        })
+
+        assert result == {"ok": True}
+        authorization.authorize.assert_called_once_with(
+            "dev1", requested_method="POST", requested_path="/ai-voice/open"
+        )
+        assert mock_client.invoke.call_count == 2
+
+    @pytest.mark.asyncio
     async def test_read_resource_forwards_selector_args_bf007(
         self, assembled
     ):
@@ -518,6 +563,8 @@ class TestDispatchRouting:
         mock_client.read.side_effect = DeviceAuthError(
             401, {"code": "authorization_required"}, "authorization_required"
         )
+        authorization = MagicMock()
+        srv._authorization = authorization  # noqa: SLF001
         emit = AsyncMock()
         monkeypatch.setattr(srv, "_emit_list_changed", emit)
         h = srv.call_handler_for_test("read_resource")
@@ -533,6 +580,9 @@ class TestDispatchRouting:
             })
 
         assert "authorization_required" in exc_info.value.error.message
+        authorization.authorize.assert_called_once_with(
+            "dev1", requested_method="GET", requested_path="/debug/status"
+        )
         assert "page capability stale" not in exc_info.value.error.message
         assert mock_client.hello.call_count == 1
         emit.assert_not_awaited()
@@ -700,11 +750,16 @@ class TestAuthErrorMapping:
         mock_client.hello.side_effect = DeviceAuthError(
             401, {"code": "token_expired"}, "token_expired"
         )
+        authorization = MagicMock()
+        srv._authorization = authorization  # noqa: SLF001
         h = srv.call_handler_for_test("list_capabilities")
         from mcp.shared.exceptions import McpError
         with pytest.raises(McpError) as ei:
             await h({"device_id": "dev1"})
         assert "token_expired" in ei.value.error.message
+        authorization.authorize.assert_called_once_with(
+            "dev1", requested_method="GET", requested_path="/hello"
+        )
         assert "re-authorize" in ei.value.error.message.lower()
 
     @pytest.mark.asyncio
@@ -1313,7 +1368,7 @@ class TestMakeApp:
         srv = assembled[0]
         app = srv._make_app()  # noqa: SLF001
         assert app.name == "mcp-debug-bridge"
-        assert app.version == "0.5.2"
+        assert app.version == "0.5.3"
 
     def test_make_app_registers_stub_provider(self, assembled):
         """★ BF008-010 (A 类): assembled fixture 注入的 _StubProvider 已注册到

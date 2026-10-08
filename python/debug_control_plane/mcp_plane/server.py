@@ -77,6 +77,7 @@ from debug_control_plane.device_discovery.discovery.usb_identity import UsbIdent
 from debug_control_plane.device_discovery.discovery.vpn_immune import VpnImmune
 
 # --- BF007 包内相对 + 跨包 device_discovery -------------------------------
+from .authorization import AuthorizationCoordinator, AuthorizationFlowError
 from .bridge_client import (
     BridgeClient,
     BridgeError,
@@ -170,6 +171,10 @@ _AUTH_CODE_ACTIONS: dict[str, str] = {
     **dict.fromkeys(("authorization_denied", "forbidden"), _DENIED_ACTION),
 }
 
+_REAUTHORIZE_CODES = frozenset(
+    ("authorization_required", "invalid_token", "token_expired", "token_revoked")
+)
+
 
 def _bridge_error_to_mcp(exc: BridgeError | DeviceUnreachable) -> McpError:
     """Translate a :class:`BridgeError` into an MCP ``isError`` result.
@@ -198,6 +203,8 @@ def _bridge_error_to_mcp(exc: BridgeError | DeviceUnreachable) -> McpError:
             f"device authorization error: auth_code={exc.code} "
             f"status={exc.status_code}{action}"
         )
+    elif isinstance(exc, AuthorizationFlowError):
+        message = f"device authorization flow failed: reason={exc.reason} — {exc}"
     elif isinstance(exc, DeviceHttpError):
         hint = ""
         # 409 real_controller_active: the phone's contract says the real pad
@@ -257,7 +264,7 @@ class McpServer:
         pool: DevicePool,
         *,
         server_name: str = "mcp-debug-bridge",
-        server_version: str = "0.5.2",
+        server_version: str = "0.5.3",
         providers: list[SemanticProvider] | None = None,
         tool_handlers: dict[str, Any] | None = None,
     ) -> None:
@@ -288,6 +295,12 @@ class McpServer:
         self._pool = pool
         self._server_name = server_name
         self._server_version = server_version
+        # This is MCP-wide infrastructure, never a business capability
+        # concern.  Ensure an entry point that constructed a bare
+        # BridgeClient can retain a token for the post-approval retry.
+        if isinstance(client, BridgeClient):
+            client.install_token_provider_if_absent(FileTokenProvider())
+        self._authorization = AuthorizationCoordinator(client)
         # ★ BF010: 外部注入 providers (server 零业务硬编码).
         for p in (providers or []):
             self._mirror.register_provider(p)
@@ -315,8 +328,6 @@ class McpServer:
         """
         client = self._client
         pool = self._pool
-        mirror = self._mirror
-
         async def _run(sync_fn, *args):
             """Run a sync BF call off the event loop + map errors to MCP.
 
@@ -353,6 +364,8 @@ class McpServer:
                 list(args.get("command_path", [])),
                 args.get("args"),
                 selector=selector,
+                requested_method="POST",
+                requested_path=list(args.get("command_path", [])),
             )
 
         async def h_read_resource(args):
@@ -362,6 +375,8 @@ class McpServer:
                 client.read,
                 args["device_id"], list(args.get("resource_path", [])),
                 selector=selector,
+                requested_method="GET",
+                requested_path=list(args.get("resource_path", [])),
             )
 
         async def h_list_capabilities(args):
@@ -378,15 +393,7 @@ class McpServer:
             # (recording them queryably instead); we surface them HERE as an
             # MCP error so "unauthorized" is never silently degraded to an
             # empty "no capabilities" answer.
-            def _probe():
-                changed = mirror.refresh(device_id)
-                auth_err = mirror.auth_error(device_id)
-                return mirror.schemas(device_id), changed, auth_err
-
-            schemas, changed, auth_err = await anyio.to_thread.run_sync(_probe)
-
-            if auth_err is not None:
-                raise _bridge_error_to_mcp(auth_err)
+            schemas, changed = await self._refresh_mirror_authorized(device_id)
 
             # Drive list_changed from this request's context (session is
             # reachable here — see module docstring spike note). Best-effort:
@@ -398,7 +405,12 @@ class McpServer:
             return _schemas_to_jsonable(schemas)
 
         async def h_get_state(args):
-            return await _run(client.read, args["device_id"], ["state"])
+            return await self._run_protected(
+                args["device_id"],
+                requested_method="GET",
+                requested_path=["state"],
+                operation=lambda: client.read(args["device_id"], ["state"]),
+            )
 
         async def h_subscribe_events(args):
             device_id = args["device_id"]
@@ -420,10 +432,12 @@ class McpServer:
                         break
                 return events
 
-            try:
-                events = await anyio.to_thread.run_sync(_drain)
-            except (BridgeError, DeviceUnreachable) as exc:
-                raise _bridge_error_to_mcp(exc) from exc
+            events = await self._run_protected(
+                device_id,
+                requested_method="GET",
+                requested_path=["events"],
+                operation=_drain,
+            )
 
             return [_event_to_jsonable(ev) for ev in events]
 
@@ -609,11 +623,71 @@ class McpServer:
         device_id: str,
     ) -> list[CapabilitySchema]:
         """Refresh an empty selector snapshot and surface auth distinctly."""
-        await anyio.to_thread.run_sync(lambda: self._mirror.refresh(device_id))
-        auth_err = self._mirror.auth_error(device_id)
-        if auth_err is not None:
-            raise _bridge_error_to_mcp(auth_err)
-        return self._mirror.schemas(device_id)
+        schemas, _changed = await self._refresh_mirror_authorized(device_id)
+        return schemas
+
+    async def _refresh_mirror_authorized(
+        self,
+        device_id: str,
+    ) -> tuple[list[CapabilitySchema], bool]:
+        """Refresh ``/hello`` and bootstrap authorization once when required."""
+        def _probe() -> tuple[list[CapabilitySchema], bool, BridgeError | None]:
+            changed = self._mirror.refresh(device_id)
+            return self._mirror.schemas(device_id), changed, self._mirror.auth_error(device_id)
+
+        schemas, changed, auth_err = await anyio.to_thread.run_sync(_probe)
+        if not isinstance(auth_err, DeviceAuthError) or auth_err.code not in _REAUTHORIZE_CODES:
+            if auth_err is not None:
+                raise _bridge_error_to_mcp(auth_err)
+            return schemas, changed
+
+        try:
+            await anyio.to_thread.run_sync(
+                lambda: self._authorization.authorize(
+                    device_id, requested_method="GET", requested_path="/hello"
+                )
+            )
+            schemas, retry_changed, retry_auth_err = await anyio.to_thread.run_sync(_probe)
+        except (BridgeError, DeviceUnreachable) as exc:
+            raise _bridge_error_to_mcp(exc) from exc
+        if retry_auth_err is not None:
+            raise _bridge_error_to_mcp(retry_auth_err)
+        return schemas, changed or retry_changed
+
+    async def _run_protected(
+        self,
+        device_id: str,
+        *,
+        requested_method: str,
+        requested_path: list[str],
+        operation,
+        preserve_errors: bool = False,
+    ):
+        """Run an App call, completing generic authorization before one retry."""
+        try:
+            return await anyio.to_thread.run_sync(operation)
+        except DeviceAuthError as exc:
+            if exc.code not in _REAUTHORIZE_CODES:
+                if preserve_errors:
+                    raise
+                raise _bridge_error_to_mcp(exc) from exc
+            try:
+                await anyio.to_thread.run_sync(
+                    lambda: self._authorization.authorize(
+                        device_id,
+                        requested_method=requested_method,
+                        requested_path="/" + "/".join(requested_path),
+                    )
+                )
+                return await anyio.to_thread.run_sync(operation)
+            except (BridgeError, DeviceUnreachable) as auth_exc:
+                if preserve_errors:
+                    raise
+                raise _bridge_error_to_mcp(auth_exc) from auth_exc
+        except (BridgeError, DeviceUnreachable) as exc:
+            if preserve_errors:
+                raise
+            raise _bridge_error_to_mcp(exc) from exc
 
     async def _run_meta_call(
         self,
@@ -621,14 +695,22 @@ class McpServer:
         device_id: str,
         *args,
         selector: dict[str, Any],
+        requested_method: str,
+        requested_path: list[str],
     ):
         """Run a meta dispatch and converge page stale App responses."""
+        def _call():
+            return sync_fn(device_id, *args, **selector)
         try:
-            return await anyio.to_thread.run_sync(
-                lambda: sync_fn(device_id, *args, **selector)
+            return await self._run_protected(
+                device_id,
+                requested_method=requested_method,
+                requested_path=requested_path,
+                operation=_call,
+                preserve_errors=True,
             )
-        except DeviceAuthError as exc:
-            raise _bridge_error_to_mcp(exc) from exc
+        except McpError:
+            raise
         except DeviceHttpError as exc:
             if _is_page_scope_error(exc):
                 await self._refresh_after_page_scope_error(device_id)

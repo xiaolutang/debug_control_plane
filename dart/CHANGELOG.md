@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.3 - 2026-10-08
+
+- Version-line alignment release. No Dart API behavior changes; Python MCP
+  authorization orchestration is the functional change in this release.
+
 ## 0.5.2 - 2026-09-04
 
 - Version alignment only (no dart-core API changes this release): the

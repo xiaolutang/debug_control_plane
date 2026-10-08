@@ -98,5 +98,6 @@ cd android && /path/to/kotlin/gradlew -p . testDebugUnitTest assembleDebug
 ```
 
 This plugin release consumes Kotlin core
-`com.github.xiaolutang:debug_control_plane:0.5.2` and is part of the aligned
-`0.5.2` Kotlin/Dart/Flutter version line.
+`com.github.xiaolutang:debug_control_plane:0.5.2` until the v0.5.3 JitPack
+build is available; the release workflow then flips this coordinate to the
+aligned `0.5.3` Kotlin/Dart/Flutter version line.

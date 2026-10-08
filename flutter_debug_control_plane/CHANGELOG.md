@@ -1,3 +1,8 @@
+## 0.5.3
+
+- Version-line alignment release. No Flutter plugin behavior changes; Python
+  MCP authorization orchestration is the functional change in this release.
+
 ## 0.5.2
 
 - 新增授权策略装配 API(R006):`AuthPolicy` enum(`defaultPolicy`/`auto`/

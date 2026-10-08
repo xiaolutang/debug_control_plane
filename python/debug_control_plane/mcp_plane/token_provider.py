@@ -29,9 +29,10 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 _SCHEMA_VERSION = 1
 _DEFAULT_PATH = Path.home() / ".debug-control-plane" / "tokens.json"

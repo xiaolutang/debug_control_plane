@@ -219,6 +219,16 @@ class BridgeClient:
         self._stream_timeout = stream_timeout
         self._token_provider = token_provider
 
+    def install_token_provider_if_absent(self, provider: DebugAuthTokenProvider) -> None:
+        """Install the MCP default token store without replacing caller policy.
+
+        Business entry points may construct a plain ``BridgeClient``.  The
+        generic MCP assembly owns its own auth lifecycle, so it must guarantee
+        that a token claimed by that lifecycle is available to the retry.
+        """
+        if self._token_provider is None:
+            self._token_provider = provider
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
