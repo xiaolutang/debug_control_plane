@@ -65,10 +65,7 @@ dependencies {
 
     // Kotlin core. Local development/test hosts may substitute this JitPack
     // coordinate with the sibling kotlin project via includeBuild.
-    // Keep the last published core while v0.5.3 JitPack is being built.
-    // The release workflow's pubdev-flip stage moves this to 0.5.3 only
-    // after the v0.5.3 tag is available from JitPack.
-    implementation("com.github.xiaolutang:debug_control_plane:0.5.2")
+    implementation("com.github.xiaolutang:debug_control_plane:0.5.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
